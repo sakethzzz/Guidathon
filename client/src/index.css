@@ -354,3 +354,76 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 @media (max-width: 900px) { .agents-room-body { grid-template-columns: 1fr; } .agent-orbit { width: min(100%, 390px); margin-top: 4px; } }
 @media (max-width: 760px) { .landing-wordmark { font-size: 45px; } .landing-lockup { font-size: 7px; letter-spacing: .23em; } .landing-cue { bottom: 24px; font-size: 9px; } .agents-room-body { padding: 16px; } .agent-room-legend { gap: 5px; } .legend-agent small { display: none; } .agent-orbit { width: min(100%, 330px); } .orbit-agent { transform: rotate(var(--angle)) translateY(-125px) rotate(calc(var(--angle) * -1)); } .orbit-core { width: 96px; height: 96px; } .orbit-core span { font-size: 25px; } }
 @media (prefers-reduced-motion: reduce) { .landing-screen.landing-exit .landing-content, .landing-screen.landing-exit .landing-wordmark, .landing-screen.landing-exit .landing-reveal-title, .landing-cue, .line-sidebar::after, .nav-item.active .nav-line::before, .nav-item.active .nav-line::after, .orbit-glow, .ring-one, .ring-two, .orbit-core { animation: none !important; } }
+
+/* Hermes model chat + role conversations */
+.hermes-room { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(280px, .88fr); gap: 22px; }
+.hermes-chat { min-width: 0; }
+.hermes-chat > h3 { max-width: 620px; margin-top: 12px; }
+.hermes-transcript { display: flex; flex-direction: column; gap: 9px; max-height: 340px; overflow-y: auto; margin: 22px 0 13px; padding-right: 4px; }
+.chat-bubble { max-width: 92%; padding: 12px 13px; border: 1px solid var(--line); border-radius: 6px; background: rgba(6, 20, 38, .64); }
+.chat-bubble.assistant { align-self: flex-start; border-color: rgba(112, 176, 237, .22); }
+.chat-bubble.user { align-self: flex-end; border-color: rgba(232, 197, 107, .25); background: rgba(232, 197, 107, .07); }
+.chat-speaker { display: flex; align-items: center; gap: 7px; color: var(--muted); font: 9px 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: .04em; }
+.chat-speaker span:last-child { color: var(--faint); }
+.chat-avatar { width: 21px; height: 21px; display: grid; place-items: center; color: #071421; border-radius: 50%; background: var(--blue); font: 12px 'DM Serif Display', serif; text-transform: none; }
+.chat-bubble.user .chat-avatar { color: var(--gold); background: rgba(232, 197, 107, .15); font: 8px 'IBM Plex Mono', monospace; }
+.chat-bubble p { color: var(--text); margin: 8px 0 0; font-size: 11px; line-height: 1.55; white-space: pre-wrap; }
+.chat-citations { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.chat-citations span { color: var(--gold); font: 8px 'IBM Plex Mono', monospace; padding: 4px 5px; border: 1px solid rgba(232, 197, 107, .23); border-radius: 3px; }
+.chat-bubble.thinking p { color: var(--gold-soft); }
+.thinking-dot { display: inline-block; width: 4px; height: 4px; margin-right: 2px; border-radius: 50%; background: var(--gold); animation: thinking-blink 1.1s ease-in-out infinite; }
+.thinking-dot:nth-child(2) { animation-delay: .18s; } .thinking-dot:nth-child(3) { animation-delay: .36s; }
+@keyframes thinking-blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+.hermes-composer { display: flex; align-items: stretch; gap: 8px; }
+.hermes-composer textarea { flex: 1; min-height: 53px; resize: vertical; }
+.hermes-composer .primary-button { align-self: stretch; white-space: nowrap; }
+.hermes-evidence { margin-top: 18px; }
+.role-chat { margin-top: 18px; padding: 12px; border: 1px solid rgba(112, 176, 237, .18); border-radius: 6px; background: rgba(2, 12, 25, .4); }
+.role-chat.accent-gold { border-color: rgba(232, 197, 107, .2); } .role-chat.accent-violet { border-color: rgba(184, 157, 255, .2); } .role-chat.accent-rose { border-color: rgba(242, 155, 189, .2); } .role-chat.accent-orange { border-color: rgba(246, 184, 117, .2); } .role-chat.accent-teal { border-color: rgba(112, 216, 203, .2); }
+.role-chat-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.role-chat-head .mono { color: var(--faint); font-size: 8px; }
+.role-chat-intro { display: flex; align-items: flex-start; gap: 9px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.role-chat-intro p { margin: 1px 0 0; }
+.role-chat-intro b { color: var(--text); }
+.role-chat-avatar { width: 25px; height: 25px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; color: #071421; background: var(--gold); font: 14px 'DM Serif Display', serif; }
+.role-chat-line { display: flex; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(153, 183, 221, .08); font-size: 9px; line-height: 1.4; }
+.role-chat-line b { flex: 0 0 48px; color: var(--gold); font: 8px 'IBM Plex Mono', monospace; text-transform: uppercase; }
+.role-chat-line span { color: var(--muted); white-space: pre-wrap; }
+.role-chat-line.user b { color: var(--blue); }
+.role-chat-input { display: flex; gap: 6px; margin-top: 10px; }
+.role-chat-input input { min-width: 0; flex: 1; height: 30px; padding: 0 9px; }
+.role-chat-input button { width: 30px; display: grid; place-items: center; border: 1px solid rgba(232, 197, 107, .35); color: var(--gold); background: rgba(232, 197, 107, .07); }
+
+/* Slower, more legible title reveal and brighter supplied storm loop */
+.storm-video { opacity: .52; }
+.app-shell::after { background: linear-gradient(115deg, rgba(3, 10, 21, .76) 0%, rgba(6, 18, 37, .48) 42%, rgba(3, 9, 20, .72) 100%); }
+.landing-screen { transition-duration: 1.65s; }
+.landing-screen.landing-exit .landing-content { animation-duration: 1.75s; }
+.landing-screen.landing-exit .landing-wordmark { animation-duration: 1.7s; }
+.landing-screen.landing-exit .landing-reveal-title { animation-duration: .95s; animation-delay: .8s; }
+.landing-screen.landing-exit .landing-cue { transition-duration: .55s; }
+
+/* Native affordances replace the thunder glyph only on things that can be clicked/typed */
+.app-shell { cursor: none; }
+.app-shell button, .app-shell a, .app-shell [role=button] { cursor: pointer !important; }
+.app-shell input, .app-shell textarea { cursor: text !important; }
+.thunder-cursor.hidden { opacity: 0; transform: translate(-9px, -13px) scale(.4); }
+
+@media (max-width: 900px) { .hermes-room { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .hermes-composer { flex-direction: column; } .hermes-composer .primary-button { min-height: 40px; } .hermes-transcript { max-height: 300px; } }
+
+/* Agent-to-agent cloud handoff */
+.handoff-transition { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; overflow: hidden; pointer-events: none; animation: handoff-fade 1.1s ease both; }
+.cloud-curtain { position: absolute; top: -15%; width: 58%; height: 130%; background: radial-gradient(ellipse at 50% 50%, rgba(94, 150, 211, .32), rgba(11, 28, 51, .82) 50%, transparent 72%); filter: blur(18px); opacity: .88; }
+.cloud-left { left: -12%; transform: translateX(-110%) rotate(8deg); animation: cloud-left 1.05s cubic-bezier(.2,.8,.25,1) both; }
+.cloud-right { right: -12%; transform: translateX(110%) rotate(-8deg); animation: cloud-right 1.05s cubic-bezier(.2,.8,.25,1) both; }
+.handoff-transition-copy { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 9px; text-align: center; animation: handoff-copy 1.1s ease both; }
+.handoff-transition-copy .mono { color: var(--gold); font-size: 9px; letter-spacing: .22em; }
+.handoff-transition-copy strong { color: #f3f7ff; font: 400 clamp(25px, 4vw, 48px) 'DM Serif Display', serif; }
+.handoff-transition-copy strong i { color: var(--gold); font-style: normal; margin: 0 12px; }
+.handoff-transition-copy small { color: var(--muted); font-size: 10px; }
+@keyframes cloud-left { from { transform: translateX(-110%) rotate(8deg); } 45% { transform: translateX(5%) rotate(1deg); } to { transform: translateX(-18%) rotate(-3deg); } }
+@keyframes cloud-right { from { transform: translateX(110%) rotate(-8deg); } 45% { transform: translateX(-5%) rotate(-1deg); } to { transform: translateX(18%) rotate(3deg); } }
+@keyframes handoff-copy { from { opacity: 0; transform: translateY(12px) scale(.96); } 35%, 72% { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(-10px) scale(1.03); } }
+@keyframes handoff-fade { from { opacity: 0; } 16% { opacity: 1; } 82% { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .handoff-transition, .cloud-left, .cloud-right, .handoff-transition-copy { animation: none !important; } .handoff-transition { display: none; } }

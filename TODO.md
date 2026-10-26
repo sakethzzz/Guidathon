@@ -52,3 +52,12 @@
 - [x] The starter RAG corpus contains cited, chunked public guidance from Devpost judging setup and MLH member-event guidelines, with stable chunk IDs and source provenance.
 - [x] The corpus scope is documented honestly as a starter set rather than a claim of a complete scrape of all hackathons.
 - [x] `vercel.json` defines a Vite static build using `pnpm build:static` and `dist/public`.
+
+## Hermes model-backed knowledge flow
+
+- [x] Hermes is the single evidence and knowledge spirit; the standalone RAG tile is removed.
+- [x] The Hermes room accepts natural-language questions, ranks verified chunks, sends the question plus citations to a server-side LLM route, renders the answer transcript, and shows attached chunk IDs and provenance.
+- [x] If the managed model route is unavailable, Hermes returns a transparent local evidence fallback instead of claiming a model answer.
+- [x] The Hermes intake panel accepts briefs, notes, and common text/source-code files for local chunking; PDF metadata remains visibly unverified until a parser is added.
+- [x] Athena, Hephaestus, and Chronos remain downstream working rooms, and Constellations adds scoped role-chat panels for every spirit.
+- [x] Agent selection creates a visible cloud-curtain handoff transition with the source and destination context.
