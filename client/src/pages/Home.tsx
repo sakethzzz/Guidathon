@@ -26,11 +26,12 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { ChangeEvent, useMemo, useRef, useState } from "react";
+import { ChangeEvent, type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 
 type AgentId = "hermes" | "rag" | "zeus" | "athena" | "hephaestus" | "chronos";
 type NavId =
   | "Overview"
+  | "Agents"
   | "Sources"
   | "Challenge Brief"
   | "Idea Lab"
@@ -91,6 +92,7 @@ const agents: Array<{
 
 const navItems: Array<{ id: NavId; label: string; icon: typeof Radar }> = [
   { id: "Overview", label: "Overview", icon: Radar },
+  { id: "Agents", label: "Agents", icon: Bot },
   { id: "Sources", label: "Sources", icon: FileText },
   { id: "Challenge Brief", label: "Challenge Brief", icon: Target },
   { id: "Idea Lab", label: "Idea Lab", icon: Sparkles },
@@ -102,57 +104,57 @@ const navItems: Array<{ id: NavId; label: string; icon: typeof Radar }> = [
 
 const seedChunks: Chunk[] = [
   {
-    id: "chunk://hackathon-brief/001",
-    source: "Hackathon judging brief",
-    heading: "What strong submissions make clear",
-    passage: "A strong submission makes the user, the painful moment, and the measurable change explicit. Judges should understand the before and after without reverse-engineering the demo.",
-    provenance: "fixture · permitted public brief · 2026",
+    id: "chunk://devpost-judging/001",
+    source: "Devpost · Step 8: Setting up judging",
+    heading: "Judging mode shapes the review workflow",
+    passage: "Devpost distinguishes offline judging, where projects can be reviewed through expos, demos, or presentations, from online judging, where judges log in and review projects using the criteria set by the organizer.",
+    provenance: "public source · https://help.devpost.com/article/131-setting-up-judging · updated 2026-09-14",
   },
   {
-    id: "chunk://hackathon-brief/002",
-    source: "Hackathon judging brief",
-    heading: "Evidence over feature volume",
-    passage: "Teams earn confidence by showing one evidence-backed workflow end to end. Feature count is less persuasive than a crisp proof that the core loop works.",
-    provenance: "fixture · permitted public brief · 2026",
+    id: "chunk://devpost-judging/002",
+    source: "Devpost · Step 8: Setting up judging",
+    heading: "Criteria, comments, and review states are explicit",
+    passage: "Online judging uses organizer-defined criteria to rate projects on a 1–5 scale. Organizers can enable judge comments, and judging cannot start until submissions are marked Judge or Do not Judge; an admin starts and finishes the process.",
+    provenance: "public source · https://help.devpost.com/article/131-setting-up-judging · updated 2026-09-14",
   },
   {
-    id: "chunk://mentor-notes/001",
-    source: "Mentor field notes",
-    heading: "Scope the first build",
-    passage: "Choose one user, one moment, and one action that can be improved in a weekend. Keep the first build narrow enough to observe with real people.",
-    provenance: "fixture · curated mentor notes · 2026",
+    id: "chunk://mlh-member-events/001",
+    source: "MLH · Member Event Guidelines",
+    heading: "A typical supported event is time-boxed",
+    passage: "MLH member events are described as 24 to 48 hours long and usually run over a weekend. Judging and prizes are expected at the end of the hackathon on Sunday unless the organizer discusses a post-event plan.",
+    provenance: "public source · https://github.com/MLH/mlh-policies/blob/main/member-event-guidelines.md · 2027 season",
   },
   {
-    id: "chunk://mentor-notes/002",
-    source: "Mentor field notes",
-    heading: "Explain the trade-off",
-    passage: "A defensible technical plan names the shortcut, the risk it creates, and the signal that would tell the team to invest in a harder path later.",
-    provenance: "fixture · curated mentor notes · 2026",
+    id: "chunk://mlh-member-events/002",
+    source: "MLH · Member Event Guidelines",
+    heading: "Access and AI policy are part of the event contract",
+    passage: "The current MLH member-event guidance emphasizes free attendance, student participation requirements, no early elimination rounds, and allowing hackers to use generative AI and LLMs.",
+    provenance: "public source · https://github.com/MLH/mlh-policies/blob/main/member-event-guidelines.md · 2027 season",
   },
 ];
 
 const initialSources: SourceRecord[] = [
   {
     id: "src-brief",
-    name: "hackathon-brief.md",
+    name: "devpost-judging.md",
     kind: "fixture",
     status: "verified",
     chunks: seedChunks.slice(0, 2),
-    detail: "Fixture corpus · cited and ready",
+    detail: "Public source · cited and ready",
   },
   {
     id: "src-notes",
-    name: "mentor-field-notes.txt",
+    name: "mlh-member-events.md",
     kind: "fixture",
     status: "verified",
     chunks: seedChunks.slice(2),
-    detail: "Fixture corpus · cited and ready",
+    detail: "Public source · cited and ready",
   },
 ];
 
 const initialActivity: Activity[] = [
   { id: "a1", agent: "hermes", action: "Opened the constellation", detail: "Waiting for your challenge context.", time: "now", state: "live" },
-  { id: "a2", agent: "rag", action: "Loaded fixture corpus", detail: "4 cited chunks are ready for retrieval.", time: "09:41", state: "complete" },
+  { id: "a2", agent: "rag", action: "Loaded public starter corpus", detail: "4 cited chunks from Devpost + MLH are ready for retrieval.", time: "09:41", state: "complete" },
   { id: "a3", agent: "zeus", action: "Integration check", detail: "MCP bridge is not connected in this demo.", time: "09:40", state: "queued" },
 ];
 
@@ -197,7 +199,30 @@ function agentById(id: AgentId) {
   return agents.find(agent => agent.id === id) ?? agents[0];
 }
 
+function playSparkSound() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const context = new AudioContextClass();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "triangle";
+    oscillator.frequency.setValueAtTime(190, context.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(620, context.currentTime + 0.055);
+    gain.gain.setValueAtTime(0.0001, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.055, context.currentTime + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.12);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.13);
+    oscillator.addEventListener("ended", () => void context.close());
+  } catch {
+    // Audio is an enhancement; blocked audio must never block the interface.
+  }
+}
+
 export default function Home() {
+  const [entered, setEntered] = useState(false);
   const [activeNav, setActiveNav] = useState<NavId>("Overview");
   const [activeAgent, setActiveAgent] = useState<AgentId>("hermes");
   const [onboardingComplete, setOnboardingComplete] = useState(false);
@@ -214,7 +239,19 @@ export default function Home() {
   const [ideaRun, setIdeaRun] = useState(false);
   const [stackRun, setStackRun] = useState(false);
   const [uploadedName, setUploadedName] = useState("");
+  const [cursor, setCursor] = useState({ x: -100, y: -100 });
+  const [trail, setTrail] = useState<Array<{ id: number; x: number; y: number }>>([]);
+  const [clickSpark, setClickSpark] = useState<{ id: number; x: number; y: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleMove = (event: MouseEvent) => {
+      setCursor({ x: event.clientX, y: event.clientY });
+      setTrail(current => [...current.slice(-13), { id: Date.now() + Math.random(), x: event.clientX, y: event.clientY }]);
+    };
+    window.addEventListener("mousemove", handleMove, { passive: true });
+    return () => window.removeEventListener("mousemove", handleMove);
+  }, []);
 
   const allChunks = useMemo(() => sources.filter(source => source.status === "verified").flatMap(source => source.chunks), [sources]);
   const selected = agentById(activeAgent);
@@ -239,6 +276,20 @@ export default function Home() {
     setActiveAgent(id);
     setActiveNav("Overview");
     pushActivity("zeus", `Routed context to ${agentById(id).name}`, `${selected.name} → ${agentById(id).name}: ${uncertainty || "open question"}`, "live");
+  };
+
+  const triggerClickSpark = (event: React.PointerEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (!target.closest("button, input, textarea, [role=button]")) return;
+    const nextSpark = { id: Date.now(), x: event.clientX, y: event.clientY };
+    setClickSpark(nextSpark);
+    playSparkSound();
+    window.setTimeout(() => setClickSpark(current => current?.id === nextSpark.id ? null : current), 620);
+  };
+
+  const enterWorkspace = () => {
+    setEntered(true);
+    playSparkSound();
   };
 
   const completeOnboarding = () => {
@@ -319,6 +370,28 @@ export default function Home() {
   };
 
   const renderRoom = () => {
+    if (activeNav === "Agents") {
+      return (
+        <div className="agents-room-body">
+          <div className="agents-room-copy">
+            <div className="section-kicker"><span className="kicker-dot gold" /> The constellation room</div>
+            <h3>Six spirits. One shared thread.</h3>
+            <p className="room-intro">Spin through the rooms and feel the handoff path. Every spirit has a bounded role, a distinct signal, and a concrete artifact to return.</p>
+            <div className="agent-room-legend">{agents.map(agent => <button key={agent.id} className={`legend-agent ${activeAgent === agent.id ? "active" : ""}`} onClick={() => selectAgent(agent.id)}><span className={`legend-dot accent-${agent.accent}`} /> {agent.name}<small>{agent.role}</small></button>)}</div>
+            <div className="handoff-strip"><Network size={14} /><span><b>Current thread:</b> {onboardingComplete ? `${event} → RAG → Athena → build` : "Hermes is waiting for the first brief."}</span></div>
+          </div>
+          <div className="agent-orbit" aria-label="Circular agent carousel">
+            <div className="orbit-glow" />
+            <div className="orbit-ring ring-one" /><div className="orbit-ring ring-two" />
+            <div className={`orbit-core accent-${selected.accent}`}><span>{selected.glyph}</span><b>{selected.name}</b><small>{selected.role}</small></div>
+            {agents.map((agent, index) => {
+              const angle = (index / agents.length) * 360 - 90;
+              return <button key={agent.id} className={`orbit-agent ${activeAgent === agent.id ? "active" : ""}`} style={{ "--angle": `${angle}deg` } as CSSProperties} onClick={() => selectAgent(agent.id)}><span className={`orbit-agent-avatar accent-${agent.accent}`}>{agent.glyph}</span><b>{agent.name}</b></button>;
+            })}
+          </div>
+        </div>
+      );
+    }
     if (activeAgent === "rag") {
       return (
         <div className="room-body rag-room">
@@ -433,8 +506,15 @@ export default function Home() {
   };
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${entered ? "has-entered" : "is-landing"}`} onPointerDown={triggerClickSpark}>
+      <video className="storm-video" autoPlay muted loop playsInline preload="auto" aria-hidden="true"><source src="/media/guidathon-storm-loop.mp4" type="video/mp4" /></video>
+      <div className="cursor-trail" aria-hidden="true">{trail.map(point => <span key={point.id} style={{ left: point.x, top: point.y }} />)}<span className="thunder-cursor" style={{ left: cursor.x, top: cursor.y }}>ϟ</span>{clickSpark && <span className="click-spark" style={{ left: clickSpark.x, top: clickSpark.y }}>✦</span>}</div>
       <div className="storm-noise" />
+      <section className={`landing-screen ${entered ? "landing-exit" : ""}`} onClick={enterWorkspace}>
+        <div className="landing-veil" />
+        <div className="landing-content"><div className="landing-sigil">✦</div><div className="landing-wordmark">GUIDA<span>THON</span></div><div className="landing-lockup">evidence / action / outcome</div><div className="landing-reveal-title">The constellation is ready.</div></div>
+        <button className="landing-cue" onClick={event => { event.stopPropagation(); enterWorkspace(); }}><span className="cue-pulse" /> click anywhere to begin</button>
+      </section>
       <header className="topbar">
         <div className="brand-lockup"><div className="brand-sigil">✦</div><div><div className="brand-wordmark">GUIDA<span>THON</span></div><div className="brand-subtitle">evidence / action / outcome</div></div></div>
         <div className="topbar-status"><span className="status-dot live" /> constellation online <span className="status-divider" /> <span className="mono">LOCAL DEMO / v0.3</span></div>
@@ -448,7 +528,7 @@ export default function Home() {
         </aside>
         <main className="workspace-main">
           <div className="workspace-heading"><div><div className="eyebrow"><span className="eyebrow-line" /> {activeNav === "Overview" ? "GUIDED JOURNEY / 01" : `WORKSPACE / ${activeNav.toUpperCase()}`}</div><h1>{activeNav === "Overview" ? "From uncertainty to a defensible build." : activeNav}</h1><p>{activeNav === "Overview" ? "A visible multi-agent path for teams who need to prove the next move, not just brainstorm it." : `The ${activeNav.toLowerCase()} room stays connected to your latest handoff.`}</p></div><div className="heading-actions"><span className="integration-pill unverified"><span className="status-dot" /> MCP bridge unverified</span><button className="icon-button"><MessageSquareText size={16} /></button></div></div>
-          <section className="agent-constellation"><div className="section-title-row"><div><div className="eyebrow small"><span className="eyebrow-line" /> agent constellation</div><h2>Choose your next room</h2></div><span className="mono constellation-count">{agents.length} spirits · 01 active</span></div><div className="agent-rail">{agents.map(agent => <button key={agent.id} className={`agent-tile ${activeAgent === agent.id ? "selected" : ""} accent-${agent.accent}`} onClick={() => selectAgent(agent.id)}><div className="agent-avatar"><span>{agent.glyph}</span><i /></div><div className="agent-tile-copy"><b>{agent.name}</b><span>{agent.role}</span></div><ChevronRight className="tile-arrow" size={15} /></button>)}</div></section>
+          <section className="agent-constellation"><div className="section-title-row"><div><div className="eyebrow small"><span className="eyebrow-line" /> agent constellation</div><h2>Choose your next room</h2></div><span className="mono constellation-count">{agents.length} spirits · 01 active</span></div><div className="agent-rail">{agents.map(agent => <button key={agent.id} className={`agent-tile ${activeAgent === agent.id ? "selected" : ""} accent-${agent.accent}`} onClick={() => selectAgent(agent.id)}><div className="agent-avatar"><span>{agent.glyph}</span><i /></div><div className="agent-tile-copy"><b>{agent.name}</b><span>{agent.role}</span></div></button>)}</div></section>
           <section className="room-panel"><div className="room-panel-top"><div className="room-title"><div className={`room-avatar accent-${selected.accent}`}>{selected.glyph}</div><div><div className="eyebrow small">current room / {selected.role.toLowerCase()}</div><h2>{selected.name}<span> · {selected.short}</span></h2></div></div><div className="room-state"><span className="status-dot live" /> working context <span className="mono">HND-{onboardingComplete ? "042" : "001"}</span></div></div><div className="handoff-banner"><ArrowUpRight size={14} /><span><b>Latest handoff</b> {onboardingComplete ? `${event} · ${team} · ${uncertainty}` : "No handoff yet. Hermes is waiting for your first brief."}</span><button onClick={() => setActiveAgent("zeus")}>inspect thread <ChevronRight size={13} /></button></div>{renderRoom()}</section>
           <section className="bottom-grid"><div className="activity-panel"><div className="panel-heading"><div><div className="eyebrow small"><span className="eyebrow-line" /> trace log</div><h3>What the constellation is doing</h3></div><span className="mono">LIVE</span></div><div className="activity-list">{activities.map(activity => { const agent = agentById(activity.agent); return <div className="activity-row" key={activity.id}><div className={`activity-icon accent-${agent.accent}`}>{agent.glyph}</div><div className="activity-copy"><div><b>{agent.name}</b><span>{activity.action}</span></div><p>{activity.detail}</p></div><div className={`activity-state ${activity.state}`}><span className="status-dot" />{activity.time}</div></div>; })}</div></div><div className="readiness-panel"><div className="panel-heading"><div><div className="eyebrow small"><span className="eyebrow-line" /> build signal</div><h3>Submission readiness</h3></div><span className="readiness-score">42%</span></div><div className="readiness-bar"><span /></div><div className="readiness-items"><span><Check size={13} /> evidence loop</span><span><Timer size={13} /> deadline mapped</span><span className="pending"><span className="pending-dot" /> demo proof missing</span></div><button className="text-button" onClick={() => switchNav("Submission Readiness")}>Open readiness room <ArrowUpRight size={14} /></button></div></section>
         </main>

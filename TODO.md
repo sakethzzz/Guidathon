@@ -34,3 +34,21 @@
 - [x] The page is responsive and readable at desktop and mobile widths.
 - [x] `/manus-routes.json` is served and matches the implemented route set.
 - [x] TypeScript and static build checks pass, and the configured preview service serves the working page.
+
+## Cinematic entry and interaction layer
+
+- [x] The supplied 5.18-second storm loop is served from `/media/guidathon-storm-loop.mp4`, plays muted and loops on the landing screen and behind the main workspace.
+- [x] The landing screen starts with only a bottom-center “click anywhere to begin” cue, then reveals the GUIDATHON wordmark with a smooth slide/sweep before exposing the workspace.
+- [x] The cursor is replaced by a lightning glyph with a glitter trail; clicking interactive controls creates a temporary spark and a short synthesized spark sound. No passive thunder sound plays.
+- [x] The line-sidebar active state has a traveling beam/pulse animation and reduced-motion support.
+
+## Dedicated agents room
+
+- [x] An Agents navigation room is available with a circular/orbital carousel for Hermes, RAG, Zeus, Athena, Hephaestus, and Chronos.
+- [x] Selecting an agent in the carousel updates the active spirit and preserves the shared handoff context.
+
+## Public-source corpus and deployment
+
+- [x] The starter RAG corpus contains cited, chunked public guidance from Devpost judging setup and MLH member-event guidelines, with stable chunk IDs and source provenance.
+- [x] The corpus scope is documented honestly as a starter set rather than a claim of a complete scrape of all hackathons.
+- [x] `vercel.json` defines a Vite static build using `pnpm build:static` and `dist/public`.
