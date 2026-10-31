@@ -303,7 +303,7 @@ export default function Home() {
     setHandoff({ from: selected.name, to: nextAgent.name });
     setActiveAgent(id);
     pushActivity("zeus", `Routed context to ${nextAgent.name}`, `${selected.name} → ${nextAgent.name}: ${uncertainty || "open question"}`, "live");
-    window.setTimeout(() => setHandoff(null), 1100);
+    window.setTimeout(() => setHandoff(null), 2100);
   };
 
   const handleCarouselMove = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -429,7 +429,7 @@ export default function Home() {
             <div className="agent-room-legend">{agents.map(agent => <button key={agent.id} className={`legend-agent ${activeAgent === agent.id ? "active" : ""}`} onClick={() => selectAgent(agent.id)}><span className={`legend-dot accent-${agent.accent}`} /> {agent.name}<small>{agent.role}</small></button>)}</div>
             <div className="handoff-strip"><Network size={14} /><span><b>Current thread:</b> {onboardingComplete ? `${event} → Hermes → Athena → build` : "Hermes is waiting for the first brief."}</span></div>
             <div className={`chatspace-launch accent-${selected.accent}`}><div className="chatspace-launch-art"><img src={selected.art} alt={`${selected.name} chibi spirit`} /><span className="chatspace-orbit-dot" /></div><div><span className="mono">NOW ACCESSING</span><strong>{selected.name} // {selected.theme}</strong><p>{selected.quote}</p></div><span className="chatspace-arrow">↗</span></div>
-            <AgentRoleChat agent={selected} />
+            <AgentRoleChat agent={selected} context={allChunks} />
           </div>
           <div className="agent-carousel-stage" aria-label="Interactive 3D circular agent carousel" onPointerMove={handleCarouselMove} onPointerLeave={() => { setCarouselPointer({ x: 0, y: 0 }); setCarouselHover(null); }}>
             <div className="carousel-stars" />
@@ -589,9 +589,16 @@ function SourceIntake({ sources, manualNote, setManualNote, addManualNote, onUpl
   );
 }
 
-function AgentRoleChat({ agent }: { agent: (typeof agents)[number] }) {
+function AgentRoleChat({ agent, context = [] }: { agent: (typeof agents)[number]; context?: Chunk[] }) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Array<{ role: "user" | "agent"; text: string }>>([]);
+  const [provider, setProvider] = useState("model route ready");
+  const agentChat = trpc.agents.chat.useMutation();
+
+  useEffect(() => {
+    setMessages([]);
+    setProvider("model route ready");
+  }, [agent.id]);
   const roleIntros: Record<AgentId, string> = {
     hermes: "I am Hermes, the guide and knowledge layer. Ask me about formats, judging, scoping, or what the current sources establish.",
     zeus: "I am Zeus, the orchestrator. I carry the brief between rooms, expose missing context, and make the next handoff explicit.",
@@ -629,17 +636,33 @@ function AgentRoleChat({ agent }: { agent: (typeof agents)[number] }) {
 
   const askRole = () => {
     const question = input.trim();
-    if (!question) return;
-    setMessages(current => [...current, { role: "user", text: question }, { role: "agent", text: roleReply(question) }]);
+    if (!question || agentChat.isPending) return;
+    setMessages(current => [...current, { role: "user", text: question }]);
     setInput("");
+    agentChat.mutate({
+      agent: agent.id,
+      question,
+      context,
+      history: messages.slice(-6).map(message => ({ role: message.role === "agent" ? "assistant" as const : "user" as const, content: message.text })),
+    }, {
+      onSuccess: result => {
+        setProvider(result.provider);
+        setMessages(current => [...current, { role: "agent", text: result.answer }]);
+      },
+      onError: () => {
+        setProvider("local role fallback");
+        setMessages(current => [...current, { role: "agent", text: roleReply(question) }]);
+      },
+    });
   };
 
   return (
     <div className={`role-chat accent-${agent.accent}`}>
-      <div className="role-chat-head"><span className="section-kicker">{agent.name}&apos;s role chat</span><span className="mono">SCOPE LOCKED</span></div>
+      <div className="role-chat-head"><span className="section-kicker">{agent.name}&apos;s role chat</span><span className="mono">{provider}</span></div>
       <div className="role-chat-intro"><span className="role-chat-avatar"><img src={agent.art} alt="" /></span><p><b>{agent.name}:</b> {roleIntros[agent.id]}<br /><em>{agent.quote}</em></p></div>
       {messages.slice(-4).map((message, index) => <div className={`role-chat-line ${message.role}`} key={`${message.role}-${index}`}><b>{message.role === "agent" ? agent.name : "you"}</b><span>{message.text}</span></div>)}
-      <div className="role-chat-input"><input value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => event.key === "Enter" && askRole()} placeholder={`Ask ${agent.name} about their role…`} /><button onClick={askRole} aria-label={`Ask ${agent.name}`}><ArrowUpRight size={14} /></button></div>
+      {agentChat.isPending && <div className="role-chat-line agent role-chat-thinking"><b>{agent.name}</b><span>Thinking through the current brief…</span></div>}
+      <div className="role-chat-input"><input value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => event.key === "Enter" && askRole()} placeholder={`Ask ${agent.name} about their role…`} disabled={agentChat.isPending} /><button onClick={askRole} aria-label={`Ask ${agent.name}`} disabled={agentChat.isPending}><ArrowUpRight size={14} /></button></div>
     </div>
   );
 }

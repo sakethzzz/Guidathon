@@ -61,3 +61,7 @@ Use the **Source intake** panel in the Hermes room. Text and common source-code 
 The project includes `vercel.json` for the static frontend build. The interactive frontend and local fallback can be deployed as static output. The live Hermes model route requires a server runtime with the managed service environment or an equivalent provider endpoint; a pure static Vercel deployment will need a serverless API adapter and provider credentials if the managed server is not used.
 
 The current managed project has Server enabled for Preview and development. MCP tools remain an optional adapter boundary: the UI shows their state honestly and does not claim external tool execution until a concrete MCP connector is configured.
+
+## Model routing
+
+All model calls stay server-side. `server/routers.ts` exposes `hermes.ask` and `agents.chat`; the browser never receives provider keys. The provider adapter attempts Gemini when `GEMINI_API_KEY` is present, then Groq when `GROQ_API_KEY` is present, and finally the managed Manus LLM route. Hermes always receives the ranked retrieved chunks plus conversation history, while the other spirits receive a role-specific system contract and answer only within their domain. The active provider is shown in each chatspace so the interface does not pretend a provider was used when it was not.

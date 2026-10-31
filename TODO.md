@@ -70,3 +70,10 @@
 - [x] Selecting a spirit opens its themed role chatspace and shows a dramatic black-cloud handoff transition.
 - [x] All five role chats now vary their replies by agent and question intent instead of repeating one generic answer.
 - [x] README documents the platform flow, server Hermes route, upload/retrieval behavior, 3D Constellations room, local development, and deployment caveat.
+
+## Model-backed role intelligence and cloud gate
+
+- [x] Agent-to-agent handoffs now use a 2.1-second opaque full-screen cloud gate with dark storm layers, smooth in/out motion, and centered context copy.
+- [x] Hermes keeps ranked retrieved chunks attached to a server-side model prompt and returns citations with the answer.
+- [x] Hermes and all five role chats now use the server-side multi-provider adapter: Gemini when configured, Groq when configured, then the managed Manus LLM fallback.
+- [x] Provider labels are visible in each role chat, and chat history resets when changing spirits so one agent never inherits another agent’s transcript.
