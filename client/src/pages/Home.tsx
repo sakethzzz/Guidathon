@@ -420,8 +420,9 @@ export default function Home() {
 
   const renderRoom = () => {
     if (activeNav === "Agents") {
+      const selectedIndex = Math.max(0, agents.findIndex(agent => agent.id === selected.id));
       return (
-        <div className="agents-room-body constellation-3d-room">
+        <div className={`agents-room-body constellation-3d-room accent-${selected.accent}`}>
           <div className="agents-room-copy">
             <div className="section-kicker"><span className="kicker-dot gold" /> Constellation // 3D access</div>
             <h3>{agents.length} spirits. One shared thread.</h3>
@@ -436,14 +437,14 @@ export default function Home() {
             <div className="carousel-3d-world" style={{ "--tilt-x": `${-carouselPointer.y * 7}deg`, "--tilt-y": `${carouselPointer.x * 9}deg` } as CSSProperties}>
               <div className="carousel-ring ring-outer" /><div className="carousel-ring ring-inner" /><div className="carousel-gate" />
               <div className={`carousel-focus accent-${selected.accent}`}><div className="focus-energy" /><img src={selected.art} alt={`${selected.name} selected spirit`} /><div className="focus-copy"><span className="mono">selected spirit</span><b>{selected.name}</b><small>ENTER CHATSPACE ↘</small></div></div>
-              <div className="agent-card-orbit">
+              <div className="agent-card-orbit" style={{ "--orbit-rotation": `${-selectedIndex * (360 / agents.length)}deg` } as CSSProperties}>
                 {agents.map((agent, index) => {
                   const angle = (index / agents.length) * 360 - 90;
                   return <button key={agent.id} className={`agent-card-3d accent-${agent.accent} ${activeAgent === agent.id ? "active" : ""} ${carouselHover === agent.id ? "hovered" : ""}`} style={{ "--card-angle": `${angle}deg`, "--card-delay": `${index * 90}ms` } as CSSProperties} onPointerEnter={() => setCarouselHover(agent.id)} onClick={() => selectAgent(agent.id)} aria-label={`Enter ${agent.name} chatspace`}><span className="agent-card-sheen" /><span className="agent-card-silhouette" /><span className="agent-portrait-frame"><img src={agent.art} alt={`${agent.name} chibi spirit face card`} /></span><span className="agent-card-footer"><b>{agent.name}</b><small>{agent.role}</small></span><span className="agent-card-index">0{index + 1}</span></button>;
                 })}
               </div>
             </div>
-            <div className="carousel-instruction"><span className="mono">DRAG / HOVER / ENTER</span><span>5 roles orbiting one brief</span></div>
+            <div className="carousel-instruction"><span className="mono">ACTIVE ORBIT // {selected.name.toUpperCase()}</span><span>select a face card to bring it forward</span></div>
           </div>
         </div>
       );
@@ -658,11 +659,14 @@ function AgentRoleChat({ agent, context = [] }: { agent: (typeof agents)[number]
 
   return (
     <div className={`role-chat accent-${agent.accent}`}>
-      <div className="role-chat-head"><span className="section-kicker">{agent.name}&apos;s role chat</span><span className="mono">{provider}</span></div>
-      <div className="role-chat-intro"><span className="role-chat-avatar"><img src={agent.art} alt="" /></span><p><b>{agent.name}:</b> {roleIntros[agent.id]}<br /><em>{agent.quote}</em></p></div>
-      {messages.slice(-4).map((message, index) => <div className={`role-chat-line ${message.role}`} key={`${message.role}-${index}`}><b>{message.role === "agent" ? agent.name : "you"}</b><span>{message.text}</span></div>)}
-      {agentChat.isPending && <div className="role-chat-line agent role-chat-thinking"><b>{agent.name}</b><span>Thinking through the current brief…</span></div>}
-      <div className="role-chat-input"><input value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => event.key === "Enter" && askRole()} placeholder={`Ask ${agent.name} about their role…`} disabled={agentChat.isPending} /><button onClick={askRole} aria-label={`Ask ${agent.name}`} disabled={agentChat.isPending}><ArrowUpRight size={14} /></button></div>
+      <div className="role-chat-head"><div><span className="section-kicker">{agent.name}&apos;s role chat</span><span className="role-chat-caption">private channel · role locked</span></div><span className="role-chat-provider"><span className="status-dot live" />{provider}</span></div>
+      <div className="role-chat-intro"><span className="role-chat-avatar"><img src={agent.art} alt="" /></span><p><b>{agent.name}</b><span>{roleIntros[agent.id]}</span><em>{agent.quote}</em></p></div>
+      <div className="role-chat-thread">
+        {!messages.length && !agentChat.isPending && <div className="role-chat-empty"><span>✦</span> Ask a role-specific question. This channel stays with {agent.name}.</div>}
+        {messages.slice(-4).map((message, index) => <div className={`role-chat-line ${message.role}`} key={`${message.role}-${index}`}><b>{message.role === "agent" ? agent.name : "you"}</b><span>{message.text}</span></div>)}
+        {agentChat.isPending && <div className="role-chat-line agent role-chat-thinking"><b>{agent.name}</b><span>Thinking through the current brief…</span></div>}
+      </div>
+      <div className="role-chat-input"><input value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => event.key === "Enter" && askRole()} placeholder={`Ask ${agent.name} about their role…`} disabled={agentChat.isPending} /><button onClick={askRole} aria-label={`Ask ${agent.name}`} disabled={agentChat.isPending}><span>send</span><ArrowUpRight size={14} /></button></div>
     </div>
   );
 }

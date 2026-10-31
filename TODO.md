@@ -77,3 +77,8 @@
 - [x] Hermes keeps ranked retrieved chunks attached to a server-side model prompt and returns citations with the answer.
 - [x] Hermes and all five role chats now use the server-side multi-provider adapter: Gemini when configured, Groq when configured, then the managed Manus LLM fallback.
 - [x] Provider labels are visible in each role chat, and chat history resets when changing spirits so one agent never inherits another agent’s transcript.
+
+## Constellations harmony pass
+
+- [x] Selecting a spirit rotates the circular orbit so that spirit becomes the front-facing active card and updates the center focus, accent glow, handoff strip, and chatspace together.
+- [x] Each agent chat is now presented as a themed console with provider status, role-locked transcript, empty state, thinking state, and an integrated send control rather than a detached utility panel.
