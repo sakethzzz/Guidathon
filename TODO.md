@@ -61,3 +61,12 @@
 - [x] The Hermes intake panel accepts briefs, notes, and common text/source-code files for local chunking; PDF metadata remains visibly unverified until a parser is added.
 - [x] Athena, Hephaestus, and Chronos remain downstream working rooms, and Constellations adds scoped role-chat panels for every spirit.
 - [x] Agent selection creates a visible cloud-curtain handoff transition with the source and destination context.
+
+## 3D Constellations upgrade
+
+- [x] The Constellations room now uses a circular-carousel-inspired 3D world with five levitating face cards rather than flat agent tiles.
+- [x] Each spirit has a generated chibi portrait asset inspired by the supplied mythological reference style, with a distinct theme, accent, quote, and card identity.
+- [x] Pointer movement tilts the 3D world; hovering a card raises the portrait, activates a sheen, and reveals a luminous silhouette treatment.
+- [x] Selecting a spirit opens its themed role chatspace and shows a dramatic black-cloud handoff transition.
+- [x] All five role chats now vary their replies by agent and question intent instead of repeating one generic answer.
+- [x] README documents the platform flow, server Hermes route, upload/retrieval behavior, 3D Constellations room, local development, and deployment caveat.

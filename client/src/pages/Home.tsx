@@ -81,12 +81,15 @@ const agents: Array<{
   short: string;
   glyph: string;
   accent: string;
+  art: string;
+  theme: string;
+  quote: string;
 }> = [
-  { id: "hermes", name: "Hermes", role: "Guide + knowledge", short: "Answers, frames, routes", glyph: "✦", accent: "blue" },
-  { id: "zeus", name: "Zeus", role: "Orchestrator", short: "Routes the next move", glyph: "ϟ", accent: "violet" },
-  { id: "athena", name: "Athena", role: "Idea analysis", short: "Tests the thesis", glyph: "Δ", accent: "rose" },
-  { id: "hephaestus", name: "Hephaestus", role: "Stack + workflow", short: "Turns plans buildable", glyph: "⌘", accent: "orange" },
-  { id: "chronos", name: "Chronos", role: "Time + submission", short: "Makes time visible", glyph: "◷", accent: "teal" },
+  { id: "hermes", name: "Hermes", role: "Guide + knowledge", short: "Answers, frames, routes", glyph: "✦", accent: "blue", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-1.webp", theme: "skyline blue", quote: "Ask the fog a better question." },
+  { id: "zeus", name: "Zeus", role: "Orchestrator", short: "Routes the next move", glyph: "ϟ", accent: "violet", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-2.webp", theme: "storm violet", quote: "Every handoff needs a keeper." },
+  { id: "athena", name: "Athena", role: "Idea analysis", short: "Tests the thesis", glyph: "Δ", accent: "rose", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-3.webp", theme: "rose strategy", quote: "A sharp idea survives contact." },
+  { id: "hephaestus", name: "Hephaestus", role: "Stack + workflow", short: "Turns plans buildable", glyph: "⌘", accent: "orange", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-4.webp", theme: "forge orange", quote: "Make the next build smaller." },
+  { id: "chronos", name: "Chronos", role: "Time + submission", short: "Makes time visible", glyph: "◷", accent: "teal", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-5.webp", theme: "tide teal", quote: "A deadline is a shape, not a threat." },
 ];
 
 const navItems: Array<{ id: NavId; label: string; icon: typeof Radar }> = [
@@ -257,6 +260,8 @@ export default function Home() {
   const [trail, setTrail] = useState<Array<{ id: number; x: number; y: number }>>([]);
   const [clickSpark, setClickSpark] = useState<{ id: number; x: number; y: number } | null>(null);
   const [handoff, setHandoff] = useState<{ from: string; to: string } | null>(null);
+  const [carouselPointer, setCarouselPointer] = useState({ x: 0, y: 0 });
+  const [carouselHover, setCarouselHover] = useState<AgentId | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hermesAsk = trpc.hermes.ask.useMutation();
 
@@ -299,6 +304,11 @@ export default function Home() {
     setActiveAgent(id);
     pushActivity("zeus", `Routed context to ${nextAgent.name}`, `${selected.name} → ${nextAgent.name}: ${uncertainty || "open question"}`, "live");
     window.setTimeout(() => setHandoff(null), 1100);
+  };
+
+  const handleCarouselMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setCarouselPointer({ x: ((event.clientX - bounds.left) / bounds.width - 0.5) * 2, y: ((event.clientY - bounds.top) / bounds.height - 0.5) * 2 });
   };
 
   const triggerClickSpark = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -411,23 +421,29 @@ export default function Home() {
   const renderRoom = () => {
     if (activeNav === "Agents") {
       return (
-        <div className="agents-room-body">
+        <div className="agents-room-body constellation-3d-room">
           <div className="agents-room-copy">
-            <div className="section-kicker"><span className="kicker-dot gold" /> The constellation room</div>
+            <div className="section-kicker"><span className="kicker-dot gold" /> Constellation // 3D access</div>
             <h3>{agents.length} spirits. One shared thread.</h3>
-            <p className="room-intro">Spin through the rooms and feel the handoff path. Every spirit has a bounded role, a distinct signal, and a concrete artifact to return.</p>
+            <p className="room-intro">Hover a spirit to tilt its face card and reveal its silhouette. Click one to enter its role-locked chatspace and carry the brief through the cloud gate.</p>
             <div className="agent-room-legend">{agents.map(agent => <button key={agent.id} className={`legend-agent ${activeAgent === agent.id ? "active" : ""}`} onClick={() => selectAgent(agent.id)}><span className={`legend-dot accent-${agent.accent}`} /> {agent.name}<small>{agent.role}</small></button>)}</div>
             <div className="handoff-strip"><Network size={14} /><span><b>Current thread:</b> {onboardingComplete ? `${event} → Hermes → Athena → build` : "Hermes is waiting for the first brief."}</span></div>
+            <div className={`chatspace-launch accent-${selected.accent}`}><div className="chatspace-launch-art"><img src={selected.art} alt={`${selected.name} chibi spirit`} /><span className="chatspace-orbit-dot" /></div><div><span className="mono">NOW ACCESSING</span><strong>{selected.name} // {selected.theme}</strong><p>{selected.quote}</p></div><span className="chatspace-arrow">↗</span></div>
             <AgentRoleChat agent={selected} />
           </div>
-          <div className="agent-orbit" aria-label="Circular agent carousel">
-            <div className="orbit-glow" />
-            <div className="orbit-ring ring-one" /><div className="orbit-ring ring-two" />
-            <div className={`orbit-core accent-${selected.accent}`}><span>{selected.glyph}</span><b>{selected.name}</b><small>{selected.role}</small></div>
-            {agents.map((agent, index) => {
-              const angle = (index / agents.length) * 360 - 90;
-              return <button key={agent.id} className={`orbit-agent ${activeAgent === agent.id ? "active" : ""}`} style={{ "--angle": `${angle}deg` } as CSSProperties} onClick={() => selectAgent(agent.id)}><span className={`orbit-agent-avatar accent-${agent.accent}`}>{agent.glyph}</span><b>{agent.name}</b></button>;
-            })}
+          <div className="agent-carousel-stage" aria-label="Interactive 3D circular agent carousel" onPointerMove={handleCarouselMove} onPointerLeave={() => { setCarouselPointer({ x: 0, y: 0 }); setCarouselHover(null); }}>
+            <div className="carousel-stars" />
+            <div className="carousel-3d-world" style={{ "--tilt-x": `${-carouselPointer.y * 7}deg`, "--tilt-y": `${carouselPointer.x * 9}deg` } as CSSProperties}>
+              <div className="carousel-ring ring-outer" /><div className="carousel-ring ring-inner" /><div className="carousel-gate" />
+              <div className={`carousel-focus accent-${selected.accent}`}><div className="focus-energy" /><img src={selected.art} alt={`${selected.name} selected spirit`} /><div className="focus-copy"><span className="mono">selected spirit</span><b>{selected.name}</b><small>ENTER CHATSPACE ↘</small></div></div>
+              <div className="agent-card-orbit">
+                {agents.map((agent, index) => {
+                  const angle = (index / agents.length) * 360 - 90;
+                  return <button key={agent.id} className={`agent-card-3d accent-${agent.accent} ${activeAgent === agent.id ? "active" : ""} ${carouselHover === agent.id ? "hovered" : ""}`} style={{ "--card-angle": `${angle}deg`, "--card-delay": `${index * 90}ms` } as CSSProperties} onPointerEnter={() => setCarouselHover(agent.id)} onClick={() => selectAgent(agent.id)} aria-label={`Enter ${agent.name} chatspace`}><span className="agent-card-sheen" /><span className="agent-card-silhouette" /><span className="agent-portrait-frame"><img src={agent.art} alt={`${agent.name} chibi spirit face card`} /></span><span className="agent-card-footer"><b>{agent.name}</b><small>{agent.role}</small></span><span className="agent-card-index">0{index + 1}</span></button>;
+                })}
+              </div>
+            </div>
+            <div className="carousel-instruction"><span className="mono">DRAG / HOVER / ENTER</span><span>5 roles orbiting one brief</span></div>
           </div>
         </div>
       );
@@ -576,25 +592,52 @@ function SourceIntake({ sources, manualNote, setManualNote, addManualNote, onUpl
 function AgentRoleChat({ agent }: { agent: (typeof agents)[number] }) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Array<{ role: "user" | "agent"; text: string }>>([]);
-  const roleAnswers: Record<AgentId, string> = {
-    hermes: "I am Hermes, the guide and knowledge layer. Ask me about hackathon formats, judging, scoping, or what the current sources establish. I will keep facts, citations, and next actions distinct.",
-    zeus: "I am Zeus, the orchestrator. I do not invent the specialist answer; I carry the brief between rooms, expose what is missing, and make the next handoff explicit.",
-    athena: "I am Athena, the idea pressure tester. I compare hypotheses by user value, proof, and scope, then recommend the smallest idea worth testing.",
-    hephaestus: "I am Hephaestus, the builder. I turn the selected direction into a practical stack, workflow, and integration boundary that can survive a demo.",
-    chronos: "I am Chronos, the timekeeper. I turn the build into dated milestones, owners, and a submission sequence so the team can see what must happen next.",
+  const roleIntros: Record<AgentId, string> = {
+    hermes: "I am Hermes, the guide and knowledge layer. Ask me about formats, judging, scoping, or what the current sources establish.",
+    zeus: "I am Zeus, the orchestrator. I carry the brief between rooms, expose missing context, and make the next handoff explicit.",
+    athena: "I am Athena, the idea pressure tester. I compare hypotheses by user value, proof, and scope before recommending a direction.",
+    hephaestus: "I am Hephaestus, the builder. I turn a selected direction into a practical stack, workflow, and integration boundary.",
+    chronos: "I am Chronos, the timekeeper. I turn the build into dated milestones, owners, and a submission sequence.",
+  };
+
+  const roleReply = (question: string) => {
+    const lower = question.toLowerCase();
+    if (agent.id === "hermes") {
+      if (lower.includes("judge") || lower.includes("criteria")) return "For judging, start with the organizer’s explicit criteria and the review mode. I can attach the current Devpost chunks and separate sourced facts from your team’s interpretation.";
+      if (lower.includes("idea") || lower.includes("build")) return "For an idea, give me one user, one painful moment, and one observable improvement. I will help frame the smallest defensible version before Athena pressure-tests it.";
+      return "I will answer from the verified corpus when it matches, then label general guidance separately. Try asking about hackathon formats, judging, teams, or demo scope.";
+    }
+    if (agent.id === "zeus") {
+      if (lower.includes("next") || lower.includes("route")) return "The next route is Hermes for evidence, Athena for a thesis, Hephaestus for the build boundary, then Chronos for the submission clock. I keep that order visible.";
+      if (lower.includes("missing") || lower.includes("context")) return "The missing handoff fields are usually the target user, proof signal, owner, or deadline. I would stop the route until the missing field is named.";
+      return "I coordinate movement, not specialist opinions. Give me the current uncertainty and I will identify which spirit should own the next decision.";
+    }
+    if (agent.id === "athena") {
+      if (lower.includes("choose") || lower.includes("best") || lower.includes("idea")) return "Choose the idea with the clearest proof in the available time, not the largest feature list. I score each option on user pain, evidence, and demo focus.";
+      if (lower.includes("novel") || lower.includes("different")) return "Novelty is useful only when it creates a sharper outcome. Keep the unusual mechanism, but narrow the promise until one person can feel the improvement.";
+      return "I respond with a thesis, trade-off, and proof plan. Ask me to compare two ideas or to make a broad concept weekend-sized.";
+    }
+    if (agent.id === "hephaestus") {
+      if (lower.includes("stack") || lower.includes("tech")) return "Start with the smallest stack that makes the core loop visible: React + TypeScript for the workspace, a server boundary for model calls, and a vector store only when the corpus earns it.";
+      if (lower.includes("mcp") || lower.includes("tool")) return "MCP should sit behind one adapter boundary. Keep tool schemas explicit, log every call, and let Zeus decide when a tool is safe to invoke.";
+      return "I turn the decision into components, data boundaries, and a build order. Ask about stack, architecture, MCP, or what to cut before the demo.";
+    }
+    if (lower.includes("deadline") || lower.includes("time")) return "Work backward from submission: freeze the idea first, prove the core loop second, record the demo third, and leave a final buffer for the submission form.";
+    if (lower.includes("schedule") || lower.includes("task")) return "Give every task an owner, an observable done signal, and a latest safe finish. Chronos will not accept a milestone that only says ‘work on it’.";
+    return "I make time visible. Ask about deadlines, sequencing, task ownership, or how to protect the final demo window.";
   };
 
   const askRole = () => {
     const question = input.trim();
     if (!question) return;
-    setMessages(current => [...current, { role: "user", text: question }, { role: "agent", text: `${roleAnswers[agent.id]}\n\nFor this role, your question points to: ${question}` }]);
+    setMessages(current => [...current, { role: "user", text: question }, { role: "agent", text: roleReply(question) }]);
     setInput("");
   };
 
   return (
     <div className={`role-chat accent-${agent.accent}`}>
       <div className="role-chat-head"><span className="section-kicker">{agent.name}&apos;s role chat</span><span className="mono">SCOPE LOCKED</span></div>
-      <div className="role-chat-intro"><span className="role-chat-avatar">{agent.glyph}</span><p><b>{agent.name}:</b> {roleAnswers[agent.id]}</p></div>
+      <div className="role-chat-intro"><span className="role-chat-avatar"><img src={agent.art} alt="" /></span><p><b>{agent.name}:</b> {roleIntros[agent.id]}<br /><em>{agent.quote}</em></p></div>
       {messages.slice(-4).map((message, index) => <div className={`role-chat-line ${message.role}`} key={`${message.role}-${index}`}><b>{message.role === "agent" ? agent.name : "you"}</b><span>{message.text}</span></div>)}
       <div className="role-chat-input"><input value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => event.key === "Enter" && askRole()} placeholder={`Ask ${agent.name} about their role…`} /><button onClick={askRole} aria-label={`Ask ${agent.name}`}><ArrowUpRight size={14} /></button></div>
     </div>
