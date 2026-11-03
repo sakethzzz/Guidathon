@@ -92,3 +92,11 @@
 - [x] Athena’s Idea Lab accepts the user’s problem or idea and requests scaled alternatives, a recommendation, and a proof experiment through the live agent model route.
 - [x] The message button opens a user-to-admin support channel inside the site.
 - [x] Blue/gold flakes and translucent motion remain part of the global storm field, with reduced-motion support inherited from the existing animation system.
+
+## Live provider and immersive 3D pass
+
+- [x] Gemini is the preferred live provider for Hermes and Athena; Groq is the preferred live provider for Zeus, Hephaestus, and Chronos, with explicit managed-model fallback when a provider credential is unavailable.
+- [x] The Constellations room now has a real Three.js ShaderMaterial atmosphere, pointer parallax, continuous drift, drag-to-rotate, release snapping, hover pause, and click-to-focus behavior inspired by ReactBits Circular Carousel and GSAP Draggable.
+- [x] Athena, Zeus, Hephaestus, and Chronos each expose a themed role-locked model chat inside their dedicated room rather than relying on a generic shared panel.
+- [x] Chronos progress now reflects the current readiness score and project completion signals instead of a fixed progress value.
+- [x] Thunder ambience starts only after workspace entry, then cues approximately every seven seconds and again at storm-loop boundaries so browser autoplay restrictions are respected.

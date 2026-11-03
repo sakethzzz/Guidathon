@@ -30,6 +30,7 @@ import { trpc } from "@/lib/trpc";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import * as THREE from "three";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -243,6 +244,62 @@ function playSparkSound() {
   }
 }
 
+function playThunderRumble() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const context = new AudioContextClass();
+    if (context.state === "suspended") void context.resume();
+    const now = context.currentTime;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(58, now);
+    oscillator.frequency.exponentialRampToValueAtTime(34, now + 1.05);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.075, now + 0.06);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.15);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 1.2);
+    oscillator.addEventListener("ended", () => void context.close());
+  } catch {
+    // Audio may be blocked until a user gesture; the visual storm remains usable.
+  }
+}
+
+function ShaderConstellation({ pointer }: { pointer: { x: number; y: number } }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pointerRef = useRef(pointer);
+  pointerRef.current = pointer;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let renderer: THREE.WebGLRenderer;
+    try { renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true }); } catch { return; }
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const material = new THREE.ShaderMaterial({
+      transparent: true,
+      uniforms: { uTime: { value: 0 }, uPointer: { value: new THREE.Vector2() } },
+      vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position,1.0); }`,
+      fragmentShader: `uniform float uTime; uniform vec2 uPointer; varying vec2 vUv; void main(){ vec2 p=vUv-.5; p.x*=1.2; float d=length(p); float pulse=.5+.5*sin(uTime*.65+d*14.0); float halo=smoothstep(.54,.08,d)*(0.18+0.12*pulse); float flare=smoothstep(.12,.0,length(p-uPointer*.18))*.22; vec3 blue=vec3(.15,.48,.95); vec3 gold=vec3(.91,.72,.28); vec3 col=mix(blue,gold,smoothstep(.45,.0,d)); gl_FragColor=vec4(col,halo+flare); }`,
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+    scene.add(mesh);
+    const resize = () => { const rect = canvas.getBoundingClientRect(); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.setSize(rect.width, rect.height, false); };
+    resize();
+    window.addEventListener("resize", resize);
+    let frame = 0;
+    const render = (time: number) => { material.uniforms.uTime.value = time * 0.001; material.uniforms.uPointer.value.set(pointerRef.current.x, pointerRef.current.y); renderer.render(scene, camera); frame = requestAnimationFrame(render); };
+    frame = requestAnimationFrame(render);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener("resize", resize); material.dispose(); mesh.geometry.dispose(); renderer.dispose(); };
+  }, []);
+
+  return <canvas ref={canvasRef} className="shader-constellation" aria-hidden="true" />;
+}
+
 export default function Home() {
   const [entered, setEntered] = useState(false);
   const [activeNav, setActiveNav] = useState<NavId>("Overview");
@@ -277,7 +334,10 @@ export default function Home() {
   const [handoff, setHandoff] = useState<{ from: string; to: string } | null>(null);
   const [carouselPointer, setCarouselPointer] = useState({ x: 0, y: 0 });
   const [carouselHover, setCarouselHover] = useState<AgentId | null>(null);
+  const [carouselRotation, setCarouselRotation] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const carouselDrag = useRef<{ x: number; rotation: number; moved: boolean } | null>(null);
+  const stormVideoRef = useRef<HTMLVideoElement>(null);
   const hermesAsk = trpc.hermes.ask.useMutation();
   const ideaAsk = trpc.agents.chat.useMutation();
 
@@ -294,6 +354,25 @@ export default function Home() {
       window.removeEventListener("mouseover", handleOver);
     };
   }, []);
+
+  useEffect(() => {
+    if (!entered) return;
+    const thunderTimer = window.setInterval(playThunderRumble, 7000);
+    const video = stormVideoRef.current;
+    let previousTime = 0;
+    const handleLoop = () => {
+      if (video && video.currentTime + 0.2 < previousTime) playThunderRumble();
+      if (video) previousTime = video.currentTime;
+    };
+    video?.addEventListener("timeupdate", handleLoop);
+    return () => { window.clearInterval(thunderTimer); video?.removeEventListener("timeupdate", handleLoop); };
+  }, [entered]);
+
+  useEffect(() => {
+    if (!entered || activeNav !== "Agents" || carouselHover || carouselDrag.current) return;
+    const driftTimer = window.setInterval(() => setCarouselRotation(current => current - 0.42), 32);
+    return () => window.clearInterval(driftTimer);
+  }, [entered, activeNav, carouselHover]);
 
   const allChunks = useMemo(() => sources.filter(source => source.status === "verified").flatMap(source => source.chunks), [sources]);
   const selected = agentById(activeAgent);
@@ -317,6 +396,8 @@ export default function Home() {
 
   const selectAgent = (id: AgentId) => {
     const nextAgent = agentById(id);
+    const nextIndex = agents.findIndex(agent => agent.id === id);
+    setCarouselRotation(-nextIndex * (360 / agents.length));
     setHandoff({ from: selected.name, to: nextAgent.name });
     setActiveAgent(id);
     pushActivity("zeus", `Routed context to ${nextAgent.name}`, `${selected.name} → ${nextAgent.name}: ${uncertainty || "open question"}`, "live");
@@ -326,6 +407,29 @@ export default function Home() {
   const handleCarouselMove = (event: React.PointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
     setCarouselPointer({ x: ((event.clientX - bounds.left) / bounds.width - 0.5) * 2, y: ((event.clientY - bounds.top) / bounds.height - 0.5) * 2 });
+  };
+
+  const handleCarouselPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if ((event.target as HTMLElement).closest("button")) return;
+    carouselDrag.current = { x: event.clientX, rotation: carouselRotation, moved: false };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleCarouselDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!carouselDrag.current) return;
+    const delta = event.clientX - carouselDrag.current.x;
+    if (Math.abs(delta) > 4) carouselDrag.current.moved = true;
+    setCarouselRotation(carouselDrag.current.rotation + delta * 0.48);
+  };
+
+  const handleCarouselPointerUp = () => {
+    if (!carouselDrag.current) return;
+    const step = 360 / agents.length;
+    const snapped = Math.round(carouselRotation / step) * step;
+    const index = ((Math.round(-snapped / step) % agents.length) + agents.length) % agents.length;
+    setCarouselRotation(snapped);
+    if (carouselDrag.current.moved) selectAgent(agents[index].id);
+    carouselDrag.current = null;
   };
 
   const triggerClickSpark = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -365,6 +469,7 @@ export default function Home() {
     pushActivity("hermes", "Retrieved source chunks", ranked.length ? `${ranked.length} chunks attached to the model request.` : "No matching chunk; Hermes will label the answer as general guidance.", "live");
     hermesAsk.mutate({
       question,
+      provider: "gemini",
       context: ranked,
       history: hermesMessages.slice(-6).map(message => ({ role: message.role, content: message.content })),
     }, {
@@ -500,19 +605,20 @@ export default function Home() {
             <div className={`chatspace-launch accent-${selected.accent}`}><div className="chatspace-launch-art"><img src={selected.art} alt={`${selected.name} chibi spirit`} /><span className="chatspace-orbit-dot" /></div><div><span className="mono">NOW ACCESSING</span><strong>{selected.name} // {selected.theme}</strong><p>{selected.quote}</p></div><span className="chatspace-arrow">↗</span></div>
             <AgentRoleChat agent={selected} context={allChunks} />
           </div>
-          <div className="agent-carousel-stage" aria-label="Interactive 3D circular agent carousel" onPointerMove={handleCarouselMove} onPointerLeave={() => { setCarouselPointer({ x: 0, y: 0 }); setCarouselHover(null); }}>
+          <div className="agent-carousel-stage" aria-label="Interactive 3D circular agent carousel" onPointerMove={event => { handleCarouselMove(event); handleCarouselDrag(event); }} onPointerDown={handleCarouselPointerDown} onPointerUp={handleCarouselPointerUp} onPointerCancel={handleCarouselPointerUp} onPointerLeave={() => { setCarouselPointer({ x: 0, y: 0 }); setCarouselHover(null); if (carouselDrag.current) handleCarouselPointerUp(); }}>
             <div className="carousel-stars" />
+            <ShaderConstellation pointer={carouselPointer} />
             <div className="carousel-3d-world" style={{ "--tilt-x": `${-carouselPointer.y * 7}deg`, "--tilt-y": `${carouselPointer.x * 9}deg` } as CSSProperties}>
               <div className="carousel-ring ring-outer" /><div className="carousel-ring ring-inner" /><div className="carousel-gate" />
               <div className={`carousel-focus accent-${selected.accent}`}><div className="focus-energy" /><img src={selected.art} alt={`${selected.name} selected spirit`} /><div className="focus-copy"><span className="mono">selected spirit</span><b>{selected.name}</b><small>ENTER CHATSPACE ↘</small></div></div>
-              <div className="agent-card-orbit" style={{ "--orbit-rotation": `${-selectedIndex * (360 / agents.length)}deg` } as CSSProperties}>
+              <div className="agent-card-orbit" style={{ "--orbit-rotation": `${carouselRotation}deg` } as CSSProperties}>
                 {agents.map((agent, index) => {
                   const angle = (index / agents.length) * 360 - 90;
                   return <button key={agent.id} className={`agent-card-3d accent-${agent.accent} ${activeAgent === agent.id ? "active" : ""} ${carouselHover === agent.id ? "hovered" : ""}`} style={{ "--card-angle": `${angle}deg`, "--card-delay": `${index * 90}ms` } as CSSProperties} onPointerEnter={() => setCarouselHover(agent.id)} onClick={() => selectAgent(agent.id)} aria-label={`Enter ${agent.name} chatspace`}><span className="agent-card-sheen" /><span className="agent-card-silhouette" /><span className="agent-portrait-frame"><img src={agent.art} alt={`${agent.name} chibi spirit face card`} /></span><span className="agent-card-footer"><b>{agent.name}</b><small>{agent.role}</small></span><span className="agent-card-index">0{index + 1}</span></button>;
                 })}
               </div>
             </div>
-            <div className="carousel-instruction"><span className="mono">ACTIVE ORBIT // {selected.name.toUpperCase()}</span><span>select a face card to bring it forward</span></div>
+            <div className="carousel-instruction"><span className="mono">ACTIVE ORBIT // {selected.name.toUpperCase()}</span><span>drag to rotate · hover to tilt · click to focus</span></div>
           </div>
         </div>
       );
@@ -550,9 +656,10 @@ export default function Home() {
               <div className="hypothesis"><div className="hypothesis-top"><span className="hypothesis-index">02</span><span className="muted-label">wider bet</span></div><h4>Autonomous team planner</h4><p>Route the entire team from brief to tasks, but risk hiding where judgment enters.</p><div className="hypothesis-foot"><span>Impact <b>high</b></span><span>Scope <b>wide</b></span><span>Proof <b>mixed</b></span></div></div>
               <div className="hypothesis"><div className="hypothesis-top"><span className="hypothesis-index">03</span><span className="muted-label">safe bet</span></div><h4>Hermes answer desk</h4><p>Answer event questions with citations, but underplays the agent handoff story.</p><div className="hypothesis-foot"><span>Impact <b>medium</b></span><span>Scope <b>focused</b></span><span>Proof <b>clear</b></span></div></div>
             </div>
-            <button className="primary-button" onClick={() => { setIdeaRun(true); pushActivity("athena", "Recommended a direction", "Evidence-first mentor · high impact / focused scope", "complete"); }}><WandSparkles size={16} /> {ideaRun ? "Recommendation locked" : "Ask Athena to decide"}</button>
+            <div className="idea-lab-input"><textarea value={ideaInput} onChange={event => setIdeaInput(event.target.value)} placeholder="Add your idea or problem statement for Athena to scale…" rows={3} /><button className="primary-button" onClick={runAthenaScale} disabled={ideaAsk.isPending}><WandSparkles size={16} /> {ideaAsk.isPending ? "Athena is comparing" : ideaRun ? "Scale again" : "Scale this idea"}</button></div>
+            {ideaResponse && <div className="idea-response"><span className="mono">ATHENA / MODEL OUTPUT</span><p>{ideaResponse}</p></div>}
           </div>
-          <div className="decision-card"><div className="decision-icon"><Sparkles size={18} /></div><div><span className="section-kicker">Athena&apos;s read</span><h3>Make the evidence loop the product.</h3><p>Your uncertainty is scope, not novelty. The defensible move is to prove that a team can move from ambiguity to a cited, buildable decision in minutes.</p><div className="decision-line"><Check size={14} /> Handoff ready for Hephaestus</div></div></div>
+          <div><div className="decision-card"><div className="decision-icon"><Sparkles size={18} /></div><div><span className="section-kicker">Athena&apos;s read</span><h3>Make the evidence loop the product.</h3><p>Your uncertainty is scope, not novelty. The defensible move is to prove that a team can move from ambiguity to a cited, buildable decision in minutes.</p><div className="decision-line"><Check size={14} /> Handoff ready for Hephaestus</div></div></div><AgentRoleChat agent={agentById("athena")} context={allChunks} /></div>
         </div>
       );
     }
@@ -569,7 +676,7 @@ export default function Home() {
             </div>
             <button className="primary-button" onClick={() => { setStackRun(true); pushActivity("hephaestus", "Proposed the build stack", "React + TypeScript + Hermes retrieval now; MCP + vector store next.", "complete"); }}><Zap size={16} /> {stackRun ? "Stack staged" : "Stage technical plan"}</button>
           </div>
-          <div className="architecture-card"><div className="architecture-top"><span className="section-kicker">Architecture signal</span><span className="integration-pill mocked">local demo</span></div><div className="architecture-flow"><span>source intake</span><ChevronRight size={14} /><span>chunk store</span><ChevronRight size={14} /><span>agent router</span><ChevronRight size={14} /><span>output</span></div><p>No hidden calls. Every boundary is inspectable now; the future server adapter can replace one node at a time.</p><div className="architecture-note"><CircleHelp size={14} /> MCP bridge unavailable · not represented as connected</div></div>
+          <div><div className="architecture-card"><div className="architecture-top"><span className="section-kicker">Architecture signal</span><span className="integration-pill mocked">model route</span></div><div className="architecture-flow"><span>source intake</span><ChevronRight size={14} /><span>chunk store</span><ChevronRight size={14} /><span>agent router</span><ChevronRight size={14} /><span>output</span></div><p>No hidden calls. Every boundary is inspectable now; the live Hephaestus channel can explain what to cut before the demo.</p><div className="architecture-note"><CircleHelp size={14} /> MCP bridge optional · model chat active</div></div><AgentRoleChat agent={agentById("hephaestus")} context={allChunks} /></div>
         </div>
       );
     }
@@ -584,7 +691,7 @@ export default function Home() {
             <div className="task-list">{tasks.map(task => <div className="task-row" key={task.title}><div className={`task-check ${task.status === "done" ? "checked" : ""}`}>{task.status === "done" && <Check size={12} />}</div><div className="task-main"><b>{task.title}</b><span>{task.owner} · {task.date}</span></div><span className={`task-status ${task.status}`}>{task.status}</span></div>)}</div>
             <button className="primary-button" onClick={() => pushActivity("chronos", "Published the next deadline", "Lock one user + painful moment · Today at 18:00", "complete")}><CalendarClock size={16} /> Publish next deadline</button>
           </div>
-          <div className="countdown-card"><span className="section-kicker">Submission window</span><div className="countdown">48<span>h</span> 12<span>m</span></div><p>until the demo cut-off</p><div className="progress-line"><span /></div><div className="countdown-foot"><span>1 / 4 milestones complete</span><span className="mono">42%</span></div></div>
+          <div><div className="countdown-card"><span className="section-kicker">Submission window</span><div className="countdown">48<span>h</span> 12<span>m</span></div><p>until the demo cut-off</p><div className="progress-line"><span style={{ width: `${Math.max(18, readinessScore)}%` }} /></div><div className="countdown-foot"><span>{Math.round(readinessScore / 24)} / 4 milestones complete</span><span className="mono">{readinessScore}%</span></div></div><AgentRoleChat agent={agentById("chronos")} context={allChunks} /></div>
         </div>
       );
     }
@@ -599,7 +706,7 @@ export default function Home() {
             <div className="route-map"><div className="route-node done"><span>01</span><b>Hermes</b><small>context captured</small></div><div className="route-connector active" /><div className="route-node active"><span>02</span><b>Hermes model</b><small>answer + evidence</small></div><div className="route-connector" /><div className="route-node"><span>03</span><b>Athena</b><small>pressure-test idea</small></div><div className="route-connector" /><div className="route-node"><span>04</span><b>Hephaestus</b><small>make it buildable</small></div></div>
             <div className="handoff-strip"><Inbox size={14} /><span><b>Carrying forward:</b> {uncertainty}</span></div>
           </div>
-          <div className="orchestration-card"><Network size={20} /><span className="section-kicker">Signal integrity</span><strong>3 handoffs visible</strong><p>Each room can inspect the prior room&apos;s context. No agent is a black box in this demo.</p><div className="integration-pill mocked">MCP / model calls · unavailable</div></div>
+          <div><div className="orchestration-card"><Network size={20} /><span className="section-kicker">Signal integrity</span><strong>3 handoffs visible</strong><p>Each room can inspect the prior room&apos;s context. Zeus coordinates the live model route and makes missing inputs explicit.</p><div className="integration-pill mocked">Gemini / Groq fallback route</div></div><AgentRoleChat agent={agentById("zeus")} context={allChunks} /></div>
         </div>
       );
     }
@@ -620,7 +727,7 @@ export default function Home() {
 
   return (
     <div className={`app-shell theme-${themeMode} ${entered ? "has-entered" : "is-landing"}`} onPointerDown={triggerClickSpark}>
-      <video className="storm-video" autoPlay muted loop playsInline preload="auto" aria-hidden="true"><source src="/media/guidathon-storm-loop.mp4" type="video/mp4" /></video>
+      <video ref={stormVideoRef} className="storm-video" autoPlay muted loop playsInline preload="auto" aria-hidden="true"><source src="/media/guidathon-storm-loop.mp4" type="video/mp4" /></video>
       <div className="cursor-trail" aria-hidden="true">{trail.map(point => <span key={point.id} style={{ left: point.x, top: point.y }} />)}<span className={`thunder-cursor ${hoveringInteractive ? "hidden" : ""}`} style={{ left: cursor.x, top: cursor.y }}>ϟ</span>{clickSpark && <span className="click-spark" style={{ left: clickSpark.x, top: clickSpark.y }}>✦</span>}</div>
       <div className="storm-noise" />
       {handoff && <div className="handoff-transition" aria-live="polite"><div className="cloud-curtain cloud-left" /><div className="cloud-curtain cloud-right" /><div className="handoff-transition-copy"><span className="mono">CONTEXT IN MOTION</span><strong>{handoff.from} <i>→</i> {handoff.to}</strong><small>carrying the latest brief forward</small></div></div>}
@@ -731,6 +838,7 @@ function AgentRoleChat({ agent, context = [] }: { agent: (typeof agents)[number]
     agentChat.mutate({
       agent: agent.id,
       question,
+      provider: agent.id === "hermes" || agent.id === "athena" ? "gemini" : "groq",
       context,
       history: messages.slice(-6).map(message => ({ role: message.role === "agent" ? "assistant" as const : "user" as const, content: message.text })),
     }, {

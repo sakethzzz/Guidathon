@@ -617,3 +617,26 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 @keyframes modal-in { from { opacity: 0; } to { opacity: 1; } }
 @media (max-width: 900px) { .source-room, .submission-room, .settings-room { grid-template-columns: 1fr; } .overview-stack-heading { flex-direction: column; align-items: start; } }
 @media (max-width: 620px) { .overview-stack-section { padding: 17px; } .overview-stack-card { grid-template-columns: 22px 54px 1fr 14px; gap: 8px; } .overview-stack-card img { width: 54px; height: 54px; } .overview-stack-card b { font-size: 17px; } .overview-stack-card p { font-size: 9px; } .about-modal, .admin-modal { padding: 22px; } .about-actions { flex-direction: column; align-items: stretch; } }
+
+/* Shader-backed, draggable ReactBits-inspired constellation */
+.agent-carousel-stage { position: relative; touch-action: none; user-select: none; cursor: grab; }
+.agent-carousel-stage:active { cursor: grabbing; }
+.shader-constellation { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; opacity: .82; pointer-events: none; mix-blend-mode: screen; }
+.carousel-3d-world, .carousel-instruction { z-index: 1; }
+.carousel-3d-world { cursor: grab; }
+.carousel-3d-world:active { cursor: grabbing; }
+.agent-card-orbit { transition: transform .75s cubic-bezier(.16,.82,.25,1); will-change: transform; }
+.agent-card-3d { user-select: none; -webkit-user-drag: none; }
+.agent-card-3d .agent-card-sheen { opacity: .15; transition: opacity .25s ease, transform .25s ease; }
+.agent-card-3d:hover .agent-card-sheen, .agent-card-3d.hovered .agent-card-sheen { opacity: .9; transform: translateX(12px) rotate(14deg); }
+.carousel-instruction { position: relative; pointer-events: none; }
+.carousel-instruction span:last-child { color: var(--muted); }
+.idea-lab-input { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+.idea-lab-input textarea { width: 100%; resize: vertical; border: 1px solid rgba(242,155,189,.26); border-radius: 6px; color: var(--text); background: rgba(26,8,22,.34); padding: 10px; font-size: 11px; }
+.idea-lab-input textarea:focus { outline: none; border-color: var(--rose); }
+.idea-response { margin-top: 14px; padding: 13px; border: 1px solid rgba(242,155,189,.3); border-radius: 6px; background: radial-gradient(circle at 20% 0, rgba(242,155,189,.12), transparent 55%), rgba(16,7,20,.45); animation: response-arrive .45s ease both; }
+.idea-response .mono { color: var(--rose); }
+.idea-response p { white-space: pre-wrap; margin: 8px 0 0; color: var(--text); font-size: 11px; line-height: 1.55; }
+.role-chat-provider { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes response-arrive { from { opacity: 0; transform: translateY(8px); filter: blur(3px); } to { opacity: 1; transform: translateY(0); filter: blur(0); } }
+@media (prefers-reduced-motion: reduce) { .agent-card-orbit { transition: none; } .shader-constellation { display: none; } .idea-response { animation: none; } }
