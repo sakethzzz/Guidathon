@@ -27,6 +27,11 @@ import {
 } from "lucide-react";
 import { ChangeEvent, type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger, useGSAP);
 
 type AgentId = "hermes" | "zeus" | "athena" | "hephaestus" | "chronos";
 type NavId =
@@ -91,6 +96,7 @@ const agents: Array<{
   { id: "hephaestus", name: "Hephaestus", role: "Stack + workflow", short: "Turns plans buildable", glyph: "⌘", accent: "orange", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-4.webp", theme: "forge orange", quote: "Make the next build smaller." },
   { id: "chronos", name: "Chronos", role: "Time + submission", short: "Makes time visible", glyph: "◷", accent: "teal", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-5.webp", theme: "tide teal", quote: "A deadline is a shape, not a threat." },
 ];
+type AgentRecord = (typeof agents)[number];
 
 const navItems: Array<{ id: NavId; label: string; icon: typeof Radar }> = [
   { id: "Overview", label: "Overview", icon: Radar },
@@ -255,6 +261,15 @@ export default function Home() {
   const [ideaRun, setIdeaRun] = useState(false);
   const [stackRun, setStackRun] = useState(false);
   const [uploadedName, setUploadedName] = useState("");
+  const [themeMode, setThemeMode] = useState<"dark" | "light">("dark");
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [adminInput, setAdminInput] = useState("");
+  const [adminMessages, setAdminMessages] = useState<Array<{ role: "user" | "admin"; text: string }>>([]);
+  const [ideaInput, setIdeaInput] = useState("");
+  const [ideaResponse, setIdeaResponse] = useState("");
+  const [submissionInput, setSubmissionInput] = useState("");
+  const [submissionResult, setSubmissionResult] = useState("");
   const [cursor, setCursor] = useState({ x: -100, y: -100 });
   const [hoveringInteractive, setHoveringInteractive] = useState(false);
   const [trail, setTrail] = useState<Array<{ id: number; x: number; y: number }>>([]);
@@ -264,6 +279,7 @@ export default function Home() {
   const [carouselHover, setCarouselHover] = useState<AgentId | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hermesAsk = trpc.hermes.ask.useMutation();
+  const ideaAsk = trpc.agents.chat.useMutation();
 
   useEffect(() => {
     const handleMove = (event: MouseEvent) => {
@@ -282,6 +298,7 @@ export default function Home() {
   const allChunks = useMemo(() => sources.filter(source => source.status === "verified").flatMap(source => source.chunks), [sources]);
   const selected = agentById(activeAgent);
   const readyCount = sources.filter(source => source.status === "verified").length;
+  const readinessScore = Math.min(96, 26 + (challenge.trim().length > 24 ? 14 : 0) + readyCount * 8 + (ideaRun ? 16 : 0) + (stackRun ? 14 : 0) + (submissionInput.trim() ? 14 : 0));
   const activeNavAgent: Partial<Record<NavId, AgentId>> = {
     Sources: "hermes",
     "Challenge Brief": "hermes",
@@ -412,6 +429,45 @@ export default function Home() {
     pushActivity("hermes", "Accepted a manual note", "The note is being chunked before it can influence answers.", "live");
   };
 
+  const runAthenaScale = () => {
+    const prompt = ideaInput.trim() || challenge;
+    if (!prompt || ideaAsk.isPending) return;
+    setIdeaResponse("");
+    ideaAsk.mutate({
+      agent: "athena",
+      question: `Scale and improve this hackathon problem or idea: ${prompt}. Current team context: ${team}. Give three sharper variants, choose one, and explain the smallest proof experiment.`,
+      context: allChunks,
+      history: [],
+    }, {
+      onSuccess: result => {
+        setIdeaResponse(result.answer);
+        setIdeaRun(true);
+        pushActivity("athena", "Scaled the submitted idea", "Generated alternatives, selected a focused thesis, and attached a proof move.", "complete");
+      },
+      onError: () => {
+        setIdeaResponse("Athena could not reach the model route. Keep the idea narrow: one user, one painful moment, one proof signal, one demo path.");
+      },
+    });
+  };
+
+  const runSubmissionCheck = () => {
+    const value = submissionInput.trim();
+    if (!value) return;
+    const looksLikeRepo = /github\.com|gitlab\.com|bitbucket\.org/i.test(value);
+    const checks = looksLikeRepo
+      ? "Repo link detected. Zeus will inspect the submission path, README, deploy signal, and demo proof next. Add a live URL if the repo is already deployed."
+      : "Submission files detected. Zeus will look for a clear README, runnable entrypoint, environment notes, and a short demo path."
+    setSubmissionResult(checks);
+    pushActivity("zeus", "Re-ran submission readiness", `${looksLikeRepo ? "Repository" : "Files"} received; live correction list updated.`, "complete");
+  };
+
+  const sendAdminMessage = () => {
+    const value = adminInput.trim();
+    if (!value) return;
+    setAdminMessages(current => [...current, { role: "user", text: value }, { role: "admin", text: "Thanks — your issue is in the admin queue. I’ll review the relevant room, model state, and handoff trace and respond here." }]);
+    setAdminInput("");
+  };
+
   const switchNav = (id: NavId) => {
     setActiveNav(id);
     const mappedAgent = activeNavAgent[id];
@@ -419,6 +475,18 @@ export default function Home() {
   };
 
   const renderRoom = () => {
+    if (activeNav === "Overview") {
+      return <OverviewStack agents={agents} onSelect={id => { setActiveAgent(id); setActiveNav(id === "hermes" ? "Overview" : "Agents"); }} />;
+    }
+    if (activeNav === "Sources") {
+      return <div className="room-body source-room"><SourceIntake sources={sources} manualNote={manualNote} setManualNote={setManualNote} addManualNote={addManualNote} onUpload={() => fileInputRef.current?.click()} uploadedName={uploadedName} /><div className="source-inspector"><div className="section-kicker"><span className="kicker-dot gold" /> Evidence ledger</div><h3>{allChunks.length} chunks ready for Hermes</h3><p className="room-intro">Every verified passage remains inspectable before it reaches a model response.</p>{allChunks.map(chunk => <div className="chunk-card" key={chunk.id}><div className="chunk-meta"><span className="mono chunk-id">{chunk.id}</span><span className="score">verified</span></div><h4>{chunk.heading}</h4><p>{chunk.passage}</p><div className="chunk-source"><Link2 size={12} /> {chunk.source}</div></div>)}</div></div>;
+    }
+    if (activeNav === "Submission Readiness") {
+      return <div className="room-body submission-room"><div className="submission-intake"><div className="section-kicker"><span className="kicker-dot violet" /> Zeus submission desk</div><h3>Give Zeus the repo or the latest files.</h3><p className="room-intro">Drop a repository link, deployment URL, or file note. Zeus keeps the correction list live as your submission changes.</p><textarea value={submissionInput} onChange={event => setSubmissionInput(event.target.value)} placeholder="https://github.com/you/project or describe the files you updated…" rows={4} /><div className="submission-actions"><button className="primary-button" onClick={runSubmissionCheck}><Radar size={16} /> Run readiness pass</button><button className="upload-button" onClick={() => fileInputRef.current?.click()}><UploadCloud size={15} /> Add files</button></div>{submissionResult && <div className="submission-result"><span className="status-dot live" /><p>{submissionResult}</p></div>}</div><div className="readiness-orbit"><div className="readiness-score-large">{readinessScore}<span>%</span></div><span className="section-kicker">live readiness signal</span><div className="readiness-bar"><span style={{ width: `${readinessScore}%` }} /></div><div className="readiness-items"><span><Check size={13} /> {readyCount} evidence sources</span><span><Check size={13} /> {ideaRun ? "idea selected" : "idea needs a pass"}</span><span><Check size={13} /> {stackRun ? "stack staged" : "stack needs a pass"}</span></div></div></div>;
+    }
+    if (activeNav === "Settings") {
+      return <div className="room-body settings-room"><div className="settings-card"><div className="section-kicker"><span className="kicker-dot gold" /> Workspace controls</div><h3>Shape the constellation to your working style.</h3><div className="setting-row"><div><b>Theme field</b><p>Switch between the storm console and a clear light workspace.</p></div><button className={`theme-switch ${themeMode}`} onClick={() => setThemeMode(mode => mode === "dark" ? "light" : "dark")}><span /> {themeMode === "dark" ? "dark storm" : "light field"}</button></div><div className="setting-row"><div><b>Interaction sound</b><p>Click-only spark and rumble; no passive audio.</p></div><span className="integration-pill unverified">enabled</span></div></div><div className="history-card"><div className="section-kicker"><span className="kicker-dot blue" /> Agent history</div><h3>What the spirits have done</h3><div className="history-log">{activities.map(activity => <div className="history-row" key={activity.id}><span className="mono">{activity.time}</span><b>{agentById(activity.agent).name}</b><span>{activity.action} — {activity.detail}</span></div>)}</div></div></div>;
+    }
     if (activeNav === "Agents") {
       const selectedIndex = Math.max(0, agents.findIndex(agent => agent.id === selected.id));
       return (
@@ -551,7 +619,7 @@ export default function Home() {
   };
 
   return (
-    <div className={`app-shell ${entered ? "has-entered" : "is-landing"}`} onPointerDown={triggerClickSpark}>
+    <div className={`app-shell theme-${themeMode} ${entered ? "has-entered" : "is-landing"}`} onPointerDown={triggerClickSpark}>
       <video className="storm-video" autoPlay muted loop playsInline preload="auto" aria-hidden="true"><source src="/media/guidathon-storm-loop.mp4" type="video/mp4" /></video>
       <div className="cursor-trail" aria-hidden="true">{trail.map(point => <span key={point.id} style={{ left: point.x, top: point.y }} />)}<span className={`thunder-cursor ${hoveringInteractive ? "hidden" : ""}`} style={{ left: cursor.x, top: cursor.y }}>ϟ</span>{clickSpark && <span className="click-spark" style={{ left: clickSpark.x, top: clickSpark.y }}>✦</span>}</div>
       <div className="storm-noise" />
@@ -564,7 +632,7 @@ export default function Home() {
       <header className="topbar">
         <div className="brand-lockup"><div className="brand-sigil">✦</div><div><div className="brand-wordmark">GUIDA<span>THON</span></div><div className="brand-subtitle">evidence / action / outcome</div></div></div>
         <div className="topbar-status"><span className="status-dot live" /> constellation online <span className="status-divider" /> <span className="mono">LOCAL DEMO / v0.3</span></div>
-        <button className="help-button" aria-label="Help"><CircleHelp size={17} /></button>
+        <button className="help-button" aria-label="What is GUIDATHON?" onClick={() => setAboutOpen(true)}><CircleHelp size={17} /></button>
       </header>
       <div className="workspace-shell">
         <aside className="line-sidebar">
@@ -573,15 +641,35 @@ export default function Home() {
           <div className="sidebar-bottom"><div className="agent-mini"><div className="mini-avatar hermes">H</div><div><b>Hermes</b><span>guide room</span></div><span className="online-dot" /></div><button className="settings-link" onClick={() => switchNav("Settings")}><Settings2 size={14} /> Workspace settings</button></div>
         </aside>
         <main className="workspace-main">
-          <div className="workspace-heading"><div><div className="eyebrow"><span className="eyebrow-line" /> {activeNav === "Overview" ? "GUIDED JOURNEY / 01" : `WORKSPACE / ${activeNav.toUpperCase()}`}</div><h1>{activeNav === "Overview" ? "From uncertainty to a defensible build." : activeNav === "Agents" ? "Constellations" : activeNav}</h1><p>{activeNav === "Overview" ? "A visible multi-agent path for teams who need to prove the next move, not just brainstorm it." : `The ${activeNav === "Agents" ? "constellation" : activeNav.toLowerCase()} room stays connected to your latest handoff.`}</p></div><div className="heading-actions"><span className="integration-pill unverified"><span className="status-dot live" /> Hermes model active · MCP optional</span><button className="icon-button"><MessageSquareText size={16} /></button></div></div>
+          <div className="workspace-heading"><div><div className="eyebrow"><span className="eyebrow-line" /> {activeNav === "Overview" ? "GUIDED JOURNEY / 01" : `WORKSPACE / ${activeNav.toUpperCase()}`}</div><h1>{activeNav === "Overview" ? "From uncertainty to a defensible build." : activeNav === "Agents" ? "Constellations" : activeNav}</h1><p>{activeNav === "Overview" ? "A visible multi-agent path for teams who need to prove the next move, not just brainstorm it." : `The ${activeNav === "Agents" ? "constellation" : activeNav.toLowerCase()} room stays connected to your latest handoff.`}</p></div><div className="heading-actions"><span className="integration-pill unverified"><span className="status-dot live" /> Hermes model active · MCP optional</span><button className="icon-button" aria-label="Message admin" onClick={() => setAdminOpen(true)}><MessageSquareText size={16} /></button></div></div>
           <section className="agent-constellation"><div className="section-title-row"><div><div className="eyebrow small"><span className="eyebrow-line" /> agent constellation</div><h2>Choose your next room</h2></div><span className="mono constellation-count">{agents.length} spirits · 01 active</span></div><div className="agent-rail">{agents.map(agent => <button key={agent.id} className={`agent-tile ${activeAgent === agent.id ? "selected" : ""} accent-${agent.accent}`} onClick={() => selectAgent(agent.id)}><div className="agent-avatar"><span>{agent.glyph}</span><i /></div><div className="agent-tile-copy"><b>{agent.name}</b><span>{agent.role}</span></div></button>)}</div></section>
           <section className="room-panel"><div className="room-panel-top"><div className="room-title"><div className={`room-avatar accent-${selected.accent}`}>{selected.glyph}</div><div><div className="eyebrow small">current room / {selected.role.toLowerCase()}</div><h2>{selected.name}<span> · {selected.short}</span></h2></div></div><div className="room-state"><span className="status-dot live" /> working context <span className="mono">HND-{onboardingComplete ? "042" : "001"}</span></div></div><div className="handoff-banner"><ArrowUpRight size={14} /><span><b>Latest handoff</b> {onboardingComplete ? `${event} · ${team} · ${uncertainty}` : "No handoff yet. Hermes is waiting for your first brief."}</span><button onClick={() => setActiveAgent("zeus")}>inspect thread <ChevronRight size={13} /></button></div>{renderRoom()}</section>
           <section className="bottom-grid"><div className="activity-panel"><div className="panel-heading"><div><div className="eyebrow small"><span className="eyebrow-line" /> trace log</div><h3>What the constellation is doing</h3></div><span className="mono">LIVE</span></div><div className="activity-list">{activities.map(activity => { const agent = agentById(activity.agent); return <div className="activity-row" key={activity.id}><div className={`activity-icon accent-${agent.accent}`}>{agent.glyph}</div><div className="activity-copy"><div><b>{agent.name}</b><span>{activity.action}</span></div><p>{activity.detail}</p></div><div className={`activity-state ${activity.state}`}><span className="status-dot" />{activity.time}</div></div>; })}</div></div><div className="readiness-panel"><div className="panel-heading"><div><div className="eyebrow small"><span className="eyebrow-line" /> build signal</div><h3>Submission readiness</h3></div><span className="readiness-score">42%</span></div><div className="readiness-bar"><span /></div><div className="readiness-items"><span><Check size={13} /> evidence loop</span><span><Timer size={13} /> deadline mapped</span><span className="pending"><span className="pending-dot" /> demo proof missing</span></div><button className="text-button" onClick={() => switchNav("Submission Readiness")}>Open readiness room <ArrowUpRight size={14} /></button></div></section>
         </main>
       </div>
       <input ref={fileInputRef} type="file" className="hidden-file-input" onChange={handleFile} accept=".txt,.md,.csv,.json,.html,.css,.js,.jsx,.ts,.tsx,.py,.java,.go,.rs,.yaml,.yml,text/*,.pdf" />
+      {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
+      {adminOpen && <AdminMessageModal input={adminInput} setInput={setAdminInput} messages={adminMessages} onSend={sendAdminMessage} onClose={() => setAdminOpen(false)} />}
     </div>
   );
+}
+
+function OverviewStack({ agents, onSelect }: { agents: AgentRecord[]; onSelect: (id: AgentId) => void }) {
+  const stackRef = useRef<HTMLElement>(null);
+  useGSAP(() => {
+    const cards = gsap.utils.toArray<HTMLElement>(".overview-stack-card");
+    gsap.fromTo(cards, { y: 70, opacity: 0, rotateX: 9 }, { y: 0, opacity: 1, rotateX: 0, stagger: .12, duration: .85, ease: "power3.out", scrollTrigger: { trigger: stackRef.current, start: "top 78%", end: "bottom 30%", scrub: .8 } });
+    return () => ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+  }, { scope: stackRef });
+  return <section ref={stackRef} className="overview-stack-section"><div className="overview-stack-heading"><div><div className="section-kicker"><span className="kicker-dot gold" /> Guided journey // scroll to assemble</div><h3>Five spirits. One visible path.</h3><p>Each card is a live contract. Scroll through the stack to see what the constellation carries from question to submission.</p></div><div className="overview-motto"><span className="mono">GUIDATHON MOTTO</span><strong>Make the next move defensible.</strong></div></div><div className="overview-stack-cards">{agents.map((agent, index) => <button className={`overview-stack-card accent-${agent.accent}`} key={agent.id} onClick={() => onSelect(agent.id)}><span className="stack-card-number">0{index + 1}</span><img src={agent.art} alt={`${agent.name} spirit`} /><div><span className="mono">{agent.role}</span><b>{agent.name}</b><p>{agent.short}. {agent.quote}</p></div><ArrowUpRight size={16} /></button>)}</div><div className="overview-footer-note"><Sparkles size={15} /> Blue and gold signal marks move when the work has an observable artifact.</div></section>;
+}
+
+function AboutModal({ onClose }: { onClose: () => void }) {
+  return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="About GUIDATHON"><div className="about-modal"><button className="modal-close" onClick={onClose} aria-label="Close"><X size={16} /></button><span className="section-kicker"><span className="kicker-dot gold" /> What is this site for?</span><h2>A mentorship constellation for teams under a deadline.</h2><p>GUIDATHON helps a hackathon team move from an uncertain brief to a cited decision, a buildable stack, and a submission-safe timeline. The spirits are not a column of fake assistants: each owns a decision and leaves a handoff artifact for the next room.</p><div className="creator-card"><div className="creator-sigil">S</div><div><span className="mono">made by</span><strong>Saketh</strong><p>Sophomore · Vignan. Built as an experimental interface for turning agentic AI into an observable mentorship workflow.</p></div></div><div className="about-actions"><button className="primary-button" onClick={onClose}>Enter the constellation <ArrowUpRight size={15} /></button><span className="mono">evidence / action / outcome</span></div></div></div>;
+}
+
+function AdminMessageModal({ input, setInput, messages, onSend, onClose }: { input: string; setInput: (value: string) => void; messages: Array<{ role: "user" | "admin"; text: string }>; onSend: () => void; onClose: () => void }) {
+  return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Message admin"><div className="admin-modal"><div className="modal-title-row"><div><span className="section-kicker"><span className="kicker-dot blue" /> Admin channel</span><h2>Need help with the site?</h2></div><button className="modal-close" onClick={onClose} aria-label="Close"><X size={16} /></button></div><p className="room-intro">Drop a question or report a rough edge. Your message stays attached to this local session.</p><div className="admin-thread">{messages.length === 0 && <div className="role-chat-empty"><MessageSquareText size={15} /> No messages yet. Ask about a room, model, or interaction.</div>}{messages.map((message, index) => <div className={`admin-message ${message.role}`} key={`${message.role}-${index}`}><span>{message.role === "admin" ? "ADMIN" : "YOU"}</span><p>{message.text}</p></div>)}</div><div className="admin-compose"><input value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => event.key === "Enter" && onSend()} placeholder="What should I look at?" /><button className="primary-button" onClick={onSend}>Send <ArrowUpRight size={14} /></button></div></div></div>;
 }
 
 function SourceIntake({ sources, manualNote, setManualNote, addManualNote, onUpload, uploadedName }: { sources: SourceRecord[]; manualNote: string; setManualNote: (value: string) => void; addManualNote: () => void; onUpload: () => void; uploadedName: string }) {

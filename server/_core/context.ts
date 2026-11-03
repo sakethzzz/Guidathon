@@ -13,6 +13,13 @@ export async function createContext(
 ): Promise<TrpcContext> {
   let user: User | null = null;
 
+  // This workspace is intentionally public and database-free in Preview.
+  // Skip the optional OAuth sync path when no database is configured so
+  // public model procedures do not emit misleading auth/database errors.
+  if (!process.env.DATABASE_URL) {
+    return { req: opts.req, res: opts.res, user: null };
+  }
+
   try {
     user = await sdk.authenticateRequest(opts.req);
   } catch (error) {

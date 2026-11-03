@@ -82,3 +82,13 @@
 
 - [x] Selecting a spirit rotates the circular orbit so that spirit becomes the front-facing active card and updates the center focus, accent glow, handoff strip, and chatspace together.
 - [x] Each agent chat is now presented as a themed console with provider status, role-locked transcript, empty state, thinking state, and an integrated send control rather than a detached utility panel.
+
+## Prompt-aligned experience pass
+
+- [x] The question-mark control opens a creator/site explainer naming the site purpose and Saketh’s authorship, with an animated modal entry path back into the constellation.
+- [x] Overview includes a GSAP ScrollTrigger-powered agent stack that assembles on scroll and ends with the GUIDATHON motto.
+- [x] Constellations uses a ReactBits-inspired circular orbit with continuous rotation state, focus-on-selection, front-card rotation, pointer tilt, and selected-agent description/chat pairing.
+- [x] Sources is a Hermes evidence ledger; Submission Readiness is a Zeus repo/file intake desk with live score inputs and correction messaging; Settings includes light/dark mode and agent history.
+- [x] Athena’s Idea Lab accepts the user’s problem or idea and requests scaled alternatives, a recommendation, and a proof experiment through the live agent model route.
+- [x] The message button opens a user-to-admin support channel inside the site.
+- [x] Blue/gold flakes and translucent motion remain part of the global storm field, with reduced-motion support inherited from the existing animation system.
