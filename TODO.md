@@ -100,3 +100,9 @@
 - [x] Athena, Zeus, Hephaestus, and Chronos each expose a themed role-locked model chat inside their dedicated room rather than relying on a generic shared panel.
 - [x] Chronos progress now reflects the current readiness score and project completion signals instead of a fixed progress value.
 - [x] Thunder ambience starts only after workspace entry, then cues approximately every seven seconds and again at storm-loop boundaries so browser autoplay restrictions are respected.
+
+## ReactBits interaction alignment
+
+- [x] Constellations uses a true Y-axis circular carousel so dragging rotates the ring and clicking a specific face card snaps that card to the front while keeping its themed chatspace selected.
+- [x] The carousel keeps cursor parallax, hover pause/tilt, autoplay drift, release snapping, keyboard-accessible card buttons, and reduced-motion behavior.
+- [x] The workspace sidebar now uses an Animated List-style pattern with staggered row entry, a gliding active selection, hover shift, arrow-key navigation, and the existing evidence count.

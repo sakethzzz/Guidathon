@@ -744,7 +744,7 @@ export default function Home() {
       <div className="workspace-shell">
         <aside className="line-sidebar">
           <div className="sidebar-caption">workspace</div>
-          <nav>{navItems.map(({ id, label, icon: Icon }) => <button key={id} className={`nav-item ${activeNav === id ? "active" : ""}`} onClick={() => switchNav(id)}><span className="nav-line" /><Icon size={15} /><span>{label}</span>{id === "Sources" && <em>{allChunks.length}</em>}</button>)}</nav>
+          <AnimatedSidebar activeNav={activeNav} onSelect={switchNav} sourceCount={allChunks.length} />
           <div className="sidebar-bottom"><div className="agent-mini"><div className="mini-avatar hermes">H</div><div><b>Hermes</b><span>guide room</span></div><span className="online-dot" /></div><button className="settings-link" onClick={() => switchNav("Settings")}><Settings2 size={14} /> Workspace settings</button></div>
         </aside>
         <main className="workspace-main">
@@ -777,6 +777,26 @@ function AboutModal({ onClose }: { onClose: () => void }) {
 
 function AdminMessageModal({ input, setInput, messages, onSend, onClose }: { input: string; setInput: (value: string) => void; messages: Array<{ role: "user" | "admin"; text: string }>; onSend: () => void; onClose: () => void }) {
   return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Message admin"><div className="admin-modal"><div className="modal-title-row"><div><span className="section-kicker"><span className="kicker-dot blue" /> Admin channel</span><h2>Need help with the site?</h2></div><button className="modal-close" onClick={onClose} aria-label="Close"><X size={16} /></button></div><p className="room-intro">Drop a question or report a rough edge. Your message stays attached to this local session.</p><div className="admin-thread">{messages.length === 0 && <div className="role-chat-empty"><MessageSquareText size={15} /> No messages yet. Ask about a room, model, or interaction.</div>}{messages.map((message, index) => <div className={`admin-message ${message.role}`} key={`${message.role}-${index}`}><span>{message.role === "admin" ? "ADMIN" : "YOU"}</span><p>{message.text}</p></div>)}</div><div className="admin-compose"><input value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => event.key === "Enter" && onSend()} placeholder="What should I look at?" /><button className="primary-button" onClick={onSend}>Send <ArrowUpRight size={14} /></button></div></div></div>;
+}
+
+function AnimatedSidebar({ activeNav, onSelect, sourceCount }: { activeNav: NavId; onSelect: (id: NavId) => void; sourceCount: number }) {
+  const [focusedIndex, setFocusedIndex] = useState(Math.max(0, navItems.findIndex(item => item.id === activeNav)));
+  useEffect(() => {
+    const next = navItems.findIndex(item => item.id === activeNav);
+    if (next >= 0) setFocusedIndex(next);
+  }, [activeNav]);
+  const move = (delta: number) => {
+    const next = (focusedIndex + delta + navItems.length) % navItems.length;
+    setFocusedIndex(next);
+    onSelect(navItems[next].id);
+  };
+  return <nav className="animated-sidebar-list" aria-label="Workspace navigation" onKeyDown={event => {
+    if (event.key === "ArrowDown") { event.preventDefault(); move(1); }
+    if (event.key === "ArrowUp") { event.preventDefault(); move(-1); }
+  }}>
+    <span className="animated-list-selection" style={{ transform: `translateY(${focusedIndex * 42}px)` }} aria-hidden="true" />
+    {navItems.map(({ id, label, icon: Icon }, index) => <button key={id} className={`nav-item animated-list-row ${activeNav === id ? "active" : ""}`} style={{ "--list-index": index } as CSSProperties} onClick={() => { setFocusedIndex(index); onSelect(id); }} onMouseEnter={event => event.currentTarget.style.setProperty("--hover-shift", "7px")} onMouseLeave={event => event.currentTarget.style.setProperty("--hover-shift", "0px")} tabIndex={activeNav === id ? 0 : -1}><span className="nav-line" /><Icon size={15} /><span>{label}</span>{id === "Sources" && <em>{sourceCount}</em>}</button>)}
+  </nav>;
 }
 
 function SourceIntake({ sources, manualNote, setManualNote, addManualNote, onUpload, uploadedName }: { sources: SourceRecord[]; manualNote: string; setManualNote: (value: string) => void; addManualNote: () => void; onUpload: () => void; uploadedName: string }) {
