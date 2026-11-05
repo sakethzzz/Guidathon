@@ -96,6 +96,25 @@ const agents: Array<{
   { id: "hephaestus", name: "Hephaestus", role: "Stack + workflow", short: "Turns plans buildable", glyph: "⌘", accent: "orange", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-4.webp", theme: "forge orange", quote: "Make the next build smaller." },
   { id: "chronos", name: "Chronos", role: "Time + submission", short: "Makes time visible", glyph: "◷", accent: "teal", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-5.webp", theme: "tide teal", quote: "A deadline is a shape, not a threat." },
 ];
+
+const antigravityParticles = Array.from({ length: 64 }, (_, index) => ({
+  id: index,
+  left: `${(index * 37.7) % 100}%`,
+  top: `${(index * 61.3 + 9) % 100}%`,
+  size: `${2 + (index % 3)}px`,
+  delay: `${-((index * 0.37) % 8)}s`,
+  duration: `${6 + (index % 5)}s`,
+}));
+
+function AntigravityField({ cursor, spark }: { cursor: { x: number; y: number }; spark: { id: number; x: number; y: number } | null }) {
+  return <div className="antigravity-field" aria-hidden="true">
+    <div className="antigravity-cursor-ring" style={{ left: cursor.x, top: cursor.y }} />
+    <div className="antigravity-cursor-core" style={{ left: cursor.x, top: cursor.y }}>✦</div>
+    <div className="antigravity-particles">{antigravityParticles.map(particle => <i key={particle.id} style={{ left: particle.left, top: particle.top, width: particle.size, height: particle.size, animationDelay: particle.delay, animationDuration: particle.duration }} />)}</div>
+    {spark && <div key={spark.id} className="antigravity-burst" style={{ left: spark.x, top: spark.y }}><span /><span /><span /><span /><span /><span /></div>}
+  </div>;
+}
+
 type AgentRecord = (typeof agents)[number];
 
 const navItems: Array<{ id: NavId; label: string; icon: typeof Radar }> = [
@@ -316,7 +335,7 @@ export default function Home() {
   const [ideaRun, setIdeaRun] = useState(false);
   const [stackRun, setStackRun] = useState(false);
   const [uploadedName, setUploadedName] = useState("");
-  const [themeMode, setThemeMode] = useState<"dark" | "light">("dark");
+  const [themeMode, setThemeMode] = useState<"dark" | "light">("light");
   const [aboutOpen, setAboutOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [adminInput, setAdminInput] = useState("");
@@ -712,6 +731,7 @@ export default function Home() {
       <video ref={stormVideoRef} className="storm-video" autoPlay muted loop playsInline preload="auto" aria-hidden="true"><source src="/media/guidathon-storm-loop.mp4" type="video/mp4" /></video>
       <div className="cursor-trail" aria-hidden="true">{trail.map(point => <span key={point.id} style={{ left: point.x, top: point.y }} />)}<span className={`thunder-cursor ${hoveringInteractive ? "hidden" : ""}`} style={{ left: cursor.x, top: cursor.y }}>ϟ</span>{clickSpark && <span className="click-spark" style={{ left: clickSpark.x, top: clickSpark.y }}>✦</span>}</div>
       <div className="storm-noise" />
+      {themeMode === "dark" && <AntigravityField cursor={cursor} spark={clickSpark} />}
       {handoff && <div className="handoff-transition" aria-live="polite"><div className="cloud-curtain cloud-left" /><div className="cloud-curtain cloud-right" /><div className="handoff-lightning" /><div className="handoff-transition-copy"><span className="mono">CONTEXT IN MOTION</span><strong>{handoff.from} <i>→</i> {handoff.to}</strong><small>carrying the latest brief forward</small></div></div>}
       <section className={`landing-screen ${entered ? "landing-exit" : ""}`} onClick={enterWorkspace}>
         <div className="landing-veil" />

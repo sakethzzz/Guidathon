@@ -114,3 +114,9 @@
 - [x] Sources now opens a draggable/selectable carousel of all five chibi agents. Selecting an agent reveals a personalized room with a cursor-reactive model-viewer-style chibi stage, themed model chat, a choose-your-next-room column, and visible MCP extension affordances.
 - [x] Agent handoffs now add a nostalgic cloud curtain with a visible lightning strike instead of only a flat color wipe.
 - [x] Athena’s idea scaling request now instructs the live model to compare four directions, score user pain/differentiation/proof/risk/scope, reject weak options, select a winner, and produce a smallest proof experiment.
+
+## Theme field and cursor atmosphere
+
+- [x] Light mode is now the normal default: clean background, restrained cursor treatment, and no gold particle overlay.
+- [x] Dark mode now activates a site-wide Antigravity-inspired gold particle field with slow floating flakes, a glowing cursor ring/core, and a radial click burst.
+- [x] The field remains pointer-transparent, responsive on mobile, and respects reduced-motion preferences; existing click-only sound behavior remains unchanged.
