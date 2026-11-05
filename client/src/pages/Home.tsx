@@ -43,7 +43,6 @@ type NavId =
   | "Idea Lab"
   | "Technical Plan"
   | "Timeline & Tasks"
-  | "Submission Readiness"
   | "Settings";
 
 type SourceRecord = {
@@ -107,7 +106,6 @@ const navItems: Array<{ id: NavId; label: string; icon: typeof Radar }> = [
   { id: "Idea Lab", label: "Idea Lab", icon: Sparkles },
   { id: "Technical Plan", label: "Technical Plan", icon: GitBranch },
   { id: "Timeline & Tasks", label: "Timeline & Tasks", icon: CalendarClock },
-  { id: "Submission Readiness", label: "Submission Readiness", icon: Check },
   { id: "Settings", label: "Settings", icon: Settings2 },
 ];
 
@@ -384,7 +382,6 @@ export default function Home() {
     "Idea Lab": "athena",
     "Technical Plan": "hephaestus",
     "Timeline & Tasks": "chronos",
-    "Submission Readiness": "zeus",
   };
 
   const pushActivity = (agent: AgentId, action: string, detail: string, state: Activity["state"] = "complete") => {
@@ -540,7 +537,7 @@ export default function Home() {
     setIdeaResponse("");
     ideaAsk.mutate({
       agent: "athena",
-      question: `Scale and improve this hackathon problem or idea: ${prompt}. Current team context: ${team}. Give three sharper variants, choose one, and explain the smallest proof experiment.`,
+      question: `Act as an expert idea strategist. Analyze this hackathon problem or idea: ${prompt}. Current team context: ${team}. Generate 4 materially different directions. For each, assess user pain, differentiation, demo proof, implementation risk, and scope fit on a 1-5 scale. Reject weak or over-scoped options with a clear reason. Then select one winner, explain the trade-off you accept, rewrite the winning thesis in one sentence, and give a smallest proof experiment with a success signal. Do not give a generic brainstorm list.`,
       context: allChunks,
       history: [],
     }, {
@@ -580,31 +577,16 @@ export default function Home() {
   };
 
   const renderRoom = () => {
-    if (activeNav === "Overview") {
-      return <OverviewStack agents={agents} onSelect={id => { setActiveAgent(id); setActiveNav(id === "hermes" ? "Overview" : "Agents"); }} />;
-    }
+    if (activeNav === "Overview") return <OverviewStack agents={agents} onSelect={id => { setActiveAgent(id); setActiveNav("Sources"); }} />;
     if (activeNav === "Sources") {
-      return <div className="room-body source-room"><SourceIntake sources={sources} manualNote={manualNote} setManualNote={setManualNote} addManualNote={addManualNote} onUpload={() => fileInputRef.current?.click()} uploadedName={uploadedName} /><div className="source-inspector"><div className="section-kicker"><span className="kicker-dot gold" /> Evidence ledger</div><h3>{allChunks.length} chunks ready for Hermes</h3><p className="room-intro">Every verified passage remains inspectable before it reaches a model response.</p>{allChunks.map(chunk => <div className="chunk-card" key={chunk.id}><div className="chunk-meta"><span className="mono chunk-id">{chunk.id}</span><span className="score">verified</span></div><h4>{chunk.heading}</h4><p>{chunk.passage}</p><div className="chunk-source"><Link2 size={12} /> {chunk.source}</div></div>)}</div></div>;
-    }
-    if (activeNav === "Submission Readiness") {
-      return <div className="room-body submission-room"><div className="submission-intake"><div className="section-kicker"><span className="kicker-dot violet" /> Zeus submission desk</div><h3>Give Zeus the repo or the latest files.</h3><p className="room-intro">Drop a repository link, deployment URL, or file note. Zeus keeps the correction list live as your submission changes.</p><textarea value={submissionInput} onChange={event => setSubmissionInput(event.target.value)} placeholder="https://github.com/you/project or describe the files you updated…" rows={4} /><div className="submission-actions"><button className="primary-button" onClick={runSubmissionCheck}><Radar size={16} /> Run readiness pass</button><button className="upload-button" onClick={() => fileInputRef.current?.click()}><UploadCloud size={15} /> Add files</button></div>{submissionResult && <div className="submission-result"><span className="status-dot live" /><p>{submissionResult}</p></div>}</div><div className="readiness-orbit"><div className="readiness-score-large">{readinessScore}<span>%</span></div><span className="section-kicker">live readiness signal</span><div className="readiness-bar"><span style={{ width: `${readinessScore}%` }} /></div><div className="readiness-items"><span><Check size={13} /> {readyCount} evidence sources</span><span><Check size={13} /> {ideaRun ? "idea selected" : "idea needs a pass"}</span><span><Check size={13} /> {stackRun ? "stack staged" : "stack needs a pass"}</span></div></div></div>;
+      return <SourceAgentRoom agents={agents} selected={selected} onSelect={selectAgent} context={allChunks} sources={sources} manualNote={manualNote} setManualNote={setManualNote} addManualNote={addManualNote} onUpload={() => fileInputRef.current?.click()} uploadedName={uploadedName} />;
     }
     if (activeNav === "Settings") {
       return <div className="room-body settings-room"><div className="settings-card"><div className="section-kicker"><span className="kicker-dot gold" /> Workspace controls</div><h3>Shape the constellation to your working style.</h3><div className="setting-row"><div><b>Theme field</b><p>Switch between the storm console and a clear light workspace.</p></div><button className={`theme-switch ${themeMode}`} onClick={() => setThemeMode(mode => mode === "dark" ? "light" : "dark")}><span /> {themeMode === "dark" ? "dark storm" : "light field"}</button></div><div className="setting-row"><div><b>Interaction sound</b><p>Click-only spark and rumble; no passive audio.</p></div><span className="integration-pill unverified">enabled</span></div></div><div className="history-card"><div className="section-kicker"><span className="kicker-dot blue" /> Agent history</div><h3>What the spirits have done</h3><div className="history-log">{activities.map(activity => <div className="history-row" key={activity.id}><span className="mono">{activity.time}</span><b>{agentById(activity.agent).name}</b><span>{activity.action} — {activity.detail}</span></div>)}</div></div></div>;
     }
     if (activeNav === "Agents") {
-      const selectedIndex = Math.max(0, agents.findIndex(agent => agent.id === selected.id));
       return (
-        <div className={`agents-room-body constellation-3d-room accent-${selected.accent}`}>
-          <div className="agents-room-copy">
-            <div className="section-kicker"><span className="kicker-dot gold" /> Constellation // 3D access</div>
-            <h3>{agents.length} spirits. One shared thread.</h3>
-            <p className="room-intro">Hover a spirit to tilt its face card and reveal its silhouette. Click one to enter its role-locked chatspace and carry the brief through the cloud gate.</p>
-            <div className="agent-room-legend">{agents.map(agent => <button key={agent.id} className={`legend-agent ${activeAgent === agent.id ? "active" : ""}`} onClick={() => selectAgent(agent.id)}><span className={`legend-dot accent-${agent.accent}`} /> {agent.name}<small>{agent.role}</small></button>)}</div>
-            <div className="handoff-strip"><Network size={14} /><span><b>Current thread:</b> {onboardingComplete ? `${event} → Hermes → Athena → build` : "Hermes is waiting for the first brief."}</span></div>
-            <div className={`chatspace-launch accent-${selected.accent}`}><div className="chatspace-launch-art"><img src={selected.art} alt={`${selected.name} chibi spirit`} /><span className="chatspace-orbit-dot" /></div><div><span className="mono">NOW ACCESSING</span><strong>{selected.name} // {selected.theme}</strong><p>{selected.quote}</p></div><span className="chatspace-arrow">↗</span></div>
-            <AgentRoleChat agent={selected} context={allChunks} />
-          </div>
+        <div className={`agents-room-body constellation-3d-room constellation-only accent-${selected.accent}`}>
           <div className="agent-carousel-stage" aria-label="Interactive 3D circular agent carousel" onPointerMove={event => { handleCarouselMove(event); handleCarouselDrag(event); }} onPointerDown={handleCarouselPointerDown} onPointerUp={handleCarouselPointerUp} onPointerCancel={handleCarouselPointerUp} onPointerLeave={() => { setCarouselPointer({ x: 0, y: 0 }); setCarouselHover(null); if (carouselDrag.current) handleCarouselPointerUp(); }}>
             <div className="carousel-stars" />
             <ShaderConstellation pointer={carouselPointer} />
@@ -618,7 +600,7 @@ export default function Home() {
                 })}
               </div>
             </div>
-            <div className="carousel-instruction"><span className="mono">ACTIVE ORBIT // {selected.name.toUpperCase()}</span><span>drag to rotate · hover to tilt · click to focus</span></div>
+            <div className="carousel-instruction"><span className="mono">ACTIVE ORBIT // {selected.name.toUpperCase()}</span><span>drag · hover · click to focus</span></div>
           </div>
         </div>
       );
@@ -730,7 +712,7 @@ export default function Home() {
       <video ref={stormVideoRef} className="storm-video" autoPlay muted loop playsInline preload="auto" aria-hidden="true"><source src="/media/guidathon-storm-loop.mp4" type="video/mp4" /></video>
       <div className="cursor-trail" aria-hidden="true">{trail.map(point => <span key={point.id} style={{ left: point.x, top: point.y }} />)}<span className={`thunder-cursor ${hoveringInteractive ? "hidden" : ""}`} style={{ left: cursor.x, top: cursor.y }}>ϟ</span>{clickSpark && <span className="click-spark" style={{ left: clickSpark.x, top: clickSpark.y }}>✦</span>}</div>
       <div className="storm-noise" />
-      {handoff && <div className="handoff-transition" aria-live="polite"><div className="cloud-curtain cloud-left" /><div className="cloud-curtain cloud-right" /><div className="handoff-transition-copy"><span className="mono">CONTEXT IN MOTION</span><strong>{handoff.from} <i>→</i> {handoff.to}</strong><small>carrying the latest brief forward</small></div></div>}
+      {handoff && <div className="handoff-transition" aria-live="polite"><div className="cloud-curtain cloud-left" /><div className="cloud-curtain cloud-right" /><div className="handoff-lightning" /><div className="handoff-transition-copy"><span className="mono">CONTEXT IN MOTION</span><strong>{handoff.from} <i>→</i> {handoff.to}</strong><small>carrying the latest brief forward</small></div></div>}
       <section className={`landing-screen ${entered ? "landing-exit" : ""}`} onClick={enterWorkspace}>
         <div className="landing-veil" />
         <div className="landing-content"><div className="landing-sigil">✦</div><div className="landing-wordmark">GUIDA<span>THON</span></div><div className="landing-lockup">evidence / action / outcome</div><div className="landing-reveal-title">The constellation is ready.</div></div>
@@ -748,10 +730,8 @@ export default function Home() {
           <div className="sidebar-bottom"><div className="agent-mini"><div className="mini-avatar hermes">H</div><div><b>Hermes</b><span>guide room</span></div><span className="online-dot" /></div><button className="settings-link" onClick={() => switchNav("Settings")}><Settings2 size={14} /> Workspace settings</button></div>
         </aside>
         <main className="workspace-main">
-          <div className="workspace-heading"><div><div className="eyebrow"><span className="eyebrow-line" /> {activeNav === "Overview" ? "GUIDED JOURNEY / 01" : `WORKSPACE / ${activeNav.toUpperCase()}`}</div><h1>{activeNav === "Overview" ? "From uncertainty to a defensible build." : activeNav === "Agents" ? "Constellations" : activeNav}</h1><p>{activeNav === "Overview" ? "A visible multi-agent path for teams who need to prove the next move, not just brainstorm it." : `The ${activeNav === "Agents" ? "constellation" : activeNav.toLowerCase()} room stays connected to your latest handoff.`}</p></div><div className="heading-actions"><span className="integration-pill unverified"><span className="status-dot live" /> Hermes model active · MCP optional</span><button className="icon-button" aria-label="Message admin" onClick={() => setAdminOpen(true)}><MessageSquareText size={16} /></button></div></div>
-          <section className="agent-constellation"><div className="section-title-row"><div><div className="eyebrow small"><span className="eyebrow-line" /> agent constellation</div><h2>Choose your next room</h2></div><span className="mono constellation-count">{agents.length} spirits · 01 active</span></div><div className="agent-rail">{agents.map(agent => <button key={agent.id} className={`agent-tile ${activeAgent === agent.id ? "selected" : ""} accent-${agent.accent}`} onClick={() => selectAgent(agent.id)}><div className="agent-avatar"><span>{agent.glyph}</span><i /></div><div className="agent-tile-copy"><b>{agent.name}</b><span>{agent.role}</span></div></button>)}</div></section>
-          <section className="room-panel"><div className="room-panel-top"><div className="room-title"><div className={`room-avatar accent-${selected.accent}`}>{selected.glyph}</div><div><div className="eyebrow small">current room / {selected.role.toLowerCase()}</div><h2>{selected.name}<span> · {selected.short}</span></h2></div></div><div className="room-state"><span className="status-dot live" /> working context <span className="mono">HND-{onboardingComplete ? "042" : "001"}</span></div></div><div className="handoff-banner"><ArrowUpRight size={14} /><span><b>Latest handoff</b> {onboardingComplete ? `${event} · ${team} · ${uncertainty}` : "No handoff yet. Hermes is waiting for your first brief."}</span><button onClick={() => setActiveAgent("zeus")}>inspect thread <ChevronRight size={13} /></button></div>{renderRoom()}</section>
-          <section className="bottom-grid"><div className="activity-panel"><div className="panel-heading"><div><div className="eyebrow small"><span className="eyebrow-line" /> trace log</div><h3>What the constellation is doing</h3></div><span className="mono">LIVE</span></div><div className="activity-list">{activities.map(activity => { const agent = agentById(activity.agent); return <div className="activity-row" key={activity.id}><div className={`activity-icon accent-${agent.accent}`}>{agent.glyph}</div><div className="activity-copy"><div><b>{agent.name}</b><span>{activity.action}</span></div><p>{activity.detail}</p></div><div className={`activity-state ${activity.state}`}><span className="status-dot" />{activity.time}</div></div>; })}</div></div><div className="readiness-panel"><div className="panel-heading"><div><div className="eyebrow small"><span className="eyebrow-line" /> build signal</div><h3>Submission readiness</h3></div><span className="readiness-score">42%</span></div><div className="readiness-bar"><span /></div><div className="readiness-items"><span><Check size={13} /> evidence loop</span><span><Timer size={13} /> deadline mapped</span><span className="pending"><span className="pending-dot" /> demo proof missing</span></div><button className="text-button" onClick={() => switchNav("Submission Readiness")}>Open readiness room <ArrowUpRight size={14} /></button></div></section>
+          {activeNav !== "Overview" && activeNav !== "Agents" && <div className="workspace-heading"><div><div className="eyebrow"><span className="eyebrow-line" /> WORKSPACE / {activeNav.toUpperCase()}</div><h1>{activeNav}</h1><p>The {activeNav.toLowerCase()} room stays connected to your latest handoff.</p></div><div className="heading-actions"><span className="integration-pill unverified"><span className="status-dot live" /> Hermes model active · MCP optional</span><button className="icon-button" aria-label="Message admin" onClick={() => setAdminOpen(true)}><MessageSquareText size={16} /></button></div></div>}
+          {activeNav === "Overview" || activeNav === "Agents" ? renderRoom() : <section className="room-panel"><div className="room-panel-top"><div className="room-title"><div className={`room-avatar accent-${selected.accent}`}>{selected.glyph}</div><div><div className="eyebrow small">current room / {selected.role.toLowerCase()}</div><h2>{selected.name}<span> · {selected.short}</span></h2></div></div><div className="room-state"><span className="status-dot live" /> working context <span className="mono">HND-{onboardingComplete ? "042" : "001"}</span></div></div><div className="handoff-banner"><ArrowUpRight size={14} /><span><b>Latest handoff</b> {onboardingComplete ? `${event} · ${team} · ${uncertainty}` : "No handoff yet. Hermes is waiting for your first brief."}</span><button onClick={() => setActiveAgent("zeus")}>inspect thread <ChevronRight size={13} /></button></div>{renderRoom()}</section>}
         </main>
       </div>
       <input ref={fileInputRef} type="file" className="hidden-file-input" onChange={handleFile} accept=".txt,.md,.csv,.json,.html,.css,.js,.jsx,.ts,.tsx,.py,.java,.go,.rs,.yaml,.yml,text/*,.pdf" />
@@ -763,12 +743,32 @@ export default function Home() {
 
 function OverviewStack({ agents, onSelect }: { agents: AgentRecord[]; onSelect: (id: AgentId) => void }) {
   const stackRef = useRef<HTMLElement>(null);
+  const mythology: Record<AgentId, { aura: string; why: string }> = {
+    hermes: { aura: "The messenger at the threshold", why: "Hermes turns ambiguity into a message the rest of the constellation can carry." },
+    zeus: { aura: "The keeper of the sky-wide thread", why: "Zeus owns orchestration because every specialist needs one visible source of direction." },
+    athena: { aura: "The strategist with a cool blade", why: "Athena tests ideas against evidence, trade-offs, and the smallest proof worth building." },
+    hephaestus: { aura: "The maker beneath the mountain", why: "Hephaestus converts a winning thesis into a stack, workflow, and honest build boundary." },
+    chronos: { aura: "The ancient shape of time", why: "Chronos makes deadlines tangible by turning progress into milestones with owners and proof." },
+  };
   useGSAP(() => {
     const cards = gsap.utils.toArray<HTMLElement>(".overview-stack-card");
     gsap.fromTo(cards, { y: 70, opacity: 0, rotateX: 9 }, { y: 0, opacity: 1, rotateX: 0, stagger: .12, duration: .85, ease: "power3.out", scrollTrigger: { trigger: stackRef.current, start: "top 78%", end: "bottom 30%", scrub: .8 } });
     return () => ScrollTrigger.getAll().forEach(trigger => trigger.kill());
   }, { scope: stackRef });
-  return <section ref={stackRef} className="overview-stack-section"><div className="overview-stack-heading"><div><div className="section-kicker"><span className="kicker-dot gold" /> Guided journey // scroll to assemble</div><h3>Five spirits. One visible path.</h3><p>Each card is a live contract. Scroll through the stack to see what the constellation carries from question to submission.</p></div><div className="overview-motto"><span className="mono">GUIDATHON MOTTO</span><strong>Make the next move defensible.</strong></div></div><div className="overview-stack-cards">{agents.map((agent, index) => <button className={`overview-stack-card accent-${agent.accent}`} key={agent.id} onClick={() => onSelect(agent.id)}><span className="stack-card-number">0{index + 1}</span><img src={agent.art} alt={`${agent.name} spirit`} /><div><span className="mono">{agent.role}</span><b>{agent.name}</b><p>{agent.short}. {agent.quote}</p></div><ArrowUpRight size={16} /></button>)}</div><div className="overview-footer-note"><Sparkles size={15} /> Blue and gold signal marks move when the work has an observable artifact.</div></section>;
+  return <section ref={stackRef} className="overview-stack-section mythic-scroll-stack"><div className="overview-quote"><span className="section-kicker"><span className="kicker-dot gold" /> GUIDATHON // THE CONSTELLATION</span><blockquote>“Make the next move defensible.”</blockquote><p>Five mythic roles, one visible path from a rough question to a build the team can stand behind.</p></div><div className="overview-stack-cards">{agents.map((agent, index) => <button className={`overview-stack-card mythic-stack-card accent-${agent.accent}`} key={agent.id} onClick={() => onSelect(agent.id)}><span className="stack-card-number">0{index + 1}</span><div className="stack-card-aura"><span>{mythology[agent.id].aura}</span><img src={agent.art} alt={`${agent.name} chibi spirit`} /></div><div className="stack-card-copy"><span className="mono">{agent.role} · greek myth</span><b>{agent.name}</b><p>{mythology[agent.id].why}</p></div><ArrowUpRight size={16} /></button>)}</div></section>;
+}
+
+function ModelViewer({ agent }: { agent: AgentRecord }) {
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  return <div className={`model-viewer accent-${agent.accent}`} onPointerMove={event => { const rect = event.currentTarget.getBoundingClientRect(); setTilt({ x: ((event.clientY - rect.top) / rect.height - .5) * -14, y: ((event.clientX - rect.left) / rect.width - .5) * 18 }); }} onPointerLeave={() => setTilt({ x: 0, y: 0 })} aria-label={`${agent.name} interactive model viewer`}><div className="model-viewer-grid" /><div className="model-viewer-ring ring-a" /><div className="model-viewer-ring ring-b" /><div className="model-viewer-shadow" /><img src={agent.art} alt={`${agent.name} chibi model`} style={{ transform: `translateY(-8px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) rotateZ(${tilt.y * -.08}deg) scale(1.08)` }} /><span className="model-viewer-label">drag gaze · hover to rotate</span></div>;
+}
+
+function SourceAgentRoom({ agents, selected, onSelect, context, sources, manualNote, setManualNote, addManualNote, onUpload, uploadedName }: { agents: AgentRecord[]; selected: AgentRecord; onSelect: (id: AgentId) => void; context: Chunk[]; sources: SourceRecord[]; manualNote: string; setManualNote: (value: string) => void; addManualNote: () => void; onUpload: () => void; uploadedName: string }) {
+  const [index, setIndex] = useState(Math.max(0, agents.findIndex(agent => agent.id === selected.id)));
+  const dragRef = useRef<{ x: number; start: number } | null>(null);
+  useEffect(() => setIndex(Math.max(0, agents.findIndex(agent => agent.id === selected.id))), [selected.id, agents]);
+  const choose = (next: number) => { const normalized = (next + agents.length) % agents.length; setIndex(normalized); onSelect(agents[normalized].id); };
+  return <div className={`source-agent-room accent-${selected.accent}`}><div className="source-carousel-shell"><div className="section-kicker"><span className="kicker-dot gold" /> Source carousel // choose a spirit</div><div className="source-carousel" onPointerDown={event => { dragRef.current = { x: event.clientX, start: index }; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerUp={event => { if (!dragRef.current) return; const delta = event.clientX - dragRef.current.x; choose(dragRef.current.start + (delta < -30 ? 1 : delta > 30 ? -1 : 0)); dragRef.current = null; }}><button className="carousel-arrow" onClick={() => choose(index - 1)} aria-label="Previous agent">‹</button><div className="source-carousel-track">{agents.map((agent, cardIndex) => { const offset = (cardIndex - index + agents.length) % agents.length; const signed = offset > agents.length / 2 ? offset - agents.length : offset; return <button key={agent.id} className={`source-agent-card accent-${agent.accent} ${agent.id === selected.id ? "active" : ""}`} style={{ "--source-offset": signed } as CSSProperties} onClick={() => choose(cardIndex)}><img src={agent.art} alt={`${agent.name} source card`} /><span className="mono">0{cardIndex + 1}</span><b>{agent.name}</b><small>{agent.role}</small></button>; })}</div><button className="carousel-arrow" onClick={() => choose(index + 1)} aria-label="Next agent">›</button></div><div className="source-carousel-dots">{agents.map(agent => <button key={agent.id} className={agent.id === selected.id ? "active" : ""} onClick={() => choose(agents.findIndex(item => item.id === agent.id))} aria-label={`Select ${agent.name}`} />)}</div></div><div className="source-chat-layout"><div className="choose-room-column"><span className="section-kicker">choose your next room</span><h3>Move the brief onward.</h3>{agents.map(agent => <button key={agent.id} className={agent.id === selected.id ? "active" : ""} onClick={() => choose(agents.findIndex(item => item.id === agent.id))}><span className={`legend-dot accent-${agent.accent}`} /><span><b>{agent.name}</b><small>{agent.role}</small></span><ChevronRight size={14} /></button>)}</div><ModelViewer agent={selected} /><div className={`source-role-chat accent-${selected.accent}`}><div className="source-chat-heading"><span className="mono">{selected.name.toUpperCase()} // PERSONAL ROOM</span><span className="integration-pill mocked">MCP READY</span></div><AgentRoleChat agent={selected} context={context} /><div className="mcp-strip"><span className="mono">MCP EXTENSIONS</span><span>source.search</span><span>brief.inspect</span><span>handoff.emit</span></div></div></div><div className="source-intake-compact"><SourceIntake sources={sources} manualNote={manualNote} setManualNote={setManualNote} addManualNote={addManualNote} onUpload={onUpload} uploadedName={uploadedName} /></div></div>;
 }
 
 function AboutModal({ onClose }: { onClose: () => void }) {

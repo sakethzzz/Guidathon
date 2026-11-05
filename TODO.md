@@ -106,3 +106,11 @@
 - [x] Constellations uses a true Y-axis circular carousel so dragging rotates the ring and clicking a specific face card snaps that card to the front while keeping its themed chatspace selected.
 - [x] The carousel keeps cursor parallax, hover pause/tilt, autoplay drift, release snapping, keyboard-accessible card buttons, and reduced-motion behavior.
 - [x] The workspace sidebar now uses an Animated List-style pattern with staggered row entry, a gliding active selection, hover shift, arrow-key navigation, and the existing evidence count.
+
+## Simplified mythic room architecture
+
+- [x] Constellations is now a circle-only room: the interactive 3D agent carousel remains, while the global agent rail, activity trace, and submission-readiness blocks are removed from that view.
+- [x] Overview is now quote-led and follows a Scroll Stack composition with five mythological agent cards, each showing its chibi, aura, Greek-myth role rationale, project responsibility, and a click path into the Sources room.
+- [x] Sources now opens a draggable/selectable carousel of all five chibi agents. Selecting an agent reveals a personalized room with a cursor-reactive model-viewer-style chibi stage, themed model chat, a choose-your-next-room column, and visible MCP extension affordances.
+- [x] Agent handoffs now add a nostalgic cloud curtain with a visible lightning strike instead of only a flat color wipe.
+- [x] Athena’s idea scaling request now instructs the live model to compare four directions, score user pain/differentiation/proof/risk/scope, reject weak options, select a winner, and produce a smallest proof experiment.
