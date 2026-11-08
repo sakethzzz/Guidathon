@@ -30,8 +30,7 @@
     "baseUrl": ".",
     "types": [
       "node",
-      "vite/client",
-      "express"
+      "vite/client"
     ],
     "paths": {
       "@/*": [
