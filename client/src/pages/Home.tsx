@@ -479,7 +479,7 @@ export default function Home() {
   }, [currentUser, workspaceReady, durableSnapshot]);
   const selected = agentById(activeAgent);
   const readyCount = sources.filter(source => source.status === "verified").length;
-  const readinessScore = Math.min(96, 26 + (challenge.trim().length > 24 ? 14 : 0) + readyCount * 8 + (ideaRun ? 16 : 0) + (stackRun ? 14 : 0) + (submissionInput.trim() ? 14 : 0));
+  const readinessScore = Math.min(96, 26 + (challenge.trim().length > 24 ? 14 : 0) + readyCount * 8 + (ideaRun ? 16 : 0) + (stackRun ? 14 : 0) + (submissionInput.trim() ? 14 : 0) + Math.min(12, tasks.filter(task => task.status === "done").length * 3));
   const activeNavAgent: Partial<Record<NavId, AgentId>> = {
     Sources: "hermes",
     "Challenge Brief": "hermes",
@@ -873,7 +873,7 @@ export default function Home() {
             <h3>Time becomes another handoff.</h3>
             <p className="room-intro">Chronos turns the chosen direction into a sequence the team can actually follow. Dates are illustrative defaults; set real dates before relying on this timeline.</p>
             <div className="task-list">{tasks.map(task => <div className="task-row" key={task.title}><button type="button" className={`task-check ${task.status === "done" ? "checked" : ""}`} aria-label={task.status === "done" ? `Reopen ${task.title}` : `Complete ${task.title}`} onClick={() => setTasks(current => current.map(item => item.title === task.title ? { ...item, status: item.status === "done" ? "next" : "done" } : item))}>{task.status === "done" && <Check size={12} />}</button><div className="task-main"><b>{task.title}</b><span>{task.owner} · {task.date}</span></div><span className={`task-status ${task.status}`}>{task.status}</span></div>)}</div>
-            <form className="task-add-form" onSubmit={event => { event.preventDefault(); const title = newTaskTitle.trim(); if (!title) return; setTasks(current => [{ title, owner: newTaskOwner.trim() || "Team", date: newTaskDate.trim() || "Before submission", status: "next" as const }, ...current].slice(0, 100)); setNewTaskTitle(""); }}>
+            <form className="task-add-form" onSubmit={event => { event.preventDefault(); const title = newTaskTitle.trim(); if (!title) return; setTasks(current => current.some(task => task.title.toLowerCase() === title.toLowerCase()) ? current : [{ title, owner: newTaskOwner.trim() || "Team", date: newTaskDate.trim() || "Before submission", status: "next" as const }, ...current].slice(0, 100)); setNewTaskTitle(""); }}>
               <input aria-label="New task title" value={newTaskTitle} onChange={event => setNewTaskTitle(event.target.value)} placeholder="Add a milestone or task…" maxLength={180} />
               <input aria-label="Task owner" value={newTaskOwner} onChange={event => setNewTaskOwner(event.target.value)} placeholder="Owner" maxLength={60} />
               <input aria-label="Task due date" value={newTaskDate} onChange={event => setNewTaskDate(event.target.value)} placeholder="Due / checkpoint" maxLength={80} />
