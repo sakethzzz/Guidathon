@@ -55,6 +55,10 @@ export async function listExternalMcpTools() {
   return { configured: true, tools: tools.slice(0, 60).map(tool => ({ name: tool.name, description: tool.description?.slice(0, 500), inputSchema: tool.inputSchema, annotations: tool.annotations })), reason: null };
 }
 
+export function mcpToolRequiresConfirmation(annotations?: { readOnlyHint?: boolean }) {
+  return annotations?.readOnlyHint !== true;
+}
+
 export async function callExternalMcpTool(name: string, args: Record<string, unknown>, confirm = false) {
   const url = endpoint();
   if (!url) throw new Error("MCP_SERVER_URL is not configured");
@@ -63,7 +67,7 @@ export async function callExternalMcpTool(name: string, args: Record<string, unk
   if (!selectedTool) throw new Error("Requested tool is not exposed by the configured MCP server");
   // MCP annotations are advisory. Only an explicit readOnlyHint bypasses the
   // confirmation gate; missing or false hints are treated as potentially mutative.
-  if (selectedTool.annotations?.readOnlyHint !== true && !confirm) {
+  if (mcpToolRequiresConfirmation(selectedTool.annotations) && !confirm) {
     throw new Error("This MCP tool is not explicitly marked read-only. Confirm the external action before running it.");
   }
   const sessionId = await initializeMcp(url);
