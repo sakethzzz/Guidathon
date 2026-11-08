@@ -12,7 +12,7 @@ export type KnowledgeInput = {
 
 type StoredChunk = typeof knowledgeChunks.$inferSelect;
 
-async function embed(text: string): Promise<number[] | null> {
+async function embed(text: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY"): Promise<number[] | null> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
   const response = await fetch(
@@ -52,7 +52,7 @@ export async function persistKnowledge(workspaceId: string, chunks: KnowledgeInp
   if (!db) return { persisted: false, count: 0, reason: "DATABASE_URL is not configured" };
   let count = 0;
   for (const chunk of chunks.slice(0, 50)) {
-    const vector = await embed(`${chunk.heading}\n${chunk.content}`).catch(() => null);
+    const vector = await embed(`${chunk.heading}\n${chunk.content}`, "RETRIEVAL_DOCUMENT").catch(() => null);
     await db.insert(knowledgeChunks).values({
       id: chunk.id,
       workspaceId,
@@ -84,7 +84,7 @@ export async function retrieveKnowledge(workspaceId: string, query: string, limi
     .where(and(eq(knowledgeChunks.workspaceId, workspaceId), eq(knowledgeChunks.status, "verified")))
     .limit(300) as StoredChunk[];
   if (!rows.length) return [];
-  const queryVector = await embed(query).catch(() => null);
+  const queryVector = await embed(query, "RETRIEVAL_QUERY").catch(() => null);
   const ranked = rows.map(row => {
     let vector: number[] | null = null;
     if (row.embedding) { try { vector = JSON.parse(row.embedding) as number[]; } catch { vector = null; } }
