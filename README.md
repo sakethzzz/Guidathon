@@ -60,7 +60,7 @@ Use the **Source intake** panel in the Hermes room. Text and common source-code 
 
 The project includes `vercel.json` for the static frontend build. The interactive frontend and local fallback can be deployed as static output. The live Hermes model route requires a server runtime with the managed service environment or an equivalent provider endpoint; a pure static Vercel deployment will need a serverless API adapter and provider credentials if the managed server is not used.
 
-The current managed project has Server enabled for Preview and development. MCP tools remain an optional adapter boundary: the UI shows their state honestly and does not claim external tool execution until a concrete MCP connector is configured.
+The current managed project has Server enabled for Preview and development. For a Render deployment, configure DATABASE_URL, MANUS_PROJECT_ID, MANUS_JWT_SECRET, MANUS_OAUTH_API_URL, and at least one model provider key. MANUS_API_URL and MANUS_API_KEY enable the optional managed-model fallback; MCP_SERVER_URL and MCP_SERVER_TOKEN enable the optional MCP bridge. The repository includes a placeholder-only .env.example and Render environment declarations; real credentials must be added in the hosting provider's secret settings and must never be committed. MCP tools remain an optional adapter boundary: the UI shows their state honestly and does not claim external tool execution until a concrete MCP connector is configured.
 
 ## Model routing
 
