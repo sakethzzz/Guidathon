@@ -390,6 +390,10 @@ export default function Home() {
       setWorkspaceReady(false);
       return;
     }
+    if (workspaceQuery.isError) {
+      workspaceHydrated.current = true;
+      return;
+    }
     if (!workspaceQuery.isSuccess || workspaceHydrated.current) return;
     const saved = workspaceQuery.data.snapshot as Record<string, any> | null;
     if (saved?.schemaVersion === 1) {
@@ -914,7 +918,7 @@ export default function Home() {
       </section>
       <header className="topbar">
         <div className="brand-lockup"><div className="brand-sigil">✦</div><div><div className="brand-wordmark">GUIDA<span>THON</span></div><div className="brand-subtitle">evidence / action / outcome</div></div></div>
-        <div className="topbar-status" aria-live="polite"><span className="status-dot live" /> constellation online <span className="status-divider" /> <span className="mono">{currentUser ? (workspaceSave.isPending ? "SAVING..." : workspaceSave.isError ? "SAVE FAILED" : workspaceReady ? "CLOUD WORKSPACE" : "LOADING WORKSPACE") : "LOCAL SESSION"}</span></div>
+        <div className="topbar-status" aria-live="polite"><span className="status-dot live" /> constellation online <span className="status-divider" /> <span className="mono">{currentUser ? (workspaceSave.isPending ? "SAVING..." : workspaceSave.isError || workspaceQuery.isError ? "CLOUD SAVE ISSUE" : workspaceReady ? "CLOUD WORKSPACE" : "LOADING WORKSPACE") : "LOCAL SESSION"}</span></div>
         <button className="help-button" aria-label="What is GUIDATHON?" onClick={() => setAboutOpen(true)}><CircleHelp size={17} /></button>
       </header>
       <div className="workspace-shell">
