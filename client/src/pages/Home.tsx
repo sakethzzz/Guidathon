@@ -126,7 +126,9 @@ const navItems: Array<{ id: NavId; label: string; icon: typeof Radar }> = [
   { id: "Technical Plan", label: "Technical Plan", icon: GitBranch },
   { id: "Timeline & Tasks", label: "Timeline & Tasks", icon: CalendarClock },
   { id: "Settings", label: "Settings", icon: Settings2 },
-];\n\nconst agentRoomFor: Record<AgentId, NavId> = {
+];
+
+const agentRoomFor: Record<AgentId, NavId> = {
   hermes: "Sources",
   zeus: "Challenge Brief",
   athena: "Idea Lab",
