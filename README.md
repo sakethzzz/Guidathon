@@ -74,3 +74,12 @@ The current knowledge store uses MySQL through Drizzle. When GEMINI_API_KEY is c
 Knowledge ingestion is authenticated and scoped to the signed-in user's workspace. Newly uploaded chunks begin as unverified. After supported text parsing completes, the client asks the server to mark those exact workspace-owned chunk IDs as processed. In this app, verified means the intake/parse step completed; it does not mean the factual claims in a user-uploaded document were independently fact-checked. Browser-supplied context is labeled unverified and is never silently persisted by chat requests. Persistent retrieval only returns processed chunks from the current user's workspace.
 
 The Judge Arena uses an eight-dimension weighted rubric and calculates the final score server-side. The evaluator is instructed to penalize missing proof; 94/100 is an aspirational quality bar, not a default or guaranteed result.
+
+
+## Durable workspace persistence
+
+When a user is authenticated and `DATABASE_URL` is configured, GUIDATHON now restores and autosaves the active project workspace. The versioned owner-scoped snapshot includes the challenge brief, onboarding context, source ledger, Hermes transcript, idea/build outputs, submission notes, theme, and recent activity. Autosave is debounced and the top bar reports the workspace save state.
+
+Specialist agent conversations are stored independently per owner and agent, so switching rooms does not merge transcripts. Judge Arena results are saved as append-only history (latest ten shown in the UI). These features require the authenticated MySQL deployment and migration `0002_workspace_persistence.sql`; anonymous preview sessions remain local-only.
+
+The current product intentionally supports one default workspace per account. Named projects, editable timeline tasks, and database-backed integration tests remain follow-up work.
