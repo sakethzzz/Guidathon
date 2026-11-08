@@ -82,4 +82,4 @@ When a user is authenticated and `DATABASE_URL` is configured, GUIDATHON now res
 
 Specialist agent conversations are stored independently per owner and agent, so switching rooms does not merge transcripts. Judge Arena results are saved as append-only history (latest ten shown in the UI). These features require the authenticated MySQL deployment and migration `0002_workspace_persistence.sql`; anonymous preview sessions remain local-only.
 
-The current product intentionally supports one default workspace per account. Named projects, editable timeline tasks, and database-backed integration tests remain follow-up work.
+The current product intentionally supports one default workspace per account. Named projects and database-backed integration tests remain follow-up work. Chronos tasks can now be added, assigned an owner/checkpoint, completed or reopened, and are included in the durable workspace snapshot.
