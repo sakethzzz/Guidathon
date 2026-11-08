@@ -277,6 +277,10 @@ function scorePassage(query: string, passage: string, corpusSize = 1, documentFr
   return Math.min(0.99, (score / Math.max(1, uniqueTerms.length * 1.7)) * 0.72 + coverage * 0.28);
 }
 
+function sourceUrlFromProvenance(provenance: string) {
+  return provenance.match(/https?:\/\/[^\s)]+/)?.[0] ?? null;
+}
+
 function splitIntoChunks(text: string, source: string, prefix: string): Chunk[] {
   const sentences = text.replace(/\s+/g, " ").trim().split(/(?<=[.!?])\s+/).filter(Boolean);
   const groups: string[] = [];
@@ -885,12 +889,12 @@ export default function Home() {
             <div className="hermes-transcript">
               <div className="chat-companion-floating" aria-hidden="true"><img src={agentById("hermes").art} alt="" /><span>Hermes</span></div>
               <div className="chat-bubble assistant"><div className="chat-speaker"><span className="chat-avatar">✦</span><b>Hermes</b><span>guide + knowledge</span></div><p>Ask me what a hackathon is, how judging works, or how to turn your idea into a weekend-sized build. I will separate cited facts from general guidance.</p></div>
-              {hermesMessages.map((message, index) => <div className={`chat-bubble ${message.role}`} key={`${message.role}-${index}`}><div className="chat-speaker"><span className="chat-avatar">{message.role === "assistant" ? "✦" : "you"}</span><b>{message.role === "assistant" ? "Hermes" : "You"}</b></div><p>{message.content}</p>{message.citations?.length ? <div className="chat-citations">{message.citations.map(citation => <span key={citation}>{citation}</span>)}</div> : null}</div>)}
+              {hermesMessages.map((message, index) => <div className={`chat-bubble ${message.role}`} key={`${message.role}-${index}`}><div className="chat-speaker"><span className="chat-avatar">{message.role === "assistant" ? "✦" : "you"}</span><b>{message.role === "assistant" ? "Hermes" : "You"}</b></div><p>{message.content}</p>{message.citations?.length ? <div className="chat-citations">{message.citations.map(citation => <a key={citation} href={`#evidence-${encodeURIComponent(citation)}`}>{citation}</a>)}</div> : null}</div>)}
               {hermesAsk.isPending && <div className="chat-bubble assistant thinking"><div className="chat-speaker"><span className="chat-avatar">✦</span><b>Hermes</b><span>retrieving + thinking</span></div><p><span className="thinking-dot" /> <span className="thinking-dot" /> <span className="thinking-dot" /> I&apos;m checking the source pack and composing a precise answer…</p></div>}
             </div>
             <div className="hermes-composer"><textarea value={hermesInput} onChange={event => setHermesInput(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); askHermes(); } }} placeholder="e.g. What makes a hackathon idea defensible?" rows={2} /><button className="primary-button" onClick={askHermes} disabled={hermesAsk.isPending || !hermesInput.trim()}>{hermesAsk.isPending ? "Hermes is thinking" : "Ask Hermes"}<ArrowUpRight size={15} /></button></div>
             <div className="retrieval-state"><span className="status-dot live" /> Hermes RAG · {readyCount} processed sources · {allChunks.length} chunks · parse status is not fact-checking · Enter to send</div>
-            {retrieval.length > 0 && <div className="retrieval-results hermes-evidence"><div className="result-heading"><span>Evidence attached to latest answer</span><span className="mono">{retrieval.length} matches</span></div>{retrieval.map(chunk => <div className="chunk-card" key={chunk.id}><div className="chunk-meta"><span className="mono chunk-id">{chunk.id}</span><span className="score">match {Math.round((chunk.score ?? 0) * 100)}%</span></div><h4>{chunk.heading}</h4><p>{chunk.passage}</p><div className="chunk-source"><Link2 size={12} /> {chunk.source} · {chunk.provenance}</div></div>)}</div>}
+            {retrieval.length > 0 && <div className="retrieval-results hermes-evidence"><div className="result-heading"><span>Evidence attached to latest answer</span><span className="mono">{retrieval.length} matches</span></div>{retrieval.map(chunk => <div className="chunk-card" id={`evidence-${encodeURIComponent(chunk.id)}`} key={chunk.id}><div className="chunk-meta"><span className="mono chunk-id">{chunk.id}</span><span className="score">match {Math.round((chunk.score ?? 0) * 100)}%</span></div><h4>{chunk.heading}</h4><p>{chunk.passage}</p><div className="chunk-source"><Link2 size={12} /> <span>{chunk.source}</span> · {chunk.provenance} {sourceUrlFromProvenance(chunk.provenance) && <a href={sourceUrlFromProvenance(chunk.provenance)!} target="_blank" rel="noreferrer">Open original source ↗</a>}</div></div>)}</div>}
           </div>
           <SourceIntake sources={sources} manualNote={manualNote} setManualNote={setManualNote} addManualNote={addManualNote} onUpload={() => fileInputRef.current?.click()} uploadedName={uploadedName} />
         </div>
