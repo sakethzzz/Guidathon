@@ -42,6 +42,7 @@ type NavId =
   | "Idea Lab"
   | "Technical Plan"
   | "Timeline & Tasks"
+  | "Judge Arena"
   | "Settings";
 
 type SourceRecord = {
@@ -124,6 +125,7 @@ const navItems: Array<{ id: NavId; label: string; icon: typeof Radar }> = [
   { id: "Idea Lab", label: "Idea Lab", icon: Sparkles },
   { id: "Technical Plan", label: "Technical Plan", icon: GitBranch },
   { id: "Timeline & Tasks", label: "Timeline & Tasks", icon: CalendarClock },
+  { id: "Judge Arena", label: "Judge Arena", icon: Target },
   { id: "Settings", label: "Settings", icon: Settings2 },
 ];
 
@@ -684,6 +686,7 @@ export default function Home() {
 
   const renderRoom = () => {
     if (activeNav === "Overview") return <OverviewStack agents={agents} onSelect={enterAgentRoom} />;
+    if (activeNav === "Judge Arena") return <JudgeArena challenge={challenge} evidence={allChunks.map(chunk => `${chunk.heading}: ${chunk.passage}`).join("\n\n")} />;
     if (activeNav === "Sources") {
       return <SourceAgentRoom agents={agents} selected={selected} onSelect={selectAgent} onHandoff={enterAgentRoom} context={allChunks} sources={sources} manualNote={manualNote} setManualNote={setManualNote} addManualNote={addManualNote} onUpload={() => fileInputRef.current?.click()} uploadedName={uploadedName} />;
     }
@@ -1056,6 +1059,38 @@ function McpToolsPanel() {
       {resultText && <pre className="mcp-tool-result">{resultText}</pre>}
     </section>
   );
+}
+
+
+function JudgeArena({ challenge, evidence }: { challenge: string; evidence: string }) {
+  const [product, setProduct] = useState("GUIDATHON is a mythology-themed multi-agent hackathon workspace. Five specialist agents support research, orchestration, idea validation, technical planning, and delivery. The workspace includes a 3D agent constellation, dedicated rooms, role chat, a MySQL-backed knowledge chunk store with Gemini embeddings when configured, lexical fallback, and an optional MCP adapter. Some visual and planning interactions may still be demo/local-only.");
+  const [implementation, setImplementation] = useState("Implemented on a feature branch. Agent chat routes through configured model providers with role prompts. Specialist handoff routing is rule-based. RAG persistence requires DATABASE_URL and GEMINI_API_KEY; MCP requires an HTTPS MCP_SERVER_URL and optional token. CI workflow is defined, but no successful build/test run has been confirmed yet.");
+  const [experience, setExperience] = useState("Responsive React interface with dark/light themes, keyboard-operable carousel controls, and reduced-motion/accessibility work still needs a full manual audit.");
+  const evaluation = trpc.evaluation.evaluate.useMutation();
+  const result = evaluation.data;
+  return <div className="room-body judge-arena">
+    <div className="section-kicker"><span className="kicker-dot gold" /> Independent scoring / 8 dimensions</div>
+    <h3>Judge Arena</h3>
+    <p className="room-intro">A skeptical AI judge scores the evidence you provide. Missing proof lowers the score; planned features do not count as shipped work.</p>
+    <div className="judge-input-grid">
+      <label>Product / core loop<textarea value={product} onChange={event => setProduct(event.target.value)} rows={5} /></label>
+      <label>Implementation / test evidence<textarea value={implementation} onChange={event => setImplementation(event.target.value)} rows={5} /></label>
+      <label>UX / accessibility evidence<textarea value={experience} onChange={event => setExperience(event.target.value)} rows={4} /></label>
+      <label>Retrieved source evidence<textarea value={evidence} readOnly rows={4} placeholder="Add sources in Hermes' room to include evidence here." /></label>
+    </div>
+    <button className="primary-button" disabled={evaluation.isPending || !product.trim()} onClick={() => evaluation.mutate({ challenge, product, implementation, experience, evidence })}>
+      {evaluation.isPending ? "Judges are reviewing evidence…" : "Run evidence-based evaluation"} <ArrowUpRight size={15} />
+    </button>
+    {evaluation.error && <p role="alert" className="judge-error">{evaluation.error.message}</p>}
+    {result && <div className="judge-results">
+      <div className="judge-score"><span className="mono">WEIGHTED SCORE / 100</span><strong>{result.score}</strong><p>{result.verdict}</p></div>
+      <p>{result.summary}</p>
+      <div className="judge-criteria">{result.criteria.map(item => <div className="judge-criterion" key={item.key}><div><b>{item.label}</b><span>{item.weight}% weight</span><strong>{item.score.toFixed(1)} / 10</strong></div><p>{item.evidence}</p><small>Improve: {item.improvement}</small></div>)}</div>
+      <div className="judge-feedback-grid"><div><b>Strengths</b>{result.strengths.map((item, index) => <p key={index}>{item}</p>)}</div><div><b>Critical gaps</b>{result.criticalGaps.map((item, index) => <p key={index}>{item}</p>)}</div></div>
+      <div className="judge-next"><b>Highest-value next actions</b>{result.nextActions.map((item, index) => <p key={index}>{index + 1}. {item}</p>)}</div>
+      <small className="mono">RUBRIC {result.rubricVersion} · MODEL {result.provider} · score calculated server-side</small>
+    </div>}
+  </div>;
 }
 
 function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agents)[number]; context?: Chunk[]; onHandoff?: (id: AgentId) => void }) {
