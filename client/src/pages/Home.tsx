@@ -528,7 +528,7 @@ export default function Home() {
           setUncertainty(typeof saved.uncertainty === "string" ? saved.uncertainty : "");
           if (navItems.some(item => item.id === saved.activeNav)) setActiveNav(saved.activeNav as NavId);
           if (agents.some(agent => agent.id === saved.activeAgent)) setActiveAgent(saved.activeAgent as AgentId);
-          if (Array.isArray(saved.sources)) setSources(saved.sources.filter((item: any) => item && typeof item.id === "string").slice(0, 40));
+          if (Array.isArray(saved.sources)) setSources(saved.sources.filter((item: any) => item && typeof item.id === "string").slice(0, 40).map((item: SourceRecord) => ({ ...item, status: item.status === "processing" ? "unverified" : item.status })));
           if (Array.isArray(saved.hermesMessages)) setHermesMessages(saved.hermesMessages.slice(-60));
           if (Array.isArray(saved.activities)) setActivities(saved.activities.slice(0, 40));
           if (Array.isArray(saved.tasks)) setTasks(saved.tasks.slice(0, 60));
