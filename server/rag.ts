@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { knowledgeChunks } from "../drizzle/schema";
 import { getDb } from "./db";
 
@@ -97,4 +97,25 @@ export async function retrieveKnowledge(workspaceId: string, query: string, limi
   }).filter(row => row.score > (queryVector ? 0.18 : 0.05))
     .sort((a, b) => b.score - a.score).slice(0, limit);
   return ranked;
+}
+
+
+/**
+ * Promote only chunks belonging to the authenticated user's workspace after
+ * the client has completed its supported text parsing step. This means
+ * "verified" = successfully ingested/parsed, not independently fact-checked.
+ */
+export async function markKnowledgeProcessed(workspaceId: string, ids: string[]) {
+  const db = await getDb();
+  const uniqueIds = [...new Set(ids)].slice(0, 50);
+  if (!db) return { processed: false, count: 0, reason: "DATABASE_URL is not configured" };
+  if (!uniqueIds.length) return { processed: false, count: 0, reason: "No chunk IDs supplied" };
+  await db.update(knowledgeChunks)
+    .set({ status: "verified" })
+    .where(and(
+      eq(knowledgeChunks.workspaceId, workspaceId),
+      inArray(knowledgeChunks.id, uniqueIds),
+      eq(knowledgeChunks.status, "unverified"),
+    ));
+  return { processed: true, count: uniqueIds.length, scope: "authenticated-user-workspace" };
 }
