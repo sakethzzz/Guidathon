@@ -173,7 +173,7 @@ function localAgentFallback(agent: AgentId, question: string, context: z.infer<t
     hephaestus: `**Build plan**\\n\\nFor “${q}”:\\n1. Define one user journey and its acceptance criteria.\\n2. Map the UI, API boundary, data model, and external dependencies.\\n3. Implement the happy path with typed inputs, validation, and useful error states.\\n4. Add one integration at a time behind an adapter so it can be replaced.\\n5. Test the flow end-to-end with a clean demo account and capture proof.\\n\\n**Keep it free-first:** use the existing stack, local deterministic behavior, and open-source components before adding paid services. No code was changed by this response.`,
     chronos: `**Execution sequence**\\n\\nFor “${q}”, use this order:\\n- **Now:** define the deliverable, owner, and acceptance test.\\n- **Next:** finish the smallest working end-to-end path.\\n- **Then:** test failure cases, persistence, and mobile usability.\\n- **Before submission:** freeze scope, rehearse the demo, and prepare screenshots plus a fallback recording.\\n\\nCreate each task with one owner and a binary done condition. Add actual dates after confirming the event deadline. This is a local planning fallback; it does not create calendar events.`,
   };
-  return { answer: plans[agent], provider: "local-fallback", citations: agent === "hermes" ? context.map(chunk => chunk.id) : [], handoffTo: null, fallback: true };
+  return { answer: plans[agent], provider: "local-fallback", citations: agent === "hermes" ? context.slice(0, 5).map(chunk => chunk.id) : [], handoffTo: null, fallback: true };
 }
 export const appRouter = router({
   system: systemRouter,
