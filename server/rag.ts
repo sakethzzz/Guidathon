@@ -33,7 +33,7 @@ async function embed(text: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_Q
   return Array.isArray(data.embedding?.values) ? data.embedding.values : null;
 }
 
-function lexicalScore(query: string, content: string) {
+export function lexicalScore(query: string, content: string) {
   const terms = [...new Set(query.toLowerCase().split(/[^a-z0-9]+/).filter(term => term.length > 2))];
   if (!terms.length) return 0;
   const text = content.toLowerCase();
@@ -41,7 +41,7 @@ function lexicalScore(query: string, content: string) {
   return matches / terms.length;
 }
 
-function cosine(a: number[], b: number[]) {
+export function cosine(a: number[], b: number[]) {
   if (!a.length || a.length !== b.length) return 0;
   let dot = 0, aa = 0, bb = 0;
   for (let i = 0; i < a.length; i += 1) { dot += a[i] * b[i]; aa += a[i] * a[i]; bb += b[i] * b[i]; }
