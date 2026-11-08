@@ -1,5 +1,23 @@
 type McpEnvelope = { result?: Record<string, unknown>; error?: { message?: string } };
 
+type McpTool = {
+  name: string;
+  description?: string;
+  inputSchema?: unknown;
+  annotations?: {
+    readOnlyHint?: boolean;
+    destructiveHint?: boolean;
+    idempotentHint?: boolean;
+    openWorldHint?: boolean;
+  };
+};
+
+type McpToolList = {
+  configured: boolean;
+  tools: McpTool[];
+  reason: string | null;
+};
+
 function endpoint() {
   const raw = process.env.MCP_SERVER_URL?.trim();
   if (!raw) return null;
@@ -46,12 +64,12 @@ async function initializeMcp(url: string) {
   return initialized.sessionId ?? undefined;
 }
 
-export async function listExternalMcpTools() {
+export async function listExternalMcpTools(): Promise<McpToolList> {
   const url = endpoint();
-  if (!url) return { configured: false, tools: [] as Array<{ name: string; description?: string; inputSchema?: unknown; annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean } }>, reason: "MCP_SERVER_URL is not configured" };
+  if (!url) return { configured: false, tools: [], reason: "MCP_SERVER_URL is not configured" };
   const sessionId = await initializeMcp(url);
   const result = await requestMcp(url, { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }, sessionId);
-  const tools = Array.isArray(result.payload?.result?.tools) ? result.payload.result.tools as Array<{ name: string; description?: string; inputSchema?: unknown; annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean } }> : [];
+  const tools = Array.isArray(result.payload?.result?.tools) ? result.payload.result.tools as McpTool[] : [];
   return { configured: true, tools: tools.slice(0, 60).map(tool => ({ name: tool.name, description: tool.description?.slice(0, 500), inputSchema: tool.inputSchema, annotations: tool.annotations })), reason: null };
 }
 
