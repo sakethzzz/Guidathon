@@ -710,7 +710,7 @@ export default function Home() {
               <div className="agent-card-orbit" style={{ "--orbit-rotation": `${carouselRotation}deg` } as CSSProperties}>
                 {agents.map((agent, index) => {
                   const angle = (index / agents.length) * 360 - 90;
-                  return <button key={agent.id} className={`agent-card-3d accent-${agent.accent} ${activeAgent === agent.id ? "active" : ""} ${carouselHover === agent.id ? "hovered" : ""}`} style={{ "--card-angle": `${angle}deg`, "--card-delay": `${index * 90}ms` } as CSSProperties} onPointerEnter={() => setCarouselHover(agent.id)} onClick={event => { if (suppressCarouselClick.current) { event.preventDefault(); suppressCarouselClick.current = false; return; } enterAgentRoom(agent.id); }} aria-label={`Enter ${agent.name} chatspace`}><span className="agent-card-sheen" /><span className="agent-card-silhouette" /><span className="agent-portrait-frame"><img src={agent.art} alt={`${agent.name} chibi spirit face card`} /></span><span className="agent-card-footer"><b>{agent.name}</b><small>{agent.role}</small></span><span className="agent-card-index">0{index + 1}</span></button>;
+                  return <button key={agent.id} className={`agent-card-3d accent-${agent.accent} ${activeAgent === agent.id ? "active" : ""} ${carouselHover === agent.id ? "hovered" : ""}`} style={{ "--card-angle": `${angle}deg`, "--card-delay": `${index * 90}ms` } as CSSProperties} onPointerEnter={() => setCarouselHover(agent.id)} onClick={event => { if (suppressCarouselClick.current) { event.preventDefault(); suppressCarouselClick.current = false; return; } selectAgent(agent.id); }} aria-label={`Preview ${agent.name} model overview`}><span className="agent-card-sheen" /><span className="agent-card-silhouette" /><span className="agent-portrait-frame"><img src={agent.art} alt={`${agent.name} chibi spirit face card`} /></span><span className="agent-card-footer"><b>{agent.name}</b><small>{agent.role}</small></span><span className="agent-card-index">0{index + 1}</span></button>;
                 })}
               </div>
             </div>
@@ -973,6 +973,7 @@ function OverviewStack({ agents, onSelect }: { agents: AgentRecord[]; onSelect: 
           {agents.map((agent, index) => (
             <button className={`overview-stack-card mythic-stack-card accent-${agent.accent}`} key={agent.id} onClick={() => onSelect(agent.id)}>
               <span className="stack-card-number">0{index + 1}</span>
+              <div className="stack-card-art-bg" aria-hidden="true"><img src={agent.art} alt="" /></div>
               <div className="stack-card-aura"><span>{mythology[agent.id].aura}</span><img src={agent.art} alt={`${agent.name} chibi spirit`} /></div>
               <div className="stack-card-copy"><span className="mono">{agent.role} · greek myth</span><b>{agent.name}</b><p>{mythology[agent.id].why}</p></div>
               <ArrowUpRight size={16} />
