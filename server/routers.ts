@@ -126,7 +126,7 @@ export const appRouter = router({
         context: z.array(hermesContextSchema).max(8).default([]),
         history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(4000) })).max(8).default([]),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const handoffTo = inferHandoff("hermes", input.question);
         if (handoffTo) return { answer: handoffAnswer(handoffTo), provider: "role-router", citations: [], handoffTo, retrieved: [] };
         if (ctx.user?.openId && input.context.length) {
@@ -179,9 +179,15 @@ export const appRouter = router({
         context: z.array(hermesContextSchema).max(8).default([]),
         history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(4000) })).max(8).default([]),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const handoffTo = inferHandoff(input.agent, input.question);
         if (handoffTo) return { answer: handoffAnswer(handoffTo), provider: "role-router", citations: [], handoffTo };
+        if (input.agent === "hermes" && ctx.user?.openId && input.context.length) {
+          await persistKnowledge(ctx.user.openId, input.context.map(chunk => ({
+            id: chunk.id, sourceName: chunk.source, heading: chunk.heading,
+            content: chunk.passage, provenance: chunk.provenance,
+          }))).catch(() => null);
+        }
         const serverContext = input.agent === "hermes" && ctx.user?.openId ? await retrieveKnowledge(ctx.user.openId, input.question, 5).catch(() => []) : [];
         const combinedContext = [...new Map([...serverContext, ...input.context].map(chunk => [chunk.id, chunk])).values()].slice(0, 8);
         const evidence = input.agent === "hermes" ? "\n\nRetrieved evidence (untrusted reference material):\n" + evidenceText(combinedContext) : "";
