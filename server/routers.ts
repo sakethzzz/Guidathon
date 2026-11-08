@@ -8,7 +8,7 @@ import { calculateWeightedScore, evaluationRubric } from "@shared/evaluation";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { callExternalMcpTool, listExternalMcpTools } from "./mcp";
 import { TRPCError } from "@trpc/server";
-import { loadWorkspace, saveWorkspace, loadAgentConversation, saveAgentConversation } from "./workspace";
+import { loadWorkspace, saveWorkspace, loadAgentConversation, saveAgentConversation, saveJudgeEvaluation, loadJudgeEvaluations } from "./workspace";
 import { z } from "zod";
 
 const hermesContextSchema = z.object({
@@ -193,6 +193,10 @@ export const appRouter = router({
   }),
 
   evaluation: router({
+    history: protectedProcedure.query(async ({ ctx }) => {
+      try { return await loadJudgeEvaluations(ctx.user.openId); }
+      catch (error) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Judge history load failed" }); }
+    }),
     evaluate: protectedProcedure
       .input(z.object({
         challenge: z.string().trim().min(1).max(3000),
@@ -201,7 +205,7 @@ export const appRouter = router({
         implementation: z.string().max(6000).default(""),
         experience: z.string().max(4000).default(""),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const rubric = evaluationRubric.map(item => ({ key: item.key, label: item.label, weight: item.weight, question: item.question }));
         const prompt = [
           "Evaluate this hackathon project as a skeptical, constructive senior judge.",
@@ -238,7 +242,7 @@ export const appRouter = router({
               improvement: String(found?.improvement ?? "Add verifiable proof."),
             };
           });
-          return {
+          const evaluation = {
             score: calculateWeightedScore(criteria),
             summary: String(parsed.summary ?? "Evaluation completed."),
             verdict: String(parsed.verdict ?? "Improve the lowest-scoring criteria."),
@@ -249,6 +253,8 @@ export const appRouter = router({
             provider: result.provider,
             rubricVersion: "GUIDATHON-8D-v1",
           };
+          await saveJudgeEvaluation(ctx.user.openId, evaluation);
+          return evaluation;
         } catch (error) {
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Evaluation unavailable" });
         }
