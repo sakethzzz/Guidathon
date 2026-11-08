@@ -253,7 +253,7 @@ export const appRouter = router({
             provider: result.provider,
             rubricVersion: "GUIDATHON-8D-v1",
           };
-          await saveJudgeEvaluation(ctx.user.openId, evaluation);
+          await saveJudgeEvaluation(ctx.user.openId, { ...evaluation, input });
           return evaluation;
         } catch (error) {
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Evaluation unavailable" });
