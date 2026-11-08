@@ -404,6 +404,7 @@ export default function Home() {
   const workspaceSave = trpc.workspace.save.useMutation();
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const workspaceHydrated = useRef(false);
+  const localWorkspaceHydrated = useRef(false);
 
   useEffect(() => {
     if (!currentUser) {
@@ -491,6 +492,48 @@ export default function Home() {
     sources, hermesMessages, activities, tasks, ideaRun, stackRun, ideaInput, ideaResponse,
     submissionInput, submissionResult, manualNote, uploadedName, themeMode,
   }), [onboardingComplete, challenge, event, team, uncertainty, activeNav, activeAgent, sources, hermesMessages, activities, tasks, ideaRun, stackRun, ideaInput, ideaResponse, submissionInput, submissionResult, manualNote, uploadedName, themeMode]);
+
+  useEffect(() => {
+    if (currentUser || localWorkspaceHydrated.current) return;
+    try {
+      const raw = localStorage.getItem("guidathon-workspace-v1");
+      if (raw) {
+        const saved = JSON.parse(raw) as Record<string, any>;
+        if (saved?.schemaVersion === 1) {
+          setOnboardingComplete(Boolean(saved.onboardingComplete));
+          setChallenge(typeof saved.challenge === "string" ? saved.challenge : "Build a trustworthy AI mentor for hackathon teams");
+          setEvent(typeof saved.event === "string" ? saved.event : "Guidathon 2026");
+          setTeam(typeof saved.team === "string" ? saved.team : "3 builders · 48 hours");
+          setUncertainty(typeof saved.uncertainty === "string" ? saved.uncertainty : "");
+          if (navItems.some(item => item.id === saved.activeNav)) setActiveNav(saved.activeNav as NavId);
+          if (agents.some(agent => agent.id === saved.activeAgent)) setActiveAgent(saved.activeAgent as AgentId);
+          if (Array.isArray(saved.sources)) setSources(saved.sources.filter((item: any) => item && typeof item.id === "string").slice(0, 40));
+          if (Array.isArray(saved.hermesMessages)) setHermesMessages(saved.hermesMessages.slice(-60));
+          if (Array.isArray(saved.activities)) setActivities(saved.activities.slice(0, 40));
+          if (Array.isArray(saved.tasks)) setTasks(saved.tasks.slice(0, 60));
+          setIdeaRun(Boolean(saved.ideaRun));
+          setStackRun(Boolean(saved.stackRun));
+          setIdeaInput(typeof saved.ideaInput === "string" ? saved.ideaInput : "");
+          setIdeaResponse(typeof saved.ideaResponse === "string" ? saved.ideaResponse : "");
+          setSubmissionInput(typeof saved.submissionInput === "string" ? saved.submissionInput : "");
+          setSubmissionResult(typeof saved.submissionResult === "string" ? saved.submissionResult : "");
+          setManualNote(typeof saved.manualNote === "string" ? saved.manualNote : "");
+          setUploadedName(typeof saved.uploadedName === "string" ? saved.uploadedName : "");
+          if (saved.themeMode === "dark" || saved.themeMode === "light") setThemeMode(saved.themeMode);
+        }
+      }
+    } catch { /* Invalid or unavailable local snapshots fall back to a clean workspace. */ }
+    localWorkspaceHydrated.current = true;
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (currentUser || !localWorkspaceHydrated.current) return;
+    const timer = window.setTimeout(() => {
+      try { localStorage.setItem("guidathon-workspace-v1", JSON.stringify(durableSnapshot)); }
+      catch { /* Large browser storage snapshots are optional; active work remains usable. */ }
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [currentUser, durableSnapshot]);
 
   useEffect(() => {
     if (!currentUser || !workspaceReady) return;
