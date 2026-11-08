@@ -36,6 +36,20 @@ function textFromGemini(data: any) {
   return data?.candidates?.[0]?.content?.parts?.map((part: any) => part?.text ?? "").join(" ").trim() ?? "";
 }
 
+async function withTimeout<T>(promise: Promise<T>, milliseconds: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out after ${milliseconds}ms`)), milliseconds);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 async function callGemini(messages: ChatTurn[], maxTokens: number) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
@@ -47,6 +61,7 @@ async function callGemini(messages: ChatTurn[], maxTokens: number) {
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
+    signal: AbortSignal.timeout(25000),
     body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents, generationConfig: { maxOutputTokens: maxTokens, temperature: 0.42 } }),
   });
   if (!response.ok) throw new Error(`Gemini request failed (${response.status})`);
@@ -61,6 +76,7 @@ async function callGroq(messages: ChatTurn[], maxTokens: number) {
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(25000),
     body: JSON.stringify({ model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile", messages, max_tokens: maxTokens, temperature: 0.42 }),
   });
   if (!response.ok) throw new Error(`Groq request failed (${response.status})`);
@@ -71,7 +87,7 @@ async function callGroq(messages: ChatTurn[], maxTokens: number) {
 }
 
 async function callManaged(messages: ChatTurn[], maxTokens: number) {
-  const result = await invokeLLM({ messages, maxTokens });
+  const result = await withTimeout(invokeLLM({ messages, maxTokens }), 25000, "Managed model");
   const raw = result.choices?.[0]?.message?.content;
   const answer = typeof raw === "string" ? raw.trim() : "";
   if (!answer) throw new Error("Managed model returned an empty answer");
