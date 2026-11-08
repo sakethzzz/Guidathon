@@ -1056,7 +1056,7 @@ function McpToolsPanel() {
   const call = trpc.agents.callTool.useMutation();
   const tools = data?.tools ?? [];
   const selectedTool = tools.find(tool => tool.name === toolName);
-  const sensitive = /(delete|remove|send|publish|deploy|create|update|write|execute|payment|purchase)/i.test(toolName);
+  const requiresConfirmation = selectedTool?.annotations?.readOnlyHint !== true;
   const invoke = () => {
     let args: Record<string, unknown>;
     try {
@@ -1078,7 +1078,7 @@ function McpToolsPanel() {
       {isLoading ? <p className="mcp-state">Discovering configured MCP tools…</p> : isError ? <div className="mcp-unconfigured"><b>Sign in to inspect MCP tools</b><span>Tool schemas and execution are restricted to an authenticated workspace.</span></div> : !data?.configured ? <div className="mcp-unconfigured"><b>No MCP server connected</b><span>Set MCP_SERVER_URL and optionally MCP_SERVER_TOKEN in the server environment, then restart the backend. No tool calls are being simulated.</span></div> : data.reason ? <div className="mcp-unconfigured"><b>MCP server unavailable</b><span>{data.reason}</span></div> : tools.length === 0 ? <div className="mcp-unconfigured"><b>Connected, but no tools were advertised</b><span>Check the server's tools/list response and transport compatibility.</span></div> : (
         <>
           <div className="mcp-tool-list">{tools.map(tool => <button key={tool.name} className={tool.name === toolName ? "active" : ""} onClick={() => { setToolName(tool.name); setResultText(""); setConfirmed(false); }}><b>{tool.name}</b><span>{tool.description || "No description supplied"}</span></button>)}</div>
-          {selectedTool && <div className="mcp-tool-run"><b>Run {selectedTool.name}</b><textarea value={argumentsText} onChange={event => setArgumentsText(event.target.value)} rows={3} aria-label="MCP tool JSON arguments" /><label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} /> I explicitly approve this call if it changes external data.</label><button className="primary-button" onClick={invoke} disabled={call.isPending || (sensitive && !confirmed)}>{call.isPending ? "Calling tool…" : "Run MCP tool"} <ArrowUpRight size={14} /></button></div>}
+          {selectedTool && <div className="mcp-tool-run"><b>Run {selectedTool.name}</b><textarea value={argumentsText} onChange={event => setArgumentsText(event.target.value)} rows={3} aria-label="MCP tool JSON arguments" /><label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} /> I explicitly approve this call unless the server marks it read-only.</label><button className="primary-button" onClick={invoke} disabled={call.isPending || (requiresConfirmation && !confirmed)}>{call.isPending ? "Calling tool…" : "Run MCP tool"} <ArrowUpRight size={14} /></button></div>}
         </>
       )}
       {resultText && <pre className="mcp-tool-result">{resultText}</pre>}
