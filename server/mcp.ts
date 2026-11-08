@@ -51,15 +51,21 @@ export async function listExternalMcpTools() {
   if (!url) return { configured: false, tools: [] as Array<{ name: string; description?: string; inputSchema?: unknown }>, reason: "MCP_SERVER_URL is not configured" };
   const sessionId = await initializeMcp(url);
   const result = await requestMcp(url, { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }, sessionId);
-  const tools = Array.isArray(result.payload?.result?.tools) ? result.payload.result.tools as Array<{ name: string; description?: string; inputSchema?: unknown }> : [];
-  return { configured: true, tools: tools.slice(0, 60).map(tool => ({ name: tool.name, description: tool.description?.slice(0, 500), inputSchema: tool.inputSchema })), reason: null };
+  const tools = Array.isArray(result.payload?.result?.tools) ? result.payload.result.tools as Array<{ name: string; description?: string; inputSchema?: unknown; annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean } }> : [];
+  return { configured: true, tools: tools.slice(0, 60).map(tool => ({ name: tool.name, description: tool.description?.slice(0, 500), inputSchema: tool.inputSchema, annotations: tool.annotations })), reason: null };
 }
 
-export async function callExternalMcpTool(name: string, args: Record<string, unknown>) {
+export async function callExternalMcpTool(name: string, args: Record<string, unknown>, confirm = false) {
   const url = endpoint();
   if (!url) throw new Error("MCP_SERVER_URL is not configured");
   const available = await listExternalMcpTools();
-  if (!available.tools.some(tool => tool.name === name)) throw new Error("Requested tool is not exposed by the configured MCP server");
+  const selectedTool = available.tools.find(tool => tool.name === name);
+  if (!selectedTool) throw new Error("Requested tool is not exposed by the configured MCP server");
+  // MCP annotations are advisory. Only an explicit readOnlyHint bypasses the
+  // confirmation gate; missing or false hints are treated as potentially mutative.
+  if (selectedTool.annotations?.readOnlyHint !== true && !confirm) {
+    throw new Error("This MCP tool is not explicitly marked read-only. Confirm the external action before running it.");
+  }
   const sessionId = await initializeMcp(url);
   const result = await requestMcp(url, {
     jsonrpc: "2.0", id: 3, method: "tools/call",
