@@ -30,7 +30,8 @@ export type InsertUser = typeof users.$inferInsert;
  * them without a vendor-specific vector extension; cosine ranking is performed
  * by the retrieval adapter. Workspace scoping prevents cross-team leakage. */
 export const knowledgeChunks = mysqlTable("knowledge_chunks", {
-  id: varchar("id", { length: 191 }).primaryKey(),
+  storageKey: varchar("storage_key", { length: 191 }).primaryKey(),
+  id: varchar("id", { length: 191 }).notNull(),
   workspaceId: varchar("workspace_id", { length: 96 }).notNull(),
   sourceName: varchar("source_name", { length: 255 }).notNull(),
   heading: varchar("heading", { length: 255 }).notNull(),
