@@ -1,4 +1,4 @@
-import { index, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { index, int, mysqlEnum, mysqlTable, mediumtext, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -46,3 +46,28 @@ export const knowledgeChunks = mysqlTable("knowledge_chunks", {
 
 export type KnowledgeChunk = typeof knowledgeChunks.$inferSelect;
 export type InsertKnowledgeChunk = typeof knowledgeChunks.$inferInsert;
+
+
+/** One durable project workspace per owner for the current single-workspace UX.
+ * The payload is versioned JSON so new project artifacts can be added compatibly. */
+export const workspaceSnapshots = mysqlTable("workspace_snapshots", {
+  storageKey: varchar("storage_key", { length: 160 }).primaryKey(),
+  ownerOpenId: varchar("owner_open_id", { length: 64 }).notNull(),
+  workspaceId: varchar("workspace_id", { length: 96 }).notNull().default("main"),
+  snapshot: mediumtext("snapshot").notNull(),
+  revision: int("revision").notNull().default(1),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+}, table => ({
+  ownerWorkspaceIdx: index("workspace_snapshots_owner_workspace_idx").on(table.ownerOpenId, table.workspaceId),
+}));
+
+/** Per-agent private transcripts; each row is scoped to one authenticated owner. */
+export const agentConversations = mysqlTable("agent_conversations", {
+  storageKey: varchar("storage_key", { length: 160 }).primaryKey(),
+  ownerOpenId: varchar("owner_open_id", { length: 64 }).notNull(),
+  agentId: varchar("agent_id", { length: 24 }).notNull(),
+  messages: mediumtext("messages").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+}, table => ({
+  ownerAgentIdx: index("agent_conversations_owner_agent_idx").on(table.ownerOpenId, table.agentId),
+}));
