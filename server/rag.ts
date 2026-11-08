@@ -23,6 +23,7 @@ async function embed(text: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_Q
       body: JSON.stringify({
         model: "models/gemini-embedding-001",
         content: { parts: [{ text: text.slice(0, 8000) }] },
+        taskType,
         outputDimensionality: 768,
       }),
     }
@@ -50,10 +51,13 @@ function cosine(a: number[], b: number[]) {
 export async function persistKnowledge(workspaceId: string, chunks: KnowledgeInput[]) {
   const db = await getDb();
   if (!db) return { persisted: false, count: 0, reason: "DATABASE_URL is not configured" };
-  let count = 0;\n  let vectorCount = 0;
+  let count = 0;
+  let vectorCount = 0;
   for (const chunk of chunks.slice(0, 50)) {
     const vector = await embed(`${chunk.heading}\n${chunk.content}`, "RETRIEVAL_DOCUMENT").catch(() => null);
-    if (vector) vectorCount += 1;\n    await db.insert(knowledgeChunks).values({
+    if (vector) vectorCount += 1;
+    await db.insert(knowledgeChunks).values({
+      storageKey: `${workspaceId.slice(0, 48)}:${chunk.id.slice(0, 140)}`,
       id: chunk.id,
       workspaceId,
       sourceName: chunk.sourceName.slice(0, 255),
