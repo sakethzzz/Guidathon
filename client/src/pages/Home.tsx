@@ -1157,8 +1157,9 @@ function JudgeArena({ challenge, evidence }: { challenge: string; evidence: stri
   const [product, setProduct] = useState("GUIDATHON is a mythology-themed multi-agent hackathon workspace. Five specialist agents support research, orchestration, idea validation, technical planning, and delivery. The workspace includes a 3D agent constellation, dedicated rooms, role chat, a MySQL-backed knowledge chunk store with Gemini embeddings when configured, lexical fallback, and an optional MCP adapter. Some visual and planning interactions may still be demo/local-only.");
   const [implementation, setImplementation] = useState("Implemented on a feature branch. Agent chat routes through configured model providers with role prompts. Specialist handoff routing is rule-based. RAG persistence requires DATABASE_URL and GEMINI_API_KEY; MCP requires an HTTPS MCP_SERVER_URL and optional token. CI workflow is defined, but no successful build/test run has been confirmed yet.");
   const [experience, setExperience] = useState("Responsive React interface with dark/light themes, keyboard-operable carousel controls, and reduced-motion/accessibility work still needs a full manual audit.");
+  const { data: currentUser } = trpc.auth.me.useQuery();
   const evaluation = trpc.evaluation.evaluate.useMutation();
-  const history = trpc.evaluation.history.useQuery(undefined, { retry: false });
+  const history = trpc.evaluation.history.useQuery(undefined, { enabled: Boolean(currentUser), retry: false });
   const result = evaluation.data;
   return <div className="room-body judge-arena">
     <div className="section-kicker"><span className="kicker-dot gold" /> Independent scoring / 8 dimensions</div>
@@ -1170,10 +1171,11 @@ function JudgeArena({ challenge, evidence }: { challenge: string; evidence: stri
       <label>UX / accessibility evidence<textarea value={experience} onChange={event => setExperience(event.target.value)} rows={4} /></label>
       <label>Retrieved source evidence<textarea value={evidence} readOnly rows={4} placeholder="Add sources in Hermes' room to include evidence here." /></label>
     </div>
-    <button className="primary-button" disabled={evaluation.isPending || !product.trim()} onClick={() => evaluation.mutate({ challenge, product, implementation, experience, evidence }, { onSuccess: () => void history.refetch() })}>
+    <button className="primary-button" disabled={!currentUser || evaluation.isPending || !product.trim()} onClick={() => evaluation.mutate({ challenge, product, implementation, experience, evidence }, { onSuccess: () => void history.refetch() })}>
       {evaluation.isPending ? "Judges are reviewing evidence…" : "Run evidence-based evaluation"} <ArrowUpRight size={15} />
     </button>
     {history.data?.length ? <div className="judge-history"><div className="section-kicker">Saved evaluations // latest 10</div><div className="judge-history-list">{history.data.map(run => <div className="judge-history-row" key={run.id}><strong>{run.score}<small>/100</small></strong><span>{String(run.result.summary ?? "Evaluation saved")}</span><time>{new Date(run.createdAt).toLocaleString()}</time></div>)}</div></div> : null}
+    {!currentUser && <p className="judge-error">Sign in to run and save evidence-based evaluations.</p>}
     {evaluation.error && <p role="alert" className="judge-error">{evaluation.error.message}</p>}
     {result && <div className="judge-results">
       <div className="judge-score"><span className="mono">WEIGHTED SCORE / 100</span><strong>{result.score}</strong><p>{result.verdict}</p></div>
