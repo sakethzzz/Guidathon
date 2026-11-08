@@ -4,7 +4,8 @@ import { systemRouter } from "./_core/systemRouter";
 import { invokeLLM } from "./_core/llm";
 import { persistKnowledge, retrieveKnowledge } from "./rag";
 import { inferHandoff, handoffAnswer } from "@shared/agentRouting";
-import { publicProcedure, router } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { callExternalMcpTool, listExternalMcpTools } from "./mcp";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
@@ -158,6 +159,18 @@ export const appRouter = router({
       }),
   }),
   agents: router({
+    tools: publicProcedure.query(async () => {
+      try { return await listExternalMcpTools(); }
+      catch (error) { return { configured: true, tools: [], reason: error instanceof Error ? error.message : "MCP discovery failed" }; }
+    }),
+    callTool: protectedProcedure
+      .input(z.object({ name: z.string().min(1).max(128), arguments: z.record(z.string(), z.unknown()).default({}), confirm: z.boolean().default(false) }))
+      .mutation(async ({ input }) => {
+        const sensitive = /(delete|remove|send|publish|deploy|create|update|write|execute|payment|purchase)/i.test(input.name);
+        if (sensitive && !input.confirm) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "This tool may change external data. Confirm the action explicitly before running it." });
+        try { return await callExternalMcpTool(input.name, input.arguments); }
+        catch (error) { throw new TRPCError({ code: "BAD_GATEWAY", message: error instanceof Error ? error.message : "MCP tool call failed" }); }
+      }),
     chat: publicProcedure
       .input(z.object({
         agent: z.enum(agentIds),
