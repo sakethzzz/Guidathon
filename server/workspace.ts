@@ -8,11 +8,27 @@ const agentIds = ["hermes", "zeus", "athena", "hephaestus", "chronos"] as const;
 export type WorkspaceAgentId = (typeof agentIds)[number];
 export type AgentMessage = { role: "user" | "agent"; text: string; createdAt: string };
 
-function workspaceKey(ownerOpenId: string) {
+export function serializeBoundedJson(value: unknown, maxBytes: number, label: string) {
+  const serialized = JSON.stringify(value);
+  if (Buffer.byteLength(serialized, "utf8") > maxBytes) throw new Error(label + " exceeds the " + maxBytes + " byte safety limit.");
+  return serialized;
+}
+
+export function normalizeAgentMessages(value: unknown): AgentMessage[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((message): message is AgentMessage =>
+    Boolean(message) &&
+    (message.role === "user" || message.role === "agent") &&
+    typeof message.text === "string" && message.text.length <= 4000 &&
+    typeof message.createdAt === "string" && message.createdAt.length <= 40
+  ).slice(-100);
+}
+
+export function workspaceStorageKey(ownerOpenId: string) {
   return `${ownerOpenId}:main`;
 }
 
-function conversationKey(ownerOpenId: string, agentId: WorkspaceAgentId) {
+export function agentConversationStorageKey(ownerOpenId: string, agentId: WorkspaceAgentId) {
   return `${ownerOpenId}:${agentId}`;
 }
 
@@ -34,9 +50,8 @@ export async function loadWorkspace(ownerOpenId: string) {
 export async function saveWorkspace(ownerOpenId: string, snapshot: Record<string, unknown>) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  const serialized = JSON.stringify(snapshot);
-  if (Buffer.byteLength(serialized, "utf8") > 100_000) throw new Error("Workspace snapshot exceeds the 100 KB safety limit.");
-  const key = workspaceKey(ownerOpenId);
+  const serialized = serializeBoundedJson(snapshot, 100_000, "Workspace snapshot");
+  const key = workspaceStorageKey(ownerOpenId);
   await db.insert(workspaceSnapshots).values({
     storageKey: key, ownerOpenId, workspaceId: WORKSPACE_ID, snapshot: serialized, revision: 1,
   }).onDuplicateKeyUpdate({
@@ -55,7 +70,7 @@ export async function loadAgentConversation(ownerOpenId: string, agentId: Worksp
   if (!rows.length) return [];
   try {
     const parsed = JSON.parse(rows[0].messages);
-    return Array.isArray(parsed) ? parsed.slice(-100) as AgentMessage[] : [];
+    return normalizeAgentMessages(parsed);
   } catch {
     throw new Error("Saved agent conversation is invalid JSON.");
   }
@@ -64,9 +79,8 @@ export async function loadAgentConversation(ownerOpenId: string, agentId: Worksp
 export async function saveAgentConversation(ownerOpenId: string, agentId: WorkspaceAgentId, messages: AgentMessage[]) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  const serialized = JSON.stringify(messages.slice(-100));
-  if (Buffer.byteLength(serialized, "utf8") > 80_000) throw new Error("Conversation exceeds the 80 KB safety limit.");
-  const key = conversationKey(ownerOpenId, agentId);
+  const serialized = serializeBoundedJson(messages.slice(-100), 80_000, "Conversation");
+  const key = agentConversationStorageKey(ownerOpenId, agentId);
   await db.insert(agentConversations).values({ storageKey: key, ownerOpenId, agentId, messages: serialized })
     .onDuplicateKeyUpdate({ set: { messages: serialized, updatedAt: new Date() } });
   return { saved: true as const, count: messages.slice(-100).length };
@@ -75,8 +89,7 @@ export async function saveAgentConversation(ownerOpenId: string, agentId: Worksp
 export async function saveJudgeEvaluation(ownerOpenId: string, payload: Record<string, unknown>) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  const serialized = JSON.stringify(payload);
-  if (Buffer.byteLength(serialized, "utf8") > 30_000) throw new Error("Judge result exceeds the 30 KB safety limit.");
+  const serialized = serializeBoundedJson(payload, 30_000, "Judge result");
   const id = randomUUID();
   const score = Number(payload.score);
   if (!Number.isFinite(score) || score < 0 || score > 100) throw new Error("Judge score is invalid.");
