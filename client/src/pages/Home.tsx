@@ -276,42 +276,6 @@ function agentById(id: AgentId) {
   return agents.find(agent => agent.id === id) ?? agents[0];
 }
 
-function playSparkSound() {
-  try {
-    const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const context = new AudioContextClass();
-    const rumble = context.createOscillator();
-    const rumbleGain = context.createGain();
-    rumble.type = "sine";
-    rumble.frequency.setValueAtTime(78, context.currentTime);
-    rumble.frequency.exponentialRampToValueAtTime(42, context.currentTime + 0.42);
-    rumbleGain.gain.setValueAtTime(0.0001, context.currentTime);
-    rumbleGain.gain.exponentialRampToValueAtTime(0.12, context.currentTime + 0.018);
-    rumbleGain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.48);
-    const noise = context.createBufferSource();
-    const buffer = context.createBuffer(1, context.sampleRate * 0.25, context.sampleRate);
-    const samples = buffer.getChannelData(0);
-    for (let index = 0; index < samples.length; index += 1) samples[index] = (Math.random() * 2 - 1) * (1 - index / samples.length);
-    noise.buffer = buffer;
-    const filter = context.createBiquadFilter();
-    const noiseGain = context.createGain();
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(1100, context.currentTime);
-    filter.frequency.exponentialRampToValueAtTime(240, context.currentTime + 0.2);
-    noiseGain.gain.setValueAtTime(0.0001, context.currentTime);
-    noiseGain.gain.exponentialRampToValueAtTime(0.045, context.currentTime + 0.006);
-    noiseGain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.24);
-    rumble.connect(rumbleGain).connect(context.destination);
-    noise.connect(filter).connect(noiseGain).connect(context.destination);
-    rumble.start(); noise.start();
-    rumble.stop(context.currentTime + 0.5); noise.stop(context.currentTime + 0.26);
-    rumble.addEventListener("ended", () => void context.close());
-  } catch {
-    // Audio is an enhancement; blocked audio must never block the interface.
-  }
-}
-
 function playThunderRumble() {
   try {
     const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -808,7 +772,7 @@ export default function Home() {
             </div>
             <button className="primary-button" onClick={() => { setStackRun(true); pushActivity("hephaestus", "Proposed the build stack", "React + TypeScript + Hermes retrieval now; MCP + vector store next.", "complete"); }}><Zap size={16} /> {stackRun ? "Stack staged" : "Stage technical plan"}</button>
           </div>
-          <div><div className="architecture-card"><div className="architecture-top"><span className="section-kicker">Architecture signal</span><span className="integration-pill mocked">model route</span></div><div className="architecture-flow"><span>source intake</span><ChevronRight size={14} /><span>chunk store</span><ChevronRight size={14} /><span>agent router</span><ChevronRight size={14} /><span>output</span></div><p>No hidden calls. Every boundary is inspectable now; the live Hephaestus channel can explain what to cut before the demo.</p><div className="architecture-note"><CircleHelp size={14} /> MCP bridge optional · model chat active</div></div><McpToolsPanel /><AgentRoleChat agent={agentById("hephaestus")} context={allChunks} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
+          <div><div className="architecture-card"><div className="architecture-top"><span className="section-kicker">Architecture signal</span><span className="integration-pill mocked">model route</span></div><div className="architecture-flow"><span>source intake</span><ChevronRight size={14} /><span>chunk store</span><ChevronRight size={14} /><span>agent router</span><ChevronRight size={14} /><span>output</span></div><p>No hidden calls. Every boundary is inspectable now; the live Hephaestus channel can explain what to cut before the demo.</p><div className="architecture-note"><CircleHelp size={14} /> MCP tool bench above · provider confirmed after each reply</div></div><McpToolsPanel /><AgentRoleChat agent={agentById("hephaestus")} context={allChunks} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
         </div>
       );
     }
@@ -819,9 +783,9 @@ export default function Home() {
           <div className="room-column">
             <div className="section-kicker"><span className="kicker-dot teal" /> Deadline engine</div>
             <h3>Time becomes another handoff.</h3>
-            <p className="room-intro">Chronos turns the chosen direction into a sequence the team can actually follow. Dates are demo defaults until you edit them.</p>
+            <p className="room-intro">Chronos turns the chosen direction into a sequence the team can actually follow. Dates are illustrative defaults; set real dates before relying on this timeline.</p>
             <div className="task-list">{tasks.map(task => <div className="task-row" key={task.title}><div className={`task-check ${task.status === "done" ? "checked" : ""}`}>{task.status === "done" && <Check size={12} />}</div><div className="task-main"><b>{task.title}</b><span>{task.owner} · {task.date}</span></div><span className={`task-status ${task.status}`}>{task.status}</span></div>)}</div>
-            <button className="primary-button" onClick={() => pushActivity("chronos", "Published the next deadline", "Lock one user + painful moment · Today at 18:00", "complete")}><CalendarClock size={16} /> Publish next deadline</button>
+            <button className="primary-button" onClick={() => pushActivity("chronos", "Recorded the next deadline", "Lock one user + painful moment · Today at 18:00", "complete")}><CalendarClock size={16} /> Log next deadline</button>
           </div>
           <div><div className="countdown-card"><span className="section-kicker">Submission window</span><div className="countdown">48<span>h</span> 12<span>m</span></div><p>until the demo cut-off</p><div className="progress-line"><span style={{ width: `${Math.max(18, readinessScore)}%` }} /></div><div className="countdown-foot"><span>{Math.round(readinessScore / 24)} / 4 milestones complete</span><span className="mono">{readinessScore}%</span></div></div><AgentRoleChat agent={agentById("chronos")} context={allChunks} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
         </div>
@@ -882,7 +846,7 @@ export default function Home() {
         </aside>
         <main className="workspace-main">
           {activeNav !== "Overview" && activeNav !== "Agents" && <div className="workspace-heading"><div><div className="eyebrow"><span className="eyebrow-line" /> WORKSPACE / {activeNav.toUpperCase()}</div><h1>{activeNav}</h1><p>The {activeNav.toLowerCase()} room stays connected to your latest handoff.</p></div><div className="heading-actions"><span className="integration-pill unverified"><span className="status-dot live" /> Hermes model active · MCP optional</span></div></div>}
-          {activeNav === "Overview" || activeNav === "Agents" ? renderRoom() : <section className="room-panel"><div className="room-panel-top"><div className="room-title"><div className={`room-avatar accent-${selected.accent}`}>{selected.glyph}</div><div><div className="eyebrow small">current room / {selected.role.toLowerCase()}</div><h2>{selected.name}<span> · {selected.short}</span></h2></div></div><div className="room-state"><span className="status-dot live" /> working context <span className="mono">HND-{onboardingComplete ? "042" : "001"}</span></div></div><div className="handoff-banner"><ArrowUpRight size={14} /><span><b>Latest handoff</b> {onboardingComplete ? `${event} · ${team} · ${uncertainty}` : "No handoff yet. Hermes is waiting for your first brief."}</span><button onClick={() => setActiveAgent("zeus")}>inspect thread <ChevronRight size={13} /></button></div>{activeNavAgent[activeNav] && <AgentRoomHero agent={selected} />} {renderRoom()}</section>}
+          {activeNav === "Overview" || activeNav === "Agents" ? renderRoom() : <section className="room-panel"><div className="room-panel-top"><div className="room-title"><div className={`room-avatar accent-${selected.accent}`}>{selected.glyph}</div><div><div className="eyebrow small">current room / {selected.role.toLowerCase()}</div><h2>{selected.name}<span> · {selected.short}</span></h2></div></div><div className="room-state"><span className="status-dot live" /> working context <span className="mono">HND-{onboardingComplete ? "042" : "001"}</span></div></div><div className="handoff-banner"><ArrowUpRight size={14} /><span><b>Latest handoff</b> {onboardingComplete ? `${event} · ${team} · ${uncertainty}` : "No handoff yet. Hermes is waiting for your first brief."}</span><button onClick={() => { setActiveAgent("zeus"); setActiveNav("Agents"); }} disabled={!onboardingComplete} aria-label={onboardingComplete ? "Inspect the latest Zeus handoff" : "No handoff exists yet"}>inspect thread <ChevronRight size={13} /></button></div>{activeNavAgent[activeNav] && <AgentRoomHero agent={selected} />} {renderRoom()}</section>}
         </main>
       </div>
       <input ref={fileInputRef} type="file" className="hidden-file-input" onChange={handleFile} accept=".txt,.md,.csv,.json,.html,.css,.js,.jsx,.ts,.tsx,.py,.java,.go,.rs,.yaml,.yml,text/*,.pdf" />
@@ -915,7 +879,7 @@ function ConstellationAgentDock({ agents, selected, onFocus, onEnter }: { agents
   const lore = agentLore[selected.id];
   return (
     <section className={`constellation-agent-dock accent-${selected.accent}`}>
-      <div className="constellation-dock-heading"><span className="mono">MODEL OVERVIEW // SELECTED SPIRIT</span><span className="dock-live"><i /> role model route ready</span></div>
+      <div className="constellation-dock-heading"><span className="mono">MODEL OVERVIEW // SELECTED SPIRIT</span><span className="dock-live"><i /> specialist routing · live provider resolved on send</span></div>
       <div className="constellation-dock-main">
         <ModelViewer agent={selected} />
         <div className="constellation-dock-copy">
