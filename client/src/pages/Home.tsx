@@ -488,9 +488,13 @@ export default function Home() {
 
   const handleCarouselPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 && event.pointerType === "mouse") return;
+    const startedOnCard = Boolean((event.target as HTMLElement).closest("button"));
+    suppressCarouselClick.current = false;
     carouselDrag.current = { x: event.clientX, rotation: carouselRotationRef.current, moved: false };
     setCarouselDragging(true);
-    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture is an enhancement. */ }
+    if (!startedOnCard) {
+      try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture is an enhancement. */ }
+    }
   };
 
   const handleCarouselDrag = (event: React.PointerEvent<HTMLDivElement>) => {
