@@ -1103,3 +1103,11 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 }
 .chat-citations a:hover, .chunk-source a:hover { color:var(--gold); }
 .chunk-card { scroll-margin-top:100px; }
+
+.hermes-transcript { position:relative; padding-top:48px; }
+.role-chat-thread { padding-top:48px; }
+@media (max-width:760px) {
+  .chat-companion-floating { top:7px; right:8px; }
+  .chat-companion-floating img { width:29px; height:29px; }
+  .hermes-transcript, .role-chat-thread { padding-top:43px; }
+}
