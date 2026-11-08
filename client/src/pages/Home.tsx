@@ -376,6 +376,7 @@ export default function Home() {
   const stormVideoRef = useRef<HTMLVideoElement>(null);
   const hermesAsk = trpc.hermes.ask.useMutation();
   const hermesIngest = trpc.hermes.ingest.useMutation();
+  const hermesComplete = trpc.hermes.completeIngestion.useMutation();
   const ideaAsk = trpc.agents.chat.useMutation();
 
   useEffect(() => {
@@ -592,18 +593,42 @@ export default function Home() {
   const addSource = (record: SourceRecord) => {
     setSources(current => [record, ...current]);
     const canParse = record.kind !== "upload" || !record.detail.toLowerCase().includes("unverified");
-    if (canParse && record.chunks.length) {
-      hermesIngest.mutate({ chunks: record.chunks.map(chunk => ({
-        id: chunk.id, sourceName: record.name, heading: chunk.heading,
-        content: chunk.passage, provenance: chunk.provenance,
-      })) });
+    const finishLocalProcessing = (persisted: boolean) => {
+      window.setTimeout(() => {
+        if (!canParse) {
+          setSources(current => current.map(source => source.id === record.id ? { ...source, status: "unverified", detail: "Metadata captured · content not parsed" } : source));
+          pushActivity("hermes", "Kept an upload unverified", `${record.name} was not parsed and cannot enter retrieval.`, "complete");
+          return;
+        }
+        const markLocal = () => {
+          setSources(current => current.map(source => source.id === record.id ? { ...source, status: "verified", detail: `${record.chunks.length} chunks · locally parsed · not persisted` } : source));
+          pushActivity("hermes", "Processed a new source locally", `${record.name} is available in this browser session; server persistence is unavailable.`, "complete");
+        };
+        if (!persisted) {
+          markLocal();
+          return;
+        }
+        hermesComplete.mutate({ ids: record.chunks.map(chunk => chunk.id) }, {
+          onSuccess: result => {
+            setSources(current => current.map(source => source.id === record.id ? { ...source, status: "verified", detail: `${result.count} chunks · parsed and saved to your workspace` } : source));
+            pushActivity("hermes", "Persisted processed knowledge", `${record.name} is now available to this authenticated workspace.`, "complete");
+          },
+          onError: markLocal,
+        });
+      }, 760);
+    };
+    if (!canParse || !record.chunks.length) {
+      finishLocalProcessing(false);
+      return;
     }
-    window.setTimeout(() => {
-      setSources(current => current.map(source => source.id === record.id ? { ...source, status: "verified", detail: `${record.chunks.length} chunks · local parse complete` } : source));
-      pushActivity("hermes", "Processed a new source", `${record.name} is now searchable but still locally verified only.`, "complete");
-    }, 760);
+    hermesIngest.mutate({ chunks: record.chunks.map(chunk => ({
+      id: chunk.id, sourceName: record.name, heading: chunk.heading,
+      content: chunk.passage, provenance: chunk.provenance,
+    })) }, {
+      onSuccess: result => finishLocalProcessing(Boolean(result.persisted)),
+      onError: () => finishLocalProcessing(false),
+    });
   };
-
   const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
