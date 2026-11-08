@@ -282,17 +282,34 @@ function sourceUrlFromProvenance(provenance: string) {
 }
 
 function splitIntoChunks(text: string, source: string, prefix: string): Chunk[] {
-  const sentences = text.replace(/\s+/g, " ").trim().split(/(?<=[.!?])\s+/).filter(Boolean);
-  const groups: string[] = [];
-  for (let index = 0; index < sentences.length; index += 2) {
-    groups.push(sentences.slice(index, index + 2).join(" "));
+  const normalized = text.replace(/\r/g, "").replace(/[ \t]+/g, " ").trim().slice(0, 90000);
+  if (!normalized) return [];
+  const passages: string[] = [];
+  const targetSize = 1500;
+  const overlap = 180;
+  let start = 0;
+  while (start < normalized.length && passages.length < 50) {
+    let end = Math.min(normalized.length, start + targetSize);
+    if (end < normalized.length) {
+      const boundary = Math.max(
+        normalized.lastIndexOf(". ", end),
+        normalized.lastIndexOf("? ", end),
+        normalized.lastIndexOf("! ", end),
+        normalized.lastIndexOf("\\n", end),
+      );
+      if (boundary > start + 900) end = boundary + 1;
+    }
+    const passage = normalized.slice(start, end).trim();
+    if (passage) passages.push(passage);
+    if (end >= normalized.length) break;
+    start = Math.max(start + 1, end - overlap);
   }
-  return (groups.length ? groups : [text.trim()]).filter(Boolean).map((passage, index) => ({
+  return passages.map((passage, index) => ({
     id: `chunk://${prefix}/${String(index + 1).padStart(3, "0")}`,
     source,
-    heading: index === 0 ? "User-provided context" : `Context fragment ${index + 1}`,
+    heading: index === 0 ? "User-provided context" : `Context passage ${index + 1}`,
     passage,
-    provenance: "user intake · local parse · unverified provenance",
+    provenance: "user-provided text · parsed in browser · not independently fact-checked",
   }));
 }
 
