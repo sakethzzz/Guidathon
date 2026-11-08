@@ -65,3 +65,12 @@ The current managed project has Server enabled for Preview and development. MCP 
 ## Model routing
 
 All model calls stay server-side. `server/routers.ts` exposes `hermes.ask` and `agents.chat`; the browser never receives provider keys. The provider adapter attempts Gemini when `GEMINI_API_KEY` is present, then Groq when `GROQ_API_KEY` is present, and finally the managed Manus LLM route. Hermes always receives the ranked retrieved chunks plus conversation history, while the other spirits receive a role-specific system contract and answer only within their domain. The active provider is shown in each chatspace so the interface does not pretend a provider was used when it was not.
+
+
+## Persistence and evidence trust
+
+The current knowledge store uses MySQL through Drizzle. When GEMINI_API_KEY is configured, chunks are embedded with Gemini Embedding 001 (768 dimensions); vectors are serialized in the MySQL knowledge_chunks.embedding column and ranked with cosine similarity in the application. If an individual vector is unavailable, retrieval can use lexical overlap. This is an application-managed vector retrieval MVP, not a dedicated vector database or a MySQL native vector index.
+
+Knowledge ingestion is authenticated and scoped to the signed-in user's workspace. Newly uploaded chunks begin as unverified. After supported text parsing completes, the client asks the server to mark those exact workspace-owned chunk IDs as processed. In this app, verified means the intake/parse step completed; it does not mean the factual claims in a user-uploaded document were independently fact-checked. Browser-supplied context is labeled unverified and is never silently persisted by chat requests. Persistent retrieval only returns processed chunks from the current user's workspace.
+
+The Judge Arena uses an eight-dimension weighted rubric and calculates the final score server-side. The evaluator is instructed to penalize missing proof; 94/100 is an aspirational quality bar, not a default or guaranteed result.
