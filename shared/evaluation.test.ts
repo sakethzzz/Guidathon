@@ -17,4 +17,14 @@ describe("weighted GUIDATHON evaluation", () => {
   it("does not award missing criteria points", () => {
     expect(calculateWeightedScore([])).toBe(0);
   });
+
+  it("treats non-finite model scores as zero instead of poisoning the total", () => {
+    const criteria = evaluationRubric.map((item, index) => ({
+      key: item.key,
+      score: index === 0 ? Number.NaN : 9.4,
+      evidence: "",
+      improvement: "",
+    }));
+    expect(calculateWeightedScore(criteria)).toBe(86);
+  });
 });
