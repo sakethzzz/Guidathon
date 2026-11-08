@@ -50,10 +50,10 @@ function cosine(a: number[], b: number[]) {
 export async function persistKnowledge(workspaceId: string, chunks: KnowledgeInput[]) {
   const db = await getDb();
   if (!db) return { persisted: false, count: 0, reason: "DATABASE_URL is not configured" };
-  let count = 0;
+  let count = 0;\n  let vectorCount = 0;
   for (const chunk of chunks.slice(0, 50)) {
     const vector = await embed(`${chunk.heading}\n${chunk.content}`, "RETRIEVAL_DOCUMENT").catch(() => null);
-    await db.insert(knowledgeChunks).values({
+    if (vector) vectorCount += 1;\n    await db.insert(knowledgeChunks).values({
       id: chunk.id,
       workspaceId,
       sourceName: chunk.sourceName.slice(0, 255),
@@ -74,7 +74,7 @@ export async function persistKnowledge(workspaceId: string, chunks: KnowledgeInp
     });
     count += 1;
   }
-  return { persisted: true, count, vectorized: Boolean(process.env.GEMINI_API_KEY) };
+  return { persisted: true, count, vectorized: vectorCount === count, vectorCount };
 }
 
 export async function retrieveKnowledge(workspaceId: string, query: string, limit = 5) {
