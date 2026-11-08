@@ -99,7 +99,7 @@ const agents: Array<{
 }> = [
   { id: "hermes", name: "Hermes", role: "Guide + knowledge", short: "Answers, frames, routes", glyph: "✦", accent: "blue", art: createAgentArt("✦", "#10233a", "#83c5ff"), theme: "skyline blue", quote: "Ask the fog a better question." },
   { id: "zeus", name: "Zeus", role: "Orchestrator", short: "Routes the next move", glyph: "ϟ", accent: "violet", art: createAgentArt("ϟ", "#1b1738", "#b7a1ff"), theme: "storm violet", quote: "Every handoff needs a keeper." },
-  { id: "athena", name: "Athena", role: "Idea analysis", short: "Tests the thesis", glyph: "Δ", accent: "rose", art: createAgentArt("Δ", "#351a2b", "#f4a6c6"), theme: "rose strategy", quote: "A sharp idea survives contact." },
+  { id: "athena", name: "Athena", role: "Lead strategist", short: "Shapes winning ideas", glyph: "Δ", accent: "rose", art: createAgentArt("Δ", "#351a2b", "#f4a6c6"), theme: "rose strategy", quote: "A sharp idea survives contact." },
   { id: "hephaestus", name: "Hephaestus", role: "Stack + workflow", short: "Turns plans buildable", glyph: "⌘", accent: "orange", art: createAgentArt("⌘", "#392014", "#ffb36c"), theme: "forge orange", quote: "Make the next build smaller." },
   { id: "chronos", name: "Chronos", role: "Time + submission", short: "Makes time visible", glyph: "◷", accent: "teal", art: createAgentArt("◷", "#102d29", "#74e5c1"), theme: "tide teal", quote: "A deadline is a shape, not a threat." },
 ];
@@ -1300,7 +1300,7 @@ function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agen
   const roleIntros: Record<AgentId, string> = {
     hermes: "I am Hermes, the guide and knowledge layer. Ask me about formats, judging, scoping, or what the current sources establish.",
     zeus: "I am Zeus, the orchestrator. I carry the brief between rooms, expose missing context, and make the next handoff explicit.",
-    athena: "I am Athena, the idea pressure tester. I compare hypotheses by user value, proof, and scope before recommending a direction.",
+    athena: "I am Athena, your lead strategist. I help discover differentiated ideas, identify the real user pain, compare directions, choose a winning MVP, and design the fastest experiment to prove it.",
     hephaestus: "I am Hephaestus, the builder. I turn a selected direction into a practical stack, workflow, and integration boundary.",
     chronos: "I am Chronos, the timekeeper. I turn the build into dated milestones, owners, and a submission sequence.",
   };
