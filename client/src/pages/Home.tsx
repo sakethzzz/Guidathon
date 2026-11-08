@@ -1112,7 +1112,8 @@ function McpToolsPanel() {
 function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agents)[number]; context?: Chunk[]; onHandoff?: (id: AgentId) => void }) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Array<{ role: "user" | "agent"; text: string }>>([]);
-  const [provider, setProvider] = useState("model route ready");\n  const [handoffTo, setHandoffTo] = useState<AgentId | null>(null);
+  const [provider, setProvider] = useState("model route ready");
+  const [handoffTo, setHandoffTo] = useState<AgentId | null>(null);
   const agentChat = trpc.agents.chat.useMutation();
 
   useEffect(() => {
