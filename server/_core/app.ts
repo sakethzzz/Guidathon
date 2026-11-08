@@ -12,7 +12,18 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", service: "guidathon-api" });
+  res.set("Cache-Control", "no-store").json({
+    status: "ok",
+    service: "guidathon-api",
+    capabilities: {
+      localAgentFallback: true,
+      geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+      groqConfigured: Boolean(process.env.GROQ_API_KEY),
+      managedModelConfigured: Boolean(process.env.MANUS_API_URL && process.env.MANUS_API_KEY),
+      persistentDatabaseConfigured: Boolean(process.env.DATABASE_URL),
+      externalMcpConfigured: Boolean(process.env.MCP_SERVER_URL),
+    },
+  });
 });
 
 app.get("/api/platform/config.js", (_req, res) => {
