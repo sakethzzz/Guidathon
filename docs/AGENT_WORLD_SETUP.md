@@ -39,7 +39,7 @@ MCP_SERVER_URL=https://your-mcp-server.example.com/mcp
 MCP_SERVER_TOKEN=...
 ```
 
-The Hephaestus room's MCP Tool Bench discovers tools and lets an authenticated user invoke them. Credentials remain server-side. Tool names that look like writes, deletes, sends, publishes, deploys, or executions require explicit confirmation. Use a dedicated least-privilege MCP server; do not expose arbitrary shell, unrestricted filesystem, or admin tools to a public demo.
+The Hephaestus room's MCP Tool Bench discovers tools and lets an authenticated user invoke them. Credentials remain server-side. Only tools explicitly annotated by the MCP server with `readOnlyHint: true` may run without confirmation. Missing or false read-only hints require explicit user confirmation; MCP annotations are advisory, so connect only trusted least-privilege servers. Use a dedicated least-privilege MCP server; do not expose arbitrary shell, unrestricted filesystem, or admin tools to a public demo.
 
 The current adapter supports one configured Streamable HTTP MCP server. It does not claim MCP is connected when the URL is absent. OAuth-based multi-server connection management, resource subscriptions, and automatic LLM tool selection are future work.
 
