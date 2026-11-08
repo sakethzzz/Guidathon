@@ -132,11 +132,11 @@
 - [x] Restrict persistent retrieval to processed chunks belonging to the authenticated user's workspace.
 - [x] Reset a chunk to unverified when its content is re-ingested, preventing stale verification from carrying over to changed content.
 - [x] Align the Drizzle schema's workspace/status index with the SQL migration.
-- [ ] Add automated tests for retrieval trust boundaries, vector/lexical fallback, and workspace isolation.
+- [x] Add automated tests for retrieval trust boundaries, vector/lexical fallback, MCP confirmation, and evaluation score normalization.\n- [ ] Add database-backed integration tests for snapshot round-trips, agent transcript isolation, and Judge Arena history.
 - [ ] Add provider timeouts, retry/backoff, structured-output validation, and model-call rate limits.
-- [ ] Persist project briefs, milestones, agent artifacts, chat history, and evaluation history in workspace-scoped tables.
+- [x] Persist the core project brief, onboarding context, source ledger, Hermes transcript, idea/build artifacts, submission notes, theme, and activity stream in an owner-scoped, versioned workspace snapshot with debounced autosave.\n- [x] Persist each specialist agent transcript independently and restore it in that agent’s room.\n- [x] Persist Judge Arena evaluations as append-only, owner-scoped history and show the latest ten saved runs.\n- [ ] Expand the single-workspace model into named projects/workspaces and make timeline tasks editable with per-task persistence.
 - [ ] Complete MCP transport compatibility, tool-schema validation, permission policy, and audit logging.
-- [ ] Run migration against a disposable MySQL instance and verify multi-user isolation.
+- [ ] Run migration against a disposable MySQL instance and verify multi-user isolation (requires DATABASE_URL).
 - [ ] Complete mobile, keyboard, reduced-motion, and screen-reader QA.
 - [ ] Verify production deployment with real environment variables, health checks, and a live smoke test.
 - [ ] Earn the target Judge Arena score through reproducible evidence; 94/100 is a goal, never a preset.
