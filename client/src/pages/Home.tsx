@@ -1008,7 +1008,6 @@ export default function Home() {
   return (
     <div className={`app-shell theme-${themeMode} ${entered ? "has-entered" : "is-landing"}`} onPointerDown={triggerClickSpark}>
       <video ref={stormVideoRef} className="storm-video" autoPlay muted loop playsInline preload="auto" aria-hidden="true"><source src="/media/guidathon-storm-loop.mp4" type="video/mp4" /></video>
-      <div className="cursor-trail" aria-hidden="true">{trail.map(point => <span key={point.id} style={{ left: point.x, top: point.y }} />)}<span className={`thunder-cursor ${hoveringInteractive ? "hidden" : ""}`} style={{ left: cursor.x, top: cursor.y }}>ϟ</span>{clickSpark && <span className="click-spark" style={{ left: clickSpark.x, top: clickSpark.y }}>✦</span>}</div>
       <div className="storm-noise" />
       {themeMode === "light" && <AntigravityField cursor={cursor} spark={clickSpark} />}
       {handoff && <div className="handoff-transition" aria-live="polite"><div className="cloud-curtain cloud-left" /><div className="cloud-curtain cloud-right" /><div className="cloud-mist cloud-mist-one" /><div className="cloud-mist cloud-mist-two" /><div className="handoff-transition-copy"><span className="mono">CONTEXT IN MOTION</span><strong>{handoff.from} <i>→</i> {handoff.to}</strong><small>carrying the latest brief forward</small></div></div>}
