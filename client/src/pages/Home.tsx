@@ -17,6 +17,8 @@ import {
   Radar,
   Settings2,
   Sparkles,
+  Sun,
+  Moon,
   Target,
   Timer,
   UploadCloud,
@@ -79,6 +81,11 @@ type Task = {
   status: "next" | "queued" | "done";
 };
 
+function createAgentArt(glyph: string, base: string, accent: string) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><defs><radialGradient id="a"><stop stop-color="${accent}" stop-opacity=".55"/><stop offset="1" stop-color="${base}" stop-opacity="0"/></radialGradient><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${accent}"/><stop offset="1" stop-color="${base}"/></linearGradient></defs><rect width="240" height="240" rx="42" fill="${base}"/><circle cx="120" cy="108" r="104" fill="url(#a)"/><circle cx="120" cy="108" r="76" fill="none" stroke="${accent}" stroke-opacity=".38" stroke-width="1.5"/><circle cx="120" cy="108" r="62" fill="none" stroke="${accent}" stroke-opacity=".24" stroke-dasharray="3 8"/><path d="M120 24 133 92 201 108 133 124 120 192 107 124 39 108 107 92Z" fill="url(#b)" fill-opacity=".16" stroke="${accent}" stroke-opacity=".7"/><text x="120" y="137" text-anchor="middle" font-family="Georgia,serif" font-size="92" fill="#fff7e7">${glyph}</text><text x="120" y="220" text-anchor="middle" font-family="monospace" font-size="10" letter-spacing="4" fill="${accent}">GUIDATHON</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
 const agents: Array<{
   id: AgentId;
   name: string;
@@ -90,11 +97,11 @@ const agents: Array<{
   theme: string;
   quote: string;
 }> = [
-  { id: "hermes", name: "Hermes", role: "Guide + knowledge", short: "Answers, frames, routes", glyph: "✦", accent: "blue", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-1.webp", theme: "skyline blue", quote: "Ask the fog a better question." },
-  { id: "zeus", name: "Zeus", role: "Orchestrator", short: "Routes the next move", glyph: "ϟ", accent: "violet", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-2.webp", theme: "storm violet", quote: "Every handoff needs a keeper." },
-  { id: "athena", name: "Athena", role: "Idea analysis", short: "Tests the thesis", glyph: "Δ", accent: "rose", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-3.webp", theme: "rose strategy", quote: "A sharp idea survives contact." },
-  { id: "hephaestus", name: "Hephaestus", role: "Stack + workflow", short: "Turns plans buildable", glyph: "⌘", accent: "orange", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-4.webp", theme: "forge orange", quote: "Make the next build smaller." },
-  { id: "chronos", name: "Chronos", role: "Time + submission", short: "Makes time visible", glyph: "◷", accent: "teal", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-5.webp", theme: "tide teal", quote: "A deadline is a shape, not a threat." },
+  { id: "hermes", name: "Hermes", role: "Guide + knowledge", short: "Answers, frames, routes", glyph: "✦", accent: "blue", art: createAgentArt("✦", "#10233a", "#83c5ff"), theme: "skyline blue", quote: "Ask the fog a better question." },
+  { id: "zeus", name: "Zeus", role: "Orchestrator", short: "Routes the next move", glyph: "ϟ", accent: "violet", art: createAgentArt("ϟ", "#1b1738", "#b7a1ff"), theme: "storm violet", quote: "Every handoff needs a keeper." },
+  { id: "athena", name: "Athena", role: "Idea analysis", short: "Tests the thesis", glyph: "Δ", accent: "rose", art: createAgentArt("Δ", "#351a2b", "#f4a6c6"), theme: "rose strategy", quote: "A sharp idea survives contact." },
+  { id: "hephaestus", name: "Hephaestus", role: "Stack + workflow", short: "Turns plans buildable", glyph: "⌘", accent: "orange", art: createAgentArt("⌘", "#392014", "#ffb36c"), theme: "forge orange", quote: "Make the next build smaller." },
+  { id: "chronos", name: "Chronos", role: "Time + submission", short: "Makes time visible", glyph: "◷", accent: "teal", art: createAgentArt("◷", "#102d29", "#74e5c1"), theme: "tide teal", quote: "A deadline is a shape, not a threat." },
 ];
 
 const antigravityParticles = Array.from({ length: 64 }, (_, index) => ({
@@ -356,15 +363,13 @@ export default function Home() {
   const [ideaRun, setIdeaRun] = useState(false);
   const [stackRun, setStackRun] = useState(false);
   const [uploadedName, setUploadedName] = useState("");
-  const [themeMode, setThemeMode] = useState<"dark" | "light">("light");
+  const [themeMode, setThemeMode] = useState<"dark" | "light">(() => { try { const saved = localStorage.getItem("guidathon-theme"); return saved === "dark" || saved === "light" ? saved : "dark"; } catch { return "dark"; } });
   const [aboutOpen, setAboutOpen] = useState(false);
   const [ideaInput, setIdeaInput] = useState("");
   const [ideaResponse, setIdeaResponse] = useState("");
   const [submissionInput, setSubmissionInput] = useState("");
   const [submissionResult, setSubmissionResult] = useState("");
   const [cursor, setCursor] = useState({ x: -100, y: -100 });
-  const [hoveringInteractive, setHoveringInteractive] = useState(false);
-  const [trail, setTrail] = useState<Array<{ id: number; x: number; y: number }>>([]);
   const [clickSpark, setClickSpark] = useState<{ id: number; x: number; y: number } | null>(null);
   const [handoff, setHandoff] = useState<{ from: string; to: string } | null>(null);
   const [carouselPointer, setCarouselPointer] = useState({ x: 0, y: 0 });
@@ -427,18 +432,21 @@ export default function Home() {
   }, [currentUser, workspaceQuery.isSuccess, workspaceQuery.data]);
 
   useEffect(() => {
-    const handleMove = (event: MouseEvent) => {
+    let lastUpdate = 0;
+    const handleMove = (event: PointerEvent) => {
+      if (event.pointerType === "touch") return;
+      const now = performance.now();
+      if (now - lastUpdate < 40) return;
+      lastUpdate = now;
       setCursor({ x: event.clientX, y: event.clientY });
-      setTrail(current => [...current.slice(-13), { id: Date.now() + Math.random(), x: event.clientX, y: event.clientY }]);
     };
-    window.addEventListener("mousemove", handleMove, { passive: true });
-    const handleOver = (event: MouseEvent) => setHoveringInteractive(Boolean((event.target as HTMLElement).closest("button, a, input, textarea, [role=button]")));
-    window.addEventListener("mouseover", handleOver, { passive: true });
-    return () => {
-      window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseover", handleOver);
-    };
+    window.addEventListener("pointermove", handleMove, { passive: true });
+    return () => window.removeEventListener("pointermove", handleMove);
   }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem("guidathon-theme", themeMode); } catch { /* storage may be unavailable */ }
+  }, [themeMode]);
 
   // Thunder is intentionally user-triggered; no periodic or autoplay audio.
 
@@ -930,7 +938,7 @@ export default function Home() {
       <header className="topbar">
         <div className="brand-lockup"><div className="brand-sigil">✦</div><div><div className="brand-wordmark">GUIDA<span>THON</span></div><div className="brand-subtitle">evidence / action / outcome</div></div></div>
         <div className="topbar-status" aria-live="polite"><span className="status-dot live" /> constellation online <span className="status-divider" /> <span className="mono">{currentUser ? (workspaceSave.isPending ? "SAVING..." : workspaceSave.isError || workspaceQuery.isError ? "CLOUD SAVE ISSUE" : workspaceReady ? "CLOUD WORKSPACE" : "LOADING WORKSPACE") : "LOCAL SESSION"}</span></div>
-        <button className="help-button" aria-label="What is GUIDATHON?" onClick={() => setAboutOpen(true)}><CircleHelp size={17} /></button>
+        <div className="topbar-actions"><button className="icon-button theme-toggle" aria-label={`Switch to ${themeMode === "dark" ? "light" : "dark"} theme`} title={`Switch to ${themeMode === "dark" ? "light" : "dark"} theme`} onClick={() => setThemeMode(mode => mode === "dark" ? "light" : "dark")}>{themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}</button><button className="help-button" aria-label="What is GUIDATHON?" onClick={() => setAboutOpen(true)}><CircleHelp size={17} /></button></div>
       </header>
       <div className="workspace-shell">
         <aside className="line-sidebar">
@@ -1275,15 +1283,15 @@ function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agen
 
   return (
     <div className={`role-chat accent-${agent.accent}`}>
-      <div className="role-chat-head"><div><span className="section-kicker">{agent.name}&apos;s role chat</span><span className="role-chat-caption">private channel · role locked</span></div><span className="role-chat-provider"><span className="status-dot live" />{provider}</span></div>
+      <div className="role-chat-head"><div><span className="section-kicker">{agent.name}&apos;s role chat</span><span className="role-chat-caption">specialist lens · general questions welcome</span></div><span className="role-chat-provider"><span className="status-dot live" />{provider}</span></div>
       <div className="role-chat-intro"><span className="role-chat-avatar"><img src={agent.art} alt="" /></span><p><b>{agent.name}</b><span>{roleIntros[agent.id]}</span><em>{agent.quote}</em></p></div>
       <div className="role-chat-thread">
-        {!messages.length && !agentChat.isPending && <div className="role-chat-empty"><span>✦</span> Ask a role-specific question. This channel stays with {agent.name}.</div>}
+        {!messages.length && !agentChat.isPending && <div className="role-chat-empty"><span>✦</span> Ask anything. {agent.name} brings a specialist perspective when it helps.</div>}
         {messages.slice(-4).map((message, index) => <div className={`role-chat-line ${message.role}`} key={`${message.role}-${index}`}><b>{message.role === "agent" ? agent.name : "you"}</b><span>{message.text}</span></div>)}
         {agentChat.isPending && <div className="role-chat-line agent role-chat-thinking"><b>{agent.name}</b><span>Thinking through the current brief…</span></div>}
       </div>
       {handoffTo && <button className="role-handoff" onClick={() => onHandoff?.(handoffTo)}>Open {agentById(handoffTo).name}&apos;s room <ArrowUpRight size={13} /></button>}
-      <div className="role-chat-input"><input value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => event.key === "Enter" && askRole()} placeholder={`Ask ${agent.name} about their role…`} disabled={agentChat.isPending || conversation.isLoading || saveConversation.isPending} /><button onClick={askRole} aria-label={`Ask ${agent.name}`} disabled={agentChat.isPending || conversation.isLoading || saveConversation.isPending}><span>send</span><ArrowUpRight size={14} /></button></div>
+      <div className="role-chat-input"><input value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => event.key === "Enter" && askRole()} placeholder={`Ask ${agent.name} anything…`} disabled={agentChat.isPending || conversation.isLoading || saveConversation.isPending} /><button onClick={askRole} aria-label={`Ask ${agent.name}`} disabled={agentChat.isPending || conversation.isLoading || saveConversation.isPending}><span>send</span><ArrowUpRight size={14} /></button></div>
     </div>
   );
 }
