@@ -8,6 +8,7 @@ import { calculateWeightedScore, evaluationRubric } from "@shared/evaluation";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { callExternalMcpTool, listExternalMcpTools } from "./mcp";
 import { TRPCError } from "@trpc/server";
+import { loadWorkspace, saveWorkspace, loadAgentConversation, saveAgentConversation } from "./workspace";
 import { z } from "zod";
 
 const hermesContextSchema = z.object({
@@ -116,6 +117,25 @@ function evidenceText(context: z.infer<typeof hermesContextSchema>[], verifiedId
 
 export const appRouter = router({
   system: systemRouter,
+  workspace: router({
+    load: protectedProcedure.query(async ({ ctx }) => {
+      try { return await loadWorkspace(ctx.user.openId); }
+      catch (error) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Workspace load failed" }); }
+    }),
+    save: protectedProcedure
+      .input(z.object({ snapshot: z.record(z.string(), z.unknown()) }))
+      .mutation(async ({ input, ctx }) => {
+        try {
+          const serialized = JSON.stringify(input.snapshot);
+          if (Buffer.byteLength(serialized, "utf8") > 100_000) throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "Workspace snapshot exceeds 100 KB." });
+          if (input.snapshot.schemaVersion !== 1) throw new TRPCError({ code: "BAD_REQUEST", message: "Unsupported workspace snapshot version." });
+          return await saveWorkspace(ctx.user.openId, input.snapshot);
+        } catch (error) {
+          if (error instanceof TRPCError) throw error;
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Workspace save failed" });
+        }
+      }),
+  }),
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -235,6 +255,30 @@ export const appRouter = router({
       }),
   }),
   agents: router({
+    conversation: protectedProcedure
+      .input(z.object({ agent: z.enum(agentIds) }))
+      .query(async ({ input, ctx }) => {
+        try { return await loadAgentConversation(ctx.user.openId, input.agent); }
+        catch (error) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Conversation load failed" }); }
+      }),
+    saveConversation: protectedProcedure
+      .input(z.object({
+        agent: z.enum(agentIds),
+        messages: z.array(z.object({
+          role: z.enum(["user", "agent"]),
+          text: z.string().max(4000),
+          createdAt: z.string().max(40).optional(),
+        })).max(100),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        try {
+          return await saveAgentConversation(ctx.user.openId, input.agent, input.messages.map(message => ({
+            ...message, createdAt: message.createdAt ?? new Date().toISOString(),
+          })));
+        } catch (error) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Conversation save failed" });
+        }
+      }),
     tools: protectedProcedure.query(async () => {
       try { return await listExternalMcpTools(); }
       catch (error) { return { configured: true, tools: [], reason: error instanceof Error ? error.message : "MCP discovery failed" }; }
