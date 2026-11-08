@@ -126,7 +126,21 @@ const navItems: Array<{ id: NavId; label: string; icon: typeof Radar }> = [
   { id: "Technical Plan", label: "Technical Plan", icon: GitBranch },
   { id: "Timeline & Tasks", label: "Timeline & Tasks", icon: CalendarClock },
   { id: "Settings", label: "Settings", icon: Settings2 },
-];
+];\n\nconst agentRoomFor: Record<AgentId, NavId> = {
+  hermes: "Sources",
+  zeus: "Challenge Brief",
+  athena: "Idea Lab",
+  hephaestus: "Technical Plan",
+  chronos: "Timeline & Tasks",
+};
+
+const agentLore: Record<AgentId, { epithet: string; myth: string; responsibility: string; handoff: string }> = {
+  hermes: { epithet: "The messenger between worlds", myth: "In Greek myth, Hermes carries messages across boundaries. GUIDATHON gives him the evidence trail: sources, retrieval, citations, and clear uncertainty.", responsibility: "Research, source intake, retrieval-augmented answers, and evidence provenance.", handoff: "When evidence is ready, Hermes sends the brief to Zeus or Athena." },
+  zeus: { epithet: "The keeper of the whole sky", myth: "Zeus governs the Olympian order. Here, he coordinates specialists, protects shared context, and makes every handoff explicit.", responsibility: "Orchestration, context routing, decision ownership, and handoff integrity.", handoff: "When a decision needs specialist work, Zeus routes it to the right spirit." },
+  athena: { epithet: "Wisdom with a strategist's edge", myth: "Athena represents strategic wisdom. She challenges assumptions, compares options, and asks what evidence would prove an idea.", responsibility: "Idea validation, user pain, differentiation, feasibility, and proof experiments.", handoff: "A validated thesis moves to Hephaestus for an implementation plan." },
+  hephaestus: { epithet: "The maker beneath the mountain", myth: "Hephaestus is the divine craftsperson. He turns ambitious concepts into systems that can actually be built and demonstrated.", responsibility: "Architecture, code strategy, data boundaries, integrations, and MCP tool design.", handoff: "A buildable plan moves to Chronos for milestones and delivery." },
+  chronos: { epithet: "The force that gives time a shape", myth: "Chronos personifies time. GUIDATHON uses him to expose dependencies, deadlines, owners, and the final submission buffer.", responsibility: "Timeline, milestone sequencing, task ownership, risk buffers, and submission readiness.", handoff: "Chronos reports delivery risk to Zeus so the team can reroute early." },
+};
 
 const seedChunks: Chunk[] = [
   {
@@ -377,18 +391,7 @@ export default function Home() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!entered) return;
-    const thunderTimer = window.setInterval(playThunderRumble, 7000);
-    const video = stormVideoRef.current;
-    let previousTime = 0;
-    const handleLoop = () => {
-      if (video && video.currentTime + 0.2 < previousTime) playThunderRumble();
-      if (video) previousTime = video.currentTime;
-    };
-    video?.addEventListener("timeupdate", handleLoop);
-    return () => { window.clearInterval(thunderTimer); video?.removeEventListener("timeupdate", handleLoop); };
-  }, [entered]);
+  // Thunder is intentionally user-triggered; no periodic or autoplay audio.
 
   useEffect(() => {
     if (!entered || activeNav !== "Agents" || !carouselAutoplay || carouselHover || carouselDragging) return;
@@ -435,27 +438,36 @@ export default function Home() {
     setCarouselRotation(rotation);
   };
 
-  const selectAgent = (id: AgentId) => {
-    const nextAgent = agentById(id);
+  const focusAgent = (id: AgentId) => {
     const nextIndex = agents.findIndex(agent => agent.id === id);
     updateCarouselRotation(-nextIndex * (360 / agents.length));
-    setHandoff({ from: selected.name, to: nextAgent.name });
     setActiveAgent(id);
+  };
+
+  const selectAgent = (id: AgentId) => {
+    const nextAgent = agentById(id);
+    setHandoff({ from: selected.name, to: nextAgent.name });
+    focusAgent(id);
     pushActivity("zeus", `Routed context to ${nextAgent.name}`, `${selected.name} → ${nextAgent.name}: ${uncertainty || "open question"}`, "live");
     window.setTimeout(() => setHandoff(null), 2100);
+  };
+
+  const enterAgentRoom = (id: AgentId) => {
+    selectAgent(id);
+    setActiveNav(agentRoomFor[id]);
   };
 
   const moveCarousel = (direction: -1 | 1) => {
     const currentIndex = agents.findIndex(agent => agent.id === activeAgent);
     const nextIndex = (currentIndex + direction + agents.length) % agents.length;
-    selectAgent(agents[nextIndex].id);
+    focusAgent(agents[nextIndex].id);
   };
 
   const snapCarouselToNearest = () => {
     const step = 360 / agents.length;
     const snapped = Math.round(carouselRotationRef.current / step) * step;
     const index = ((Math.round(-snapped / step) % agents.length) + agents.length) % agents.length;
-    selectAgent(agents[index].id);
+    focusAgent(agents[index].id);
   };
 
   const handleCarouselWheel = (event: React.WheelEvent<HTMLDivElement>) => {
@@ -518,7 +530,7 @@ export default function Home() {
   const triggerClickSpark = (event: React.PointerEvent<HTMLDivElement>) => {
     const nextSpark = { id: Date.now(), x: event.clientX, y: event.clientY };
     setClickSpark(nextSpark);
-    playSparkSound();
+    playThunderRumble();
     window.setTimeout(() => setClickSpark(current => current?.id === nextSpark.id ? null : current), 620);
   };
 
@@ -663,7 +675,7 @@ export default function Home() {
   };
 
   const renderRoom = () => {
-    if (activeNav === "Overview") return <OverviewStack agents={agents} onSelect={id => { setActiveAgent(id); setActiveNav("Sources"); }} />;
+    if (activeNav === "Overview") return <OverviewStack agents={agents} onSelect={enterAgentRoom} />;
     if (activeNav === "Sources") {
       return <SourceAgentRoom agents={agents} selected={selected} onSelect={selectAgent} context={allChunks} sources={sources} manualNote={manualNote} setManualNote={setManualNote} addManualNote={addManualNote} onUpload={() => fileInputRef.current?.click()} uploadedName={uploadedName} />;
     }
@@ -682,7 +694,7 @@ export default function Home() {
               <div className="agent-card-orbit" style={{ "--orbit-rotation": `${carouselRotation}deg` } as CSSProperties}>
                 {agents.map((agent, index) => {
                   const angle = (index / agents.length) * 360 - 90;
-                  return <button key={agent.id} className={`agent-card-3d accent-${agent.accent} ${activeAgent === agent.id ? "active" : ""} ${carouselHover === agent.id ? "hovered" : ""}`} style={{ "--card-angle": `${angle}deg`, "--card-delay": `${index * 90}ms` } as CSSProperties} onPointerEnter={() => setCarouselHover(agent.id)} onClick={event => { if (suppressCarouselClick.current) { event.preventDefault(); suppressCarouselClick.current = false; return; } selectAgent(agent.id); }} aria-label={`Enter ${agent.name} chatspace`}><span className="agent-card-sheen" /><span className="agent-card-silhouette" /><span className="agent-portrait-frame"><img src={agent.art} alt={`${agent.name} chibi spirit face card`} /></span><span className="agent-card-footer"><b>{agent.name}</b><small>{agent.role}</small></span><span className="agent-card-index">0{index + 1}</span></button>;
+                  return <button key={agent.id} className={`agent-card-3d accent-${agent.accent} ${activeAgent === agent.id ? "active" : ""} ${carouselHover === agent.id ? "hovered" : ""}`} style={{ "--card-angle": `${angle}deg`, "--card-delay": `${index * 90}ms` } as CSSProperties} onPointerEnter={() => setCarouselHover(agent.id)} onClick={event => { if (suppressCarouselClick.current) { event.preventDefault(); suppressCarouselClick.current = false; return; } enterAgentRoom(agent.id); }} aria-label={`Enter ${agent.name} chatspace`}><span className="agent-card-sheen" /><span className="agent-card-silhouette" /><span className="agent-portrait-frame"><img src={agent.art} alt={`${agent.name} chibi spirit face card`} /></span><span className="agent-card-footer"><b>{agent.name}</b><small>{agent.role}</small></span><span className="agent-card-index">0{index + 1}</span></button>;
                 })}
               </div>
             </div>
@@ -695,6 +707,7 @@ export default function Home() {
               </div>
             </div>
           </div>
+          <ConstellationAgentDock agents={agents} selected={selected} onFocus={focusAgent} onEnter={enterAgentRoom} />
         </div>
       );
     }
@@ -734,7 +747,7 @@ export default function Home() {
             <div className="idea-lab-input"><textarea value={ideaInput} onChange={event => setIdeaInput(event.target.value)} placeholder="Add your idea or problem statement for Athena to scale…" rows={3} /><button className="primary-button" onClick={runAthenaScale} disabled={ideaAsk.isPending}><WandSparkles size={16} /> {ideaAsk.isPending ? "Athena is comparing" : ideaRun ? "Scale again" : "Scale this idea"}</button></div>
             {ideaResponse && <div className="idea-response"><span className="mono">ATHENA / MODEL OUTPUT</span><p>{ideaResponse}</p></div>}
           </div>
-          <div><div className="decision-card"><div className="decision-icon"><Sparkles size={18} /></div><div><span className="section-kicker">Athena&apos;s read</span><h3>Make the evidence loop the product.</h3><p>Your uncertainty is scope, not novelty. The defensible move is to prove that a team can move from ambiguity to a cited, buildable decision in minutes.</p><div className="decision-line"><Check size={14} /> Handoff ready for Hephaestus</div></div></div><AgentRoleChat agent={agentById("athena")} context={allChunks} /></div>
+          <div><div className="decision-card"><div className="decision-icon"><Sparkles size={18} /></div><div><span className="section-kicker">Athena&apos;s read</span><h3>Make the evidence loop the product.</h3><p>Your uncertainty is scope, not novelty. The defensible move is to prove that a team can move from ambiguity to a cited, buildable decision in minutes.</p><div className="decision-line"><Check size={14} /> Handoff ready for Hephaestus</div></div></div><AgentRoleChat agent={agentById("athena")} context={allChunks} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
         </div>
       );
     }
@@ -751,7 +764,7 @@ export default function Home() {
             </div>
             <button className="primary-button" onClick={() => { setStackRun(true); pushActivity("hephaestus", "Proposed the build stack", "React + TypeScript + Hermes retrieval now; MCP + vector store next.", "complete"); }}><Zap size={16} /> {stackRun ? "Stack staged" : "Stage technical plan"}</button>
           </div>
-          <div><div className="architecture-card"><div className="architecture-top"><span className="section-kicker">Architecture signal</span><span className="integration-pill mocked">model route</span></div><div className="architecture-flow"><span>source intake</span><ChevronRight size={14} /><span>chunk store</span><ChevronRight size={14} /><span>agent router</span><ChevronRight size={14} /><span>output</span></div><p>No hidden calls. Every boundary is inspectable now; the live Hephaestus channel can explain what to cut before the demo.</p><div className="architecture-note"><CircleHelp size={14} /> MCP bridge optional · model chat active</div></div><AgentRoleChat agent={agentById("hephaestus")} context={allChunks} /></div>
+          <div><div className="architecture-card"><div className="architecture-top"><span className="section-kicker">Architecture signal</span><span className="integration-pill mocked">model route</span></div><div className="architecture-flow"><span>source intake</span><ChevronRight size={14} /><span>chunk store</span><ChevronRight size={14} /><span>agent router</span><ChevronRight size={14} /><span>output</span></div><p>No hidden calls. Every boundary is inspectable now; the live Hephaestus channel can explain what to cut before the demo.</p><div className="architecture-note"><CircleHelp size={14} /> MCP bridge optional · model chat active</div></div><AgentRoleChat agent={agentById("hephaestus")} context={allChunks} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
         </div>
       );
     }
@@ -766,7 +779,7 @@ export default function Home() {
             <div className="task-list">{tasks.map(task => <div className="task-row" key={task.title}><div className={`task-check ${task.status === "done" ? "checked" : ""}`}>{task.status === "done" && <Check size={12} />}</div><div className="task-main"><b>{task.title}</b><span>{task.owner} · {task.date}</span></div><span className={`task-status ${task.status}`}>{task.status}</span></div>)}</div>
             <button className="primary-button" onClick={() => pushActivity("chronos", "Published the next deadline", "Lock one user + painful moment · Today at 18:00", "complete")}><CalendarClock size={16} /> Publish next deadline</button>
           </div>
-          <div><div className="countdown-card"><span className="section-kicker">Submission window</span><div className="countdown">48<span>h</span> 12<span>m</span></div><p>until the demo cut-off</p><div className="progress-line"><span style={{ width: `${Math.max(18, readinessScore)}%` }} /></div><div className="countdown-foot"><span>{Math.round(readinessScore / 24)} / 4 milestones complete</span><span className="mono">{readinessScore}%</span></div></div><AgentRoleChat agent={agentById("chronos")} context={allChunks} /></div>
+          <div><div className="countdown-card"><span className="section-kicker">Submission window</span><div className="countdown">48<span>h</span> 12<span>m</span></div><p>until the demo cut-off</p><div className="progress-line"><span style={{ width: `${Math.max(18, readinessScore)}%` }} /></div><div className="countdown-foot"><span>{Math.round(readinessScore / 24)} / 4 milestones complete</span><span className="mono">{readinessScore}%</span></div></div><AgentRoleChat agent={agentById("chronos")} context={allChunks} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
         </div>
       );
     }
@@ -781,7 +794,7 @@ export default function Home() {
             <div className="route-map"><div className="route-node done"><span>01</span><b>Hermes</b><small>context captured</small></div><div className="route-connector active" /><div className="route-node active"><span>02</span><b>Hermes model</b><small>answer + evidence</small></div><div className="route-connector" /><div className="route-node"><span>03</span><b>Athena</b><small>pressure-test idea</small></div><div className="route-connector" /><div className="route-node"><span>04</span><b>Hephaestus</b><small>make it buildable</small></div></div>
             <div className="handoff-strip"><Inbox size={14} /><span><b>Carrying forward:</b> {uncertainty}</span></div>
           </div>
-          <div><div className="orchestration-card"><Network size={20} /><span className="section-kicker">Signal integrity</span><strong>3 handoffs visible</strong><p>Each room can inspect the prior room&apos;s context. Zeus coordinates the live model route and makes missing inputs explicit.</p><div className="integration-pill mocked">Gemini / Groq fallback route</div></div><AgentRoleChat agent={agentById("zeus")} context={allChunks} /></div>
+          <div><div className="orchestration-card"><Network size={20} /><span className="section-kicker">Signal integrity</span><strong>3 handoffs visible</strong><p>Each room can inspect the prior room&apos;s context. Zeus coordinates the live model route and makes missing inputs explicit.</p><div className="integration-pill mocked">Gemini / Groq fallback route</div></div><AgentRoleChat agent={agentById("zeus")} context={allChunks} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
         </div>
       );
     }
@@ -805,8 +818,8 @@ export default function Home() {
       <video ref={stormVideoRef} className="storm-video" autoPlay muted loop playsInline preload="auto" aria-hidden="true"><source src="/media/guidathon-storm-loop.mp4" type="video/mp4" /></video>
       <div className="cursor-trail" aria-hidden="true">{trail.map(point => <span key={point.id} style={{ left: point.x, top: point.y }} />)}<span className={`thunder-cursor ${hoveringInteractive ? "hidden" : ""}`} style={{ left: cursor.x, top: cursor.y }}>ϟ</span>{clickSpark && <span className="click-spark" style={{ left: clickSpark.x, top: clickSpark.y }}>✦</span>}</div>
       <div className="storm-noise" />
-      {themeMode === "dark" && <AntigravityField cursor={cursor} spark={clickSpark} />}
-      {handoff && <div className="handoff-transition" aria-live="polite"><div className="cloud-curtain cloud-left" /><div className="cloud-curtain cloud-right" /><div className="handoff-lightning" /><div className="handoff-transition-copy"><span className="mono">CONTEXT IN MOTION</span><strong>{handoff.from} <i>→</i> {handoff.to}</strong><small>carrying the latest brief forward</small></div></div>}
+      {themeMode === "light" && <AntigravityField cursor={cursor} spark={clickSpark} />}
+      {handoff && <div className="handoff-transition" aria-live="polite"><div className="cloud-curtain cloud-left" /><div className="cloud-curtain cloud-right" /><div className="cloud-mist cloud-mist-one" /><div className="cloud-mist cloud-mist-two" /><div className="handoff-transition-copy"><span className="mono">CONTEXT IN MOTION</span><strong>{handoff.from} <i>→</i> {handoff.to}</strong><small>carrying the latest brief forward</small></div></div>}
       <section className={`landing-screen ${entered ? "landing-exit" : ""}`} onClick={enterWorkspace}>
         <div className="landing-veil" />
         <div className="landing-content"><div className="landing-sigil">✦</div><div className="landing-wordmark">GUIDA<span>THON</span></div><div className="landing-lockup">evidence / action / outcome</div><div className="landing-reveal-title">The constellation is ready.</div></div>
@@ -825,13 +838,61 @@ export default function Home() {
         </aside>
         <main className="workspace-main">
           {activeNav !== "Overview" && activeNav !== "Agents" && <div className="workspace-heading"><div><div className="eyebrow"><span className="eyebrow-line" /> WORKSPACE / {activeNav.toUpperCase()}</div><h1>{activeNav}</h1><p>The {activeNav.toLowerCase()} room stays connected to your latest handoff.</p></div><div className="heading-actions"><span className="integration-pill unverified"><span className="status-dot live" /> Hermes model active · MCP optional</span><button className="icon-button" aria-label="Message admin" onClick={() => setAdminOpen(true)}><MessageSquareText size={16} /></button></div></div>}
-          {activeNav === "Overview" || activeNav === "Agents" ? renderRoom() : <section className="room-panel"><div className="room-panel-top"><div className="room-title"><div className={`room-avatar accent-${selected.accent}`}>{selected.glyph}</div><div><div className="eyebrow small">current room / {selected.role.toLowerCase()}</div><h2>{selected.name}<span> · {selected.short}</span></h2></div></div><div className="room-state"><span className="status-dot live" /> working context <span className="mono">HND-{onboardingComplete ? "042" : "001"}</span></div></div><div className="handoff-banner"><ArrowUpRight size={14} /><span><b>Latest handoff</b> {onboardingComplete ? `${event} · ${team} · ${uncertainty}` : "No handoff yet. Hermes is waiting for your first brief."}</span><button onClick={() => setActiveAgent("zeus")}>inspect thread <ChevronRight size={13} /></button></div>{renderRoom()}</section>}
+          {activeNav === "Overview" || activeNav === "Agents" ? renderRoom() : <section className="room-panel"><div className="room-panel-top"><div className="room-title"><div className={`room-avatar accent-${selected.accent}`}>{selected.glyph}</div><div><div className="eyebrow small">current room / {selected.role.toLowerCase()}</div><h2>{selected.name}<span> · {selected.short}</span></h2></div></div><div className="room-state"><span className="status-dot live" /> working context <span className="mono">HND-{onboardingComplete ? "042" : "001"}</span></div></div><div className="handoff-banner"><ArrowUpRight size={14} /><span><b>Latest handoff</b> {onboardingComplete ? `${event} · ${team} · ${uncertainty}` : "No handoff yet. Hermes is waiting for your first brief."}</span><button onClick={() => setActiveAgent("zeus")}>inspect thread <ChevronRight size={13} /></button></div>{activeNavAgent[activeNav] && <AgentRoomHero agent={selected} />} {renderRoom()}</section>}
         </main>
       </div>
       <input ref={fileInputRef} type="file" className="hidden-file-input" onChange={handleFile} accept=".txt,.md,.csv,.json,.html,.css,.js,.jsx,.ts,.tsx,.py,.java,.go,.rs,.yaml,.yml,text/*,.pdf" />
       {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
       {adminOpen && <AdminMessageModal input={adminInput} setInput={setAdminInput} messages={adminMessages} onSend={sendAdminMessage} onClose={() => setAdminOpen(false)} />}
     </div>
+  );
+}
+
+function AgentRoomHero({ agent }: { agent: AgentRecord }) {
+  const lore = agentLore[agent.id];
+  const modelRoute = agent.id === "hermes" || agent.id === "athena" ? "Gemini preferred · Groq / managed fallback" : "Groq preferred · Gemini / managed fallback";
+  return (
+    <section className={`agent-room-hero accent-${agent.accent}`} data-agent={agent.id}>
+      <img className="agent-room-hero-art" src={agent.art} alt="" aria-hidden="true" />
+      <div className="agent-room-hero-copy">
+        <span className="mono">AGENT DOMAIN // {agent.id.toUpperCase()}</span>
+        <h3>{lore.epithet}</h3>
+        <p>{lore.myth}</p>
+        <div className="agent-room-responsibility"><b>PRIMARY DIRECTIVE</b><span>{lore.responsibility}</span></div>
+        <div className="agent-room-handoff">{lore.handoff}</div>
+        <span className="agent-model-route">MODEL ROUTE · {modelRoute} · actual provider appears after response</span>
+      </div>
+      <div className="agent-room-mini"><img src={agent.art} alt={`Mini ${agent.name} chibi avatar`} /><span>{agent.name}</span><small>{agent.role}</small></div>
+    </section>
+  );
+}
+
+function ConstellationAgentDock({ agents, selected, onFocus, onEnter }: { agents: AgentRecord[]; selected: AgentRecord; onFocus: (id: AgentId) => void; onEnter: (id: AgentId) => void }) {
+  const lore = agentLore[selected.id];
+  return (
+    <section className={`constellation-agent-dock accent-${selected.accent}`}>
+      <div className="constellation-dock-heading"><span className="mono">MODEL OVERVIEW // SELECTED SPIRIT</span><span className="dock-live"><i /> role model route ready</span></div>
+      <div className="constellation-dock-main">
+        <ModelViewer agent={selected} />
+        <div className="constellation-dock-copy">
+          <span className="mono">{selected.theme.toUpperCase()} · {selected.role.toUpperCase()}</span>
+          <h3>{selected.name}</h3>
+          <p>{lore.responsibility}</p>
+          <div className="constellation-dock-lore"><b>{lore.epithet}</b><span>{lore.myth}</span></div>
+          <div className="constellation-dock-actions"><button className="primary-button" onClick={() => onEnter(selected.id)}>Enter {selected.name}&apos;s room <ArrowUpRight size={14} /></button><span>Focus a card to preview · enter to open its workspace</span></div>
+        </div>
+        <div className="constellation-mini-board">
+          <span className="mono">JARVIS / AGENT TELEMETRY</span>
+          <div><small>DOMAIN</small><b>{selected.short}</b></div>
+          <div><small>MODEL ROUTE</small><b>{selected.id === "hermes" || selected.id === "athena" ? "Gemini → Groq → Managed" : "Groq → Gemini → Managed"}</b></div>
+          <div><small>HANDOFF</small><b>{lore.handoff}</b></div>
+          <div><small>TOOLS</small><b>MCP adapter slots · disconnected</b></div>
+        </div>
+      </div>
+      <div className="constellation-agent-rail" aria-label="All GUIDATHON agents">
+        {agents.map((agent, index) => <button key={agent.id} className={agent.id === selected.id ? "active" : ""} onMouseEnter={() => onFocus(agent.id)} onFocus={() => onFocus(agent.id)} onClick={() => onEnter(agent.id)}><img src={agent.art} alt="" /><span><small>0{index + 1}</small><b>{agent.name}</b><em>{agent.role}</em></span><ArrowUpRight size={13} /></button>)}
+      </div>
+    </section>
   );
 }
 
@@ -916,7 +977,7 @@ function SourceAgentRoom({ agents, selected, onSelect, context, sources, manualN
   const dragRef = useRef<{ x: number; start: number } | null>(null);
   useEffect(() => setIndex(Math.max(0, agents.findIndex(agent => agent.id === selected.id))), [selected.id, agents]);
   const choose = (next: number) => { const normalized = (next + agents.length) % agents.length; setIndex(normalized); onSelect(agents[normalized].id); };
-  return <div className={`source-agent-room accent-${selected.accent}`}><div className="source-carousel-shell"><div className="section-kicker"><span className="kicker-dot gold" /> Source carousel // choose a spirit</div><div className="source-carousel" onPointerDown={event => { dragRef.current = { x: event.clientX, start: index }; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerUp={event => { if (!dragRef.current) return; const delta = event.clientX - dragRef.current.x; choose(dragRef.current.start + (delta < -30 ? 1 : delta > 30 ? -1 : 0)); dragRef.current = null; }}><button className="carousel-arrow" onClick={() => choose(index - 1)} aria-label="Previous agent">‹</button><div className="source-carousel-track">{agents.map((agent, cardIndex) => { const offset = (cardIndex - index + agents.length) % agents.length; const signed = offset > agents.length / 2 ? offset - agents.length : offset; return <button key={agent.id} className={`source-agent-card accent-${agent.accent} ${agent.id === selected.id ? "active" : ""}`} style={{ "--source-offset": signed } as CSSProperties} onClick={() => choose(cardIndex)}><img src={agent.art} alt={`${agent.name} source card`} /><span className="mono">0{cardIndex + 1}</span><b>{agent.name}</b><small>{agent.role}</small></button>; })}</div><button className="carousel-arrow" onClick={() => choose(index + 1)} aria-label="Next agent">›</button></div><div className="source-carousel-dots">{agents.map(agent => <button key={agent.id} className={agent.id === selected.id ? "active" : ""} onClick={() => choose(agents.findIndex(item => item.id === agent.id))} aria-label={`Select ${agent.name}`} />)}</div></div><div className="source-chat-layout"><div className="choose-room-column"><span className="section-kicker">choose your next room</span><h3>Move the brief onward.</h3>{agents.map(agent => <button key={agent.id} className={agent.id === selected.id ? "active" : ""} onClick={() => choose(agents.findIndex(item => item.id === agent.id))}><span className={`legend-dot accent-${agent.accent}`} /><span><b>{agent.name}</b><small>{agent.role}</small></span><ChevronRight size={14} /></button>)}</div><ModelViewer agent={selected} /><div className={`source-role-chat accent-${selected.accent}`}><div className="source-chat-heading"><span className="mono">{selected.name.toUpperCase()} // PERSONAL ROOM</span><span className="integration-pill mocked">MCP READY</span></div><AgentRoleChat agent={selected} context={context} /><div className="mcp-strip"><span className="mono">MCP EXTENSIONS</span><span>source.search</span><span>brief.inspect</span><span>handoff.emit</span></div></div></div><div className="source-intake-compact"><SourceIntake sources={sources} manualNote={manualNote} setManualNote={setManualNote} addManualNote={addManualNote} onUpload={onUpload} uploadedName={uploadedName} /></div></div>;
+  return <div className={`source-agent-room accent-${selected.accent}`}><div className="source-carousel-shell"><div className="section-kicker"><span className="kicker-dot gold" /> Source carousel // choose a spirit</div><div className="source-carousel" onPointerDown={event => { dragRef.current = { x: event.clientX, start: index }; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerUp={event => { if (!dragRef.current) return; const delta = event.clientX - dragRef.current.x; choose(dragRef.current.start + (delta < -30 ? 1 : delta > 30 ? -1 : 0)); dragRef.current = null; }}><button className="carousel-arrow" onClick={() => choose(index - 1)} aria-label="Previous agent">‹</button><div className="source-carousel-track">{agents.map((agent, cardIndex) => { const offset = (cardIndex - index + agents.length) % agents.length; const signed = offset > agents.length / 2 ? offset - agents.length : offset; return <button key={agent.id} className={`source-agent-card accent-${agent.accent} ${agent.id === selected.id ? "active" : ""}`} style={{ "--source-offset": signed } as CSSProperties} onClick={() => choose(cardIndex)}><img src={agent.art} alt={`${agent.name} source card`} /><span className="mono">0{cardIndex + 1}</span><b>{agent.name}</b><small>{agent.role}</small></button>; })}</div><button className="carousel-arrow" onClick={() => choose(index + 1)} aria-label="Next agent">›</button></div><div className="source-carousel-dots">{agents.map(agent => <button key={agent.id} className={agent.id === selected.id ? "active" : ""} onClick={() => choose(agents.findIndex(item => item.id === agent.id))} aria-label={`Select ${agent.name}`} />)}</div></div><div className="source-chat-layout"><div className="choose-room-column"><span className="section-kicker">choose your next room</span><h3>Move the brief onward.</h3>{agents.map(agent => <button key={agent.id} className={agent.id === selected.id ? "active" : ""} onClick={() => choose(agents.findIndex(item => item.id === agent.id))}><span className={`legend-dot accent-${agent.accent}`} /><span><b>{agent.name}</b><small>{agent.role}</small></span><ChevronRight size={14} /></button>)}</div><ModelViewer agent={selected} /><div className={`source-role-chat accent-${selected.accent}`}><div className="source-chat-heading"><span className="mono">{selected.name.toUpperCase()} // PERSONAL ROOM</span><span className="integration-pill unverified">MCP NOT CONNECTED</span></div><AgentRoleChat agent={selected} context={context} onHandoff={onSelect} /><div className="mcp-strip"><span className="mono">MCP ADAPTER SLOTS · NOT CONNECTED</span><span>source.search</span><span>brief.inspect</span><span>handoff.emit</span></div></div></div><div className="source-intake-compact"><SourceIntake sources={sources} manualNote={manualNote} setManualNote={setManualNote} addManualNote={addManualNote} onUpload={onUpload} uploadedName={uploadedName} /></div></div>;
 }
 
 function AboutModal({ onClose }: { onClose: () => void }) {
@@ -953,10 +1014,10 @@ function SourceIntake({ sources, manualNote, setManualNote, addManualNote, onUpl
   );
 }
 
-function AgentRoleChat({ agent, context = [] }: { agent: (typeof agents)[number]; context?: Chunk[] }) {
+function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agents)[number]; context?: Chunk[]; onHandoff?: (id: AgentId) => void }) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Array<{ role: "user" | "agent"; text: string }>>([]);
-  const [provider, setProvider] = useState("model route ready");
+  const [provider, setProvider] = useState("model route ready");\n  const [handoffTo, setHandoffTo] = useState<AgentId | null>(null);
   const agentChat = trpc.agents.chat.useMutation();
 
   useEffect(() => {
@@ -1030,6 +1091,7 @@ function AgentRoleChat({ agent, context = [] }: { agent: (typeof agents)[number]
         {messages.slice(-4).map((message, index) => <div className={`role-chat-line ${message.role}`} key={`${message.role}-${index}`}><b>{message.role === "agent" ? agent.name : "you"}</b><span>{message.text}</span></div>)}
         {agentChat.isPending && <div className="role-chat-line agent role-chat-thinking"><b>{agent.name}</b><span>Thinking through the current brief…</span></div>}
       </div>
+      {handoffTo && <button className="role-handoff" onClick={() => onHandoff?.(handoffTo)}>Open {agentById(handoffTo).name}&apos;s room <ArrowUpRight size={13} /></button>}
       <div className="role-chat-input"><input value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => event.key === "Enter" && askRole()} placeholder={`Ask ${agent.name} about their role…`} disabled={agentChat.isPending} /><button onClick={askRole} aria-label={`Ask ${agent.name}`} disabled={agentChat.isPending}><span>send</span><ArrowUpRight size={14} /></button></div>
     </div>
   );
