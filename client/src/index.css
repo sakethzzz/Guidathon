@@ -591,31 +591,7 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .history-row { display: grid; grid-template-columns: 42px 62px 1fr; gap: 8px; padding: 10px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; line-height: 1.35; }
 .history-row b { color: var(--text); }
 .modal-backdrop { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 20px; background: rgba(1,5,12,.76); backdrop-filter: blur(12px); animation: modal-in .25s ease both; }
-.about-modal, .admin-modal { position: relative; width: min(610px, 100%); padding: 30px; border: 1px solid rgba(120,186,255,.34); border-radius: 10px; background: linear-gradient(145deg, rgba(13,31,55,.97), rgba(3,10,22,.98)); box-shadow: 0 30px 100px rgba(0,0,0,.55), 0 0 45px rgba(120,186,255,.12); }
-.about-modal h2, .admin-modal h2 { max-width: 500px; margin: 12px 0 11px; font: 400 clamp(30px,5vw,53px)/.94 'DM Serif Display', serif; }
-.about-modal > p { color: var(--muted); font-size: 12px; line-height: 1.6; }
-.modal-close { position: absolute; right: 15px; top: 15px; display: grid; place-items: center; width: 30px; height: 30px; color: var(--muted); border: 1px solid var(--line); border-radius: 50%; background: transparent; cursor: pointer; }
-.modal-close:hover { color: var(--gold); border-color: var(--gold); }
-.creator-card { display: flex; gap: 12px; align-items: center; margin: 22px 0; padding: 13px; border: 1px solid rgba(232,197,107,.2); background: linear-gradient(90deg, rgba(232,197,107,.08), transparent); }
-.creator-sigil { width: 42px; height: 42px; display: grid; place-items: center; color: #06111f; background: var(--gold); border-radius: 50%; font: 24px 'DM Serif Display', serif; }
-.creator-card strong { display: block; margin-top: 4px; font: 400 24px 'DM Serif Display', serif; }
-.creator-card p { margin: 4px 0 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
-.about-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.admin-modal { width: min(560px, 100%); }
-.modal-title-row { display: flex; justify-content: space-between; gap: 14px; }
-.admin-thread { display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; margin: 15px 0; }
-.admin-message { max-width: 88%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 5px; background: rgba(255,255,255,.035); }
-.admin-message.user { align-self: flex-end; border-color: rgba(232,197,107,.25); }
-.admin-message span { color: var(--gold); font: 8px 'IBM Plex Mono', monospace; }
-.admin-message p { margin: 5px 0 0; color: var(--text); font-size: 11px; line-height: 1.45; }
-.admin-compose { display: flex; gap: 7px; }
-.admin-compose input { min-width: 0; flex: 1; border: 1px solid var(--line); border-radius: 5px; background: rgba(5,14,28,.55); color: var(--text); padding: 9px; font-size: 11px; }
-.theme-light { --bg: #e9eff8; --bg-deep: #dce7f5; --panel: rgba(255,255,255,.72); --panel-soft: rgba(255,255,255,.6); --text: #102039; --muted: #566b86; --faint: #73859b; }
-.theme-light .storm-video { opacity: .18; filter: saturate(.5) brightness(1.45); }
-.theme-light .topbar, .theme-light .line-sidebar { background: rgba(235,243,252,.62); }
-.theme-light .storm-noise { opacity: .05; }
-@keyframes modal-in { from { opacity: 0; } to { opacity: 1; } }
-@media (max-width: 900px) { .source-room, .submission-room, .settings-room { grid-template-columns: 1fr; } .overview-stack-heading { flex-direction: column; align-items: start; } }
+.about-modal, @media (max-width: 900px) { .source-room, .submission-room, .settings-room { grid-template-columns: 1fr; } .overview-stack-heading { flex-direction: column; align-items: start; } }
 @media (max-width: 620px) { .overview-stack-section { padding: 17px; } .overview-stack-card { grid-template-columns: 22px 54px 1fr 14px; gap: 8px; } .overview-stack-card img { width: 54px; height: 54px; } .overview-stack-card b { font-size: 17px; } .overview-stack-card p { font-size: 9px; } .about-modal, .admin-modal { padding: 22px; } .about-actions { flex-direction: column; align-items: stretch; } }
 
 /* Shader-backed, draggable ReactBits-inspired constellation */
