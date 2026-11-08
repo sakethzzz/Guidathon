@@ -914,3 +914,12 @@ button:disabled { cursor: not-allowed; opacity: .58; }
   .judge-history-row time { grid-column: 2; }
   .topbar-status { max-width: 46vw; overflow: hidden; white-space: nowrap; font-size: 8px; }
 }
+
+
+.task-add-form { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(90px,.7fr) minmax(100px,.8fr) auto; gap:7px; margin:12px 0 18px; padding:10px; border:1px dashed var(--line-strong); border-radius:7px; background:rgba(5,14,28,.28); }
+.task-add-form input { min-width:0; width:100%; padding:8px 9px; border:1px solid var(--line); border-radius:5px; background:rgba(5,14,28,.55); color:var(--text); font-size:10px; }
+.task-add-form input:focus { outline:none; border-color:rgba(120,186,255,.62); }
+.task-add-form .small-action { align-self:center; }
+.task-row .task-check { cursor:pointer; }
+.task-row .task-check:focus-visible { outline:1px solid var(--gold); outline-offset:3px; }
+@media (max-width:700px) { .task-add-form { grid-template-columns:1fr 1fr; } .task-add-form input:first-child { grid-column:1/-1; } .task-add-form button { grid-column:1/-1; } }
