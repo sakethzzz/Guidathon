@@ -16,7 +16,15 @@ const routingSignals: Record<AgentId, RegExp> = {
   chronos: /\b(deadline|timeline|milestone|schedule|task list|due date|time left|submission|time management|sprint plan)\b/i,
 };
 export function inferHandoff(current: AgentId, question: string): AgentId | null {
-  return agentIds.find(id => id !== current && routingSignals[id].test(question)) ?? null;
+  const candidates = agentIds
+    .filter(id => id !== current)
+    .map(id => ({
+      id,
+      score: (question.match(new RegExp(routingSignals[id].source, "gi")) ?? []).length,
+    }))
+    .filter(candidate => candidate.score > 0)
+    .sort((a, b) => b.score - a.score);
+  return candidates[0]?.id ?? null;
 }
 export function handoffAnswer(target: AgentId) {
   return "This is best handled by " + agentNames[target] + ", whose domain is " + agentResponsibilities[target] + ". I will not guess outside my specialty. Open " + agentNames[target] + "'s room and carry this question forward; your current context stays with the workspace.";
