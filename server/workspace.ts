@@ -10,6 +10,7 @@ export type AgentMessage = { role: "user" | "agent"; text: string; createdAt: st
 
 export function serializeBoundedJson(value: unknown, maxBytes: number, label: string) {
   const serialized = JSON.stringify(value);
+  if (typeof serialized !== "string") throw new Error(label + " could not be serialized.");
   if (Buffer.byteLength(serialized, "utf8") > maxBytes) throw new Error(label + " exceeds the " + maxBytes + " byte safety limit.");
   return serialized;
 }
