@@ -923,3 +923,127 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .task-row .task-check { cursor:pointer; }
 .task-row .task-check:focus-visible { outline:1px solid var(--gold); outline-offset:3px; }
 @media (max-width:700px) { .task-add-form { grid-template-columns:1fr 1fr; } .task-add-form input:first-child { grid-column:1/-1; } .task-add-form button { grid-column:1/-1; } }
+
+
+
+/* Stable light field: the same component system, with readable light surfaces. */
+.app-shell.theme-light {
+  --bg:#f4f6fb;
+  --bg-deep:#e9eef6;
+  --panel:rgba(255,255,255,.88);
+  --panel-soft:rgba(248,250,255,.9);
+  --panel-raised:rgba(255,255,255,.97);
+  --line:rgba(39,57,83,.13);
+  --line-strong:rgba(39,57,83,.24);
+  --text:#1b293d;
+  --muted:#5f6d80;
+  --faint:#8290a2;
+  --blue:#287ac2;
+  --blue-strong:#1768b1;
+  --gold:#a8791c;
+  --gold-soft:#916b20;
+  --violet:#7557bd;
+  --rose:#b64e7a;
+  --orange:#b96b25;
+  --teal:#218a79;
+  --green:#23875d;
+  color:var(--text);
+  background:
+    radial-gradient(ellipse at 78% -10%,rgba(232,197,107,.19),transparent 44%),
+    radial-gradient(ellipse at 10% 65%,rgba(91,153,218,.10),transparent 40%),
+    linear-gradient(135deg,#f7f9fd 0%,#edf2f9 52%,#f8f9fc 100%);
+}
+.theme-light .topbar { background:rgba(250,252,255,.82); border-color:var(--line); }
+.theme-light .brand-wordmark { color:#1d2b40; }
+.theme-light .line-sidebar { background:rgba(239,243,249,.76); border-color:var(--line); }
+.theme-light .nav-item { color:#65748a; }
+.theme-light .nav-item.active { color:#1e3049; background:linear-gradient(90deg,rgba(52,119,188,.13),transparent); }
+.theme-light .nav-item.active svg { color:#287ac2; }
+.theme-light .workspace-heading h1,
+.theme-light .section-title-row h2,
+.theme-light .panel-heading h3,
+.theme-light .room-title h2,
+.theme-light .room-body h3 { color:#1c2b40; }
+.theme-light .workspace-heading p,
+.theme-light .room-intro { color:#637186; }
+.theme-light .agent-tile { background:rgba(255,255,255,.78); border-color:rgba(45,67,98,.14); }
+.theme-light .agent-tile:hover { background:#fff; border-color:rgba(45,100,160,.3); }
+.theme-light .agent-tile.selected { background:linear-gradient(145deg,#fff9e9,#f3f7fd); border-color:rgba(168,121,28,.55); }
+.theme-light .agent-tile-copy b { color:#24344b; }
+.theme-light .agent-tile-copy span { color:#718096; }
+.theme-light .room-panel,
+.theme-light .activity-panel,
+.theme-light .readiness-panel { background:rgba(255,255,255,.86); border-color:var(--line); box-shadow:0 18px 48px rgba(35,53,80,.08); }
+.theme-light .room-panel-top { border-color:var(--line); }
+.theme-light .handoff-banner { color:#5d6d83; background:rgba(50,119,188,.055); border-color:var(--line); }
+.theme-light .mission-card,
+.theme-light .decision-card,
+.theme-light .architecture-card,
+.theme-light .countdown-card,
+.theme-light .orchestration-card,
+.theme-light .chunk-card,
+.theme-light .mcp-tools-panel,
+.theme-light .settings-card,
+.theme-light .history-card { background:rgba(255,255,255,.82); border-color:var(--line); }
+.theme-light .mission-card h3,
+.theme-light .decision-card h3,
+.theme-light .architecture-card h3,
+.theme-light .settings-card h3,
+.theme-light .history-card h3 { color:#24344b; }
+.theme-light .mission-card p,
+.theme-light .decision-card p,
+.theme-light .architecture-card p,
+.theme-light .countdown-card p,
+.theme-light .orchestration-card p,
+.theme-light .chunk-card p { color:#637186; }
+.theme-light .query-box,
+.theme-light .field-grid input,
+.theme-light .field-grid textarea,
+.theme-light .manual-note textarea,
+.theme-light .role-chat-input input,
+.theme-light .hermes-composer textarea,
+.theme-light .task-add-form input { background:rgba(255,255,255,.92); color:#1b293d; border-color:var(--line-strong); }
+.theme-light .query-box input { color:#1b293d; }
+.theme-light .query-box input::placeholder,
+.theme-light input::placeholder,
+.theme-light textarea::placeholder { color:#8a96a6; }
+.theme-light .retrieval-results .chunk-card { background:#fff; border-color:var(--line); }
+.theme-light .chunk-card h4,
+.theme-light .result-heading span:first-child { color:#26364c; }
+.theme-light .synthesis-card { background:rgba(232,197,107,.12); border-color:rgba(168,121,28,.25); }
+.theme-light .synthesis-card p { color:#65552f; }
+.theme-light .role-chat,
+.theme-light .hermes-chat { color:var(--text); }
+.theme-light .role-chat-thread,
+.theme-light .hermes-transcript { background:rgba(239,243,249,.7); border-color:var(--line); }
+.theme-light .role-chat-line.user,
+.theme-light .chat-bubble.user { background:rgba(54,126,194,.10); color:#26364c; }
+.theme-light .role-chat-line.agent,
+.theme-light .chat-bubble.assistant { background:rgba(255,255,255,.94); color:#26364c; border-color:var(--line); }
+.theme-light .role-chat-line span,
+.theme-light .chat-bubble p { color:#394b63; }
+.theme-light .role-chat-empty { color:#718096; }
+.theme-light .source-row b,
+.theme-light .task-row b,
+.theme-light .activity-copy b { color:#26364c; }
+.theme-light .source-row span,
+.theme-light .task-row span,
+.theme-light .activity-copy p { color:#68778b; }
+.theme-light .theme-switch { color:#765716; background:rgba(232,197,107,.14); }
+.theme-light .theme-switch span { background:#c08b24; }
+.theme-light .icon-button { color:#6b7890; background:rgba(255,255,255,.82); border-color:var(--line); }
+.theme-light .landing-screen { background:radial-gradient(ellipse at 50% 42%,rgba(245,220,158,.26),transparent 36%),linear-gradient(135deg,#f7f9fd,#e9eff7); }
+.theme-light .landing-wordmark { color:#1d2b40; }
+.theme-light .landing-reveal-title { color:#45566e; }
+.theme-light .landing-cue { color:#8b681e; }
+.theme-light .storm-noise { opacity:.025; }
+.theme-light .antigravity-field { z-index:1; pointer-events:none; }
+.topbar-actions { display:flex; align-items:center; gap:10px; }
+.theme-toggle { color:var(--gold); }
+@media (max-width:760px) {
+  .topbar-actions { gap:7px; }
+  .theme-toggle { width:32px; height:32px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .antigravity-particles i,.antigravity-burst span,.agent-card-3d,.carousel-focus img { animation:none !important; transition:none !important; }
+}
