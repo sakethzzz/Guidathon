@@ -883,6 +883,7 @@ export default function Home() {
             <h3>Ask the guide anything about hackathons.</h3>
             <p className="room-intro">Hermes combines a model-backed answer with the visible source chunks below. Ask about rules, judging, scope, teams, demos, or what to build next.</p>
             <div className="hermes-transcript">
+              <div className="chat-companion-floating" aria-hidden="true"><img src={agentById("hermes").art} alt="" /><span>Hermes</span></div>
               <div className="chat-bubble assistant"><div className="chat-speaker"><span className="chat-avatar">✦</span><b>Hermes</b><span>guide + knowledge</span></div><p>Ask me what a hackathon is, how judging works, or how to turn your idea into a weekend-sized build. I will separate cited facts from general guidance.</p></div>
               {hermesMessages.map((message, index) => <div className={`chat-bubble ${message.role}`} key={`${message.role}-${index}`}><div className="chat-speaker"><span className="chat-avatar">{message.role === "assistant" ? "✦" : "you"}</span><b>{message.role === "assistant" ? "Hermes" : "You"}</b></div><p>{message.content}</p>{message.citations?.length ? <div className="chat-citations">{message.citations.map(citation => <span key={citation}>{citation}</span>)}</div> : null}</div>)}
               {hermesAsk.isPending && <div className="chat-bubble assistant thinking"><div className="chat-speaker"><span className="chat-avatar">✦</span><b>Hermes</b><span>retrieving + thinking</span></div><p><span className="thinking-dot" /> <span className="thinking-dot" /> <span className="thinking-dot" /> I&apos;m checking the source pack and composing a precise answer…</p></div>}
@@ -1322,6 +1323,7 @@ function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agen
       <div className="role-chat-head"><div><span className="section-kicker">{agent.name}&apos;s role chat</span><span className="role-chat-caption">specialist lens · general questions welcome</span></div><span className="role-chat-provider"><span className="status-dot live" />{provider}</span></div>
       <div className="role-chat-intro"><span className="role-chat-avatar"><img src={agent.art} alt="" /></span><p><b>{agent.name}</b><span>{roleIntros[agent.id]}</span><em>{agent.quote}</em></p></div>
       <div className="role-chat-thread">
+        <div className="chat-companion-floating" aria-hidden="true"><img src={agent.art} alt="" /><span>{agent.name}</span></div>
         {!messages.length && !agentChat.isPending && <div className="role-chat-empty"><span>✦</span> Ask anything. {agent.name} can help broadly and brings a specialist perspective when it helps.</div>}
         {messages.slice(-4).map((message, index) => <div className={`role-chat-line ${message.role}`} key={`${message.role}-${index}`}><b>{message.role === "agent" ? agent.name : "you"}</b><span>{message.text}</span></div>)}
         {agentChat.isPending && <div className="role-chat-line agent role-chat-thinking"><b>{agent.name}</b><span>Thinking through the current brief…</span></div>}
