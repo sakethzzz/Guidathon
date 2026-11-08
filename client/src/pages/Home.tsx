@@ -848,7 +848,7 @@ export default function Home() {
           <div className="sidebar-bottom"><div className="agent-mini"><div className="mini-avatar hermes">H</div><div><b>Hermes</b><span>guide room</span></div><span className="online-dot" /></div><button className="settings-link" onClick={() => switchNav("Settings")}><Settings2 size={14} /> Workspace settings</button></div>
         </aside>
         <main className="workspace-main">
-          {activeNav !== "Overview" && activeNav !== "Agents" && <div className="workspace-heading"><div><div className="eyebrow"><span className="eyebrow-line" /> WORKSPACE / {activeNav.toUpperCase()}</div><h1>{activeNav}</h1><p>The {activeNav.toLowerCase()} room stays connected to your latest handoff.</p></div><div className="heading-actions"><span className="integration-pill unverified"><span className="status-dot live" /> Hermes model active · MCP optional</span></div></div>}
+          {activeNav !== "Overview" && activeNav !== "Agents" && <div className="workspace-heading"><div><div className="eyebrow"><span className="eyebrow-line" /> WORKSPACE / {activeNav.toUpperCase()}</div><h1>{activeNav}</h1><p>The {activeNav.toLowerCase()} room stays connected to your latest handoff.</p></div><div className="heading-actions"><span className="integration-pill unverified"><span className="status-dot live" /> Model on first request · MCP optional</span></div></div>}
           {activeNav === "Overview" || activeNav === "Agents" ? renderRoom() : <section className="room-panel"><div className="room-panel-top"><div className="room-title"><div className={`room-avatar accent-${selected.accent}`}>{selected.glyph}</div><div><div className="eyebrow small">current room / {selected.role.toLowerCase()}</div><h2>{selected.name}<span> · {selected.short}</span></h2></div></div><div className="room-state"><span className="status-dot live" /> working context <span className="mono">HND-{onboardingComplete ? "042" : "001"}</span></div></div><div className="handoff-banner"><ArrowUpRight size={14} /><span><b>Latest handoff</b> {onboardingComplete ? `${event} · ${team} · ${uncertainty}` : "No handoff yet. Hermes is waiting for your first brief."}</span><button onClick={() => { setActiveAgent("zeus"); setActiveNav("Agents"); }} disabled={!onboardingComplete} aria-label={onboardingComplete ? "Inspect the latest Zeus handoff" : "No handoff exists yet"}>inspect thread <ChevronRight size={13} /></button></div>{activeNavAgent[activeNav] && <AgentRoomHero agent={selected} />} {renderRoom()}</section>}
         </main>
       </div>
@@ -1096,13 +1096,13 @@ function JudgeArena({ challenge, evidence }: { challenge: string; evidence: stri
 function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agents)[number]; context?: Chunk[]; onHandoff?: (id: AgentId) => void }) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Array<{ role: "user" | "agent"; text: string }>>([]);
-  const [provider, setProvider] = useState("model route ready");
+  const [provider, setProvider] = useState("not called yet");
   const [handoffTo, setHandoffTo] = useState<AgentId | null>(null);
   const agentChat = trpc.agents.chat.useMutation();
 
   useEffect(() => {
     setMessages([]);
-    setProvider("model route ready");
+    setProvider("not called yet");
   }, [agent.id]);
   const roleIntros: Record<AgentId, string> = {
     hermes: "I am Hermes, the guide and knowledge layer. Ask me about formats, judging, scoping, or what the current sources establish.",
@@ -1157,8 +1157,8 @@ function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agen
         setMessages(current => [...current, { role: "agent", text: result.answer }]);
       },
       onError: () => {
-        setProvider("local role fallback");
-        setMessages(current => [...current, { role: "agent", text: roleReply(question) }]);
+        setProvider("model unavailable");
+        setMessages(current => [...current, { role: "agent", text: "The live model route failed for this request. No AI answer was generated; check the model API key/provider configuration and retry." }]);
       },
     });
   };
