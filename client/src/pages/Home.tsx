@@ -295,7 +295,7 @@ function splitIntoChunks(text: string, source: string, prefix: string): Chunk[] 
         normalized.lastIndexOf(". ", end),
         normalized.lastIndexOf("? ", end),
         normalized.lastIndexOf("! ", end),
-        normalized.lastIndexOf("\\n", end),
+        normalized.lastIndexOf("\n", end),
       );
       if (boundary > start + 900) end = boundary + 1;
     }
