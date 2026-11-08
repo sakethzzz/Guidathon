@@ -378,6 +378,44 @@ export default function Home() {
   const hermesIngest = trpc.hermes.ingest.useMutation();
   const hermesComplete = trpc.hermes.completeIngestion.useMutation();
   const ideaAsk = trpc.agents.chat.useMutation();
+  const { data: currentUser } = trpc.auth.me.useQuery();
+  const workspaceQuery = trpc.workspace.load.useQuery(undefined, { enabled: Boolean(currentUser), retry: false });
+  const workspaceSave = trpc.workspace.save.useMutation();
+  const [workspaceReady, setWorkspaceReady] = useState(false);
+  const workspaceHydrated = useRef(false);
+
+  useEffect(() => {
+    if (!currentUser) {
+      workspaceHydrated.current = false;
+      setWorkspaceReady(false);
+      return;
+    }
+    if (!workspaceQuery.isSuccess || workspaceHydrated.current) return;
+    const saved = workspaceQuery.data.snapshot as Record<string, any> | null;
+    if (saved?.schemaVersion === 1) {
+      setOnboardingComplete(Boolean(saved.onboardingComplete));
+      setChallenge(typeof saved.challenge === "string" ? saved.challenge : "Build a trustworthy AI mentor for hackathon teams");
+      setEvent(typeof saved.event === "string" ? saved.event : "Guidathon 2026");
+      setTeam(typeof saved.team === "string" ? saved.team : "3 builders · 48 hours");
+      setUncertainty(typeof saved.uncertainty === "string" ? saved.uncertainty : "");
+      if (navItems.some(item => item.id === saved.activeNav)) setActiveNav(saved.activeNav as NavId);
+      if (agents.some(agent => agent.id === saved.activeAgent)) setActiveAgent(saved.activeAgent as AgentId);
+      if (Array.isArray(saved.sources)) setSources(saved.sources.filter((item: any) => item && typeof item.id === "string").slice(0, 80).map((item: SourceRecord) => ({ ...item, status: item.status === "processing" ? "unverified" : item.status })));
+      if (Array.isArray(saved.hermesMessages)) setHermesMessages(saved.hermesMessages.slice(-100));
+      if (Array.isArray(saved.activities)) setActivities(saved.activities.slice(0, 100));
+      setIdeaRun(Boolean(saved.ideaRun));
+      setStackRun(Boolean(saved.stackRun));
+      setIdeaInput(typeof saved.ideaInput === "string" ? saved.ideaInput : "");
+      setIdeaResponse(typeof saved.ideaResponse === "string" ? saved.ideaResponse : "");
+      setSubmissionInput(typeof saved.submissionInput === "string" ? saved.submissionInput : "");
+      setSubmissionResult(typeof saved.submissionResult === "string" ? saved.submissionResult : "");
+      setManualNote(typeof saved.manualNote === "string" ? saved.manualNote : "");
+      setUploadedName(typeof saved.uploadedName === "string" ? saved.uploadedName : "");
+      if (saved.themeMode === "dark" || saved.themeMode === "light") setThemeMode(saved.themeMode);
+    }
+    workspaceHydrated.current = true;
+    setWorkspaceReady(true);
+  }, [currentUser, workspaceQuery.isSuccess, workspaceQuery.data]);
 
   useEffect(() => {
     const handleMove = (event: MouseEvent) => {
@@ -417,6 +455,19 @@ export default function Home() {
   }, [activeNav]);
 
   const allChunks = useMemo(() => sources.filter(source => source.status === "verified").flatMap(source => source.chunks), [sources]);
+
+  const durableSnapshot = useMemo(() => ({
+    schemaVersion: 1,
+    onboardingComplete, challenge, event, team, uncertainty, activeNav, activeAgent,
+    sources, hermesMessages, activities, ideaRun, stackRun, ideaInput, ideaResponse,
+    submissionInput, submissionResult, manualNote, uploadedName, themeMode,
+  }), [onboardingComplete, challenge, event, team, uncertainty, activeNav, activeAgent, sources, hermesMessages, activities, ideaRun, stackRun, ideaInput, ideaResponse, submissionInput, submissionResult, manualNote, uploadedName, themeMode]);
+
+  useEffect(() => {
+    if (!currentUser || !workspaceReady) return;
+    const timer = window.setTimeout(() => workspaceSave.mutate({ snapshot: durableSnapshot }), 850);
+    return () => window.clearTimeout(timer);
+  }, [currentUser, workspaceReady, durableSnapshot]);
   const selected = agentById(activeAgent);
   const readyCount = sources.filter(source => source.status === "verified").length;
   const readinessScore = Math.min(96, 26 + (challenge.trim().length > 24 ? 14 : 0) + readyCount * 8 + (ideaRun ? 16 : 0) + (stackRun ? 14 : 0) + (submissionInput.trim() ? 14 : 0));
@@ -1123,12 +1174,18 @@ function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agen
   const [messages, setMessages] = useState<Array<{ role: "user" | "agent"; text: string }>>([]);
   const [provider, setProvider] = useState("not called yet");
   const [handoffTo, setHandoffTo] = useState<AgentId | null>(null);
+  const { data: currentUser } = trpc.auth.me.useQuery();
+  const conversation = trpc.agents.conversation.useQuery({ agent: agent.id }, { enabled: Boolean(currentUser), retry: false });
+  const saveConversation = trpc.agents.saveConversation.useMutation();
   const agentChat = trpc.agents.chat.useMutation();
 
   useEffect(() => {
     setMessages([]);
     setProvider("not called yet");
   }, [agent.id]);
+  useEffect(() => {
+    if (conversation.isSuccess) setMessages(conversation.data.map(message => ({ role: message.role, text: message.text })));
+  }, [conversation.isSuccess, conversation.data]);
   const roleIntros: Record<AgentId, string> = {
     hermes: "I am Hermes, the guide and knowledge layer. Ask me about formats, judging, scoping, or what the current sources establish.",
     zeus: "I am Zeus, the orchestrator. I carry the brief between rooms, expose missing context, and make the next handoff explicit.",
@@ -1167,7 +1224,8 @@ function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agen
   const askRole = () => {
     const question = input.trim();
     if (!question || agentChat.isPending) return;
-    setMessages(current => [...current, { role: "user", text: question }]);
+    const pendingTranscript = [...messages, { role: "user" as const, text: question }];
+    setMessages(pendingTranscript);
     setInput("");
     agentChat.mutate({
       agent: agent.id,
@@ -1179,11 +1237,15 @@ function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agen
       onSuccess: result => {
         setProvider(result.provider);
         setHandoffTo(result.handoffTo ?? null);
-        setMessages(current => [...current, { role: "agent", text: result.answer }]);
+        const nextTranscript = [...pendingTranscript, { role: "agent" as const, text: result.answer }];
+        setMessages(nextTranscript);
+        if (currentUser) saveConversation.mutate({ agent: agent.id, messages: nextTranscript });
       },
       onError: () => {
         setProvider("model unavailable");
-        setMessages(current => [...current, { role: "agent", text: "The live model route failed for this request. No AI answer was generated; check the model API key/provider configuration and retry." }]);
+        const nextTranscript = [...pendingTranscript, { role: "agent" as const, text: "The live model route failed for this request. No AI answer was generated; check the model API key/provider configuration and retry." }];
+        setMessages(nextTranscript);
+        if (currentUser) saveConversation.mutate({ agent: agent.id, messages: nextTranscript });
       },
     });
   };
@@ -1198,7 +1260,7 @@ function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agen
         {agentChat.isPending && <div className="role-chat-line agent role-chat-thinking"><b>{agent.name}</b><span>Thinking through the current brief…</span></div>}
       </div>
       {handoffTo && <button className="role-handoff" onClick={() => onHandoff?.(handoffTo)}>Open {agentById(handoffTo).name}&apos;s room <ArrowUpRight size={13} /></button>}
-      <div className="role-chat-input"><input value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => event.key === "Enter" && askRole()} placeholder={`Ask ${agent.name} about their role…`} disabled={agentChat.isPending} /><button onClick={askRole} aria-label={`Ask ${agent.name}`} disabled={agentChat.isPending}><span>send</span><ArrowUpRight size={14} /></button></div>
+      <div className="role-chat-input"><input value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => event.key === "Enter" && askRole()} placeholder={`Ask ${agent.name} about their role…`} disabled={agentChat.isPending || conversation.isLoading} /><button onClick={askRole} aria-label={`Ask ${agent.name}`} disabled={agentChat.isPending || conversation.isLoading}><span>send</span><ArrowUpRight size={14} /></button></div>
     </div>
   );
 }
