@@ -132,7 +132,7 @@ function localHeuristicEvaluation(input: {
   const criteria = evaluationRubric.map(item => {
     const text = sources[item.key].trim();
     const words = text.split(/\s+/).filter(Boolean);
-    const proofSignals = (text.match(/\\b(user|metric|test|tested|demo|source|citation|permission|auth|error|fallback|accessible|mobile|latency|owner|handoff|risk|constraint|prototype|deployment)\\b/gi) ?? []).length;
+    const proofSignals = (text.match(/\b(user|metric|test|tested|demo|source|citation|permission|auth|error|fallback|accessible|mobile|latency|owner|handoff|risk|constraint|prototype|deployment)\b/gi) ?? []).length;
     const score = text.length === 0 ? 1 : Math.min(7, 2 + Math.floor(Math.min(words.length, 180) / 45) + Math.min(2, Math.floor(proofSignals / 3)));
     return {
       key: item.key, label: item.label, weight: item.weight, score,
