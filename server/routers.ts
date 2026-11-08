@@ -175,7 +175,7 @@ function localAgentFallback(agent: AgentId, question: string, context: z.infer<t
   };
   return { answer: plans[agent], provider: "local-fallback", citations: agent === "hermes" ? context.map(chunk => chunk.id) : [], handoffTo: null, fallback: true };
 }
-\nexport const appRouter = router({
+export const appRouter = router({
   system: systemRouter,
   workspace: router({
     load: protectedProcedure.query(async ({ ctx }) => {
