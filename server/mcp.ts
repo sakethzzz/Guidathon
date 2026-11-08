@@ -48,7 +48,7 @@ async function initializeMcp(url: string) {
 
 export async function listExternalMcpTools() {
   const url = endpoint();
-  if (!url) return { configured: false, tools: [] as Array<{ name: string; description?: string; inputSchema?: unknown }>, reason: "MCP_SERVER_URL is not configured" };
+  if (!url) return { configured: false, tools: [] as Array<{ name: string; description?: string; inputSchema?: unknown; annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean } }>, reason: "MCP_SERVER_URL is not configured" };
   const sessionId = await initializeMcp(url);
   const result = await requestMcp(url, { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }, sessionId);
   const tools = Array.isArray(result.payload?.result?.tools) ? result.payload.result.tools as Array<{ name: string; description?: string; inputSchema?: unknown; annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean } }> : [];
