@@ -9,6 +9,18 @@ services:
         value: production
       - key: DATABASE_URL
         sync: false
+      - key: MANUS_PROJECT_ID
+        sync: false
+      - key: MANUS_JWT_SECRET
+        sync: false
+      - key: MANUS_OAUTH_API_URL
+        sync: false
+      - key: OWNER_OPEN_ID
+        sync: false
+      - key: MANUS_API_URL
+        sync: false
+      - key: MANUS_API_KEY
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: GROQ_API_KEY
