@@ -237,7 +237,7 @@ const initialActivity: Activity[] = [
   { id: "a3", agent: "zeus", action: "Integration check", detail: "Hermes server model is active; optional MCP tools are not configured.", time: "09:40", state: "queued" },
 ];
 
-const tasks: Task[] = [
+const initialTasks: Task[] = [
   { title: "Lock one user + painful moment", date: "Today · 18:00", owner: "Athena", status: "next" },
   { title: "Prototype the evidence loop", date: "Tomorrow · 12:00", owner: "Hephaestus", status: "queued" },
   { title: "Run 3 user observations", date: "Wed · 16:00", owner: "Hermes", status: "queued" },
@@ -347,6 +347,10 @@ export default function Home() {
   const [hermesMessages, setHermesMessages] = useState<Array<{ role: "user" | "assistant"; content: string; citations?: string[] }>>([]);
   const [sources, setSources] = useState<SourceRecord[]>(initialSources);
   const [activities, setActivities] = useState<Activity[]>(initialActivity);
+  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskOwner, setNewTaskOwner] = useState("Team");
+  const [newTaskDate, setNewTaskDate] = useState("Before submission");
   const [retrieval, setRetrieval] = useState<Chunk[]>([]);
   const [manualNote, setManualNote] = useState("");
   const [ideaRun, setIdeaRun] = useState(false);
@@ -407,6 +411,7 @@ export default function Home() {
       if (Array.isArray(saved.sources)) setSources(saved.sources.filter((item: any) => item && typeof item.id === "string").slice(0, 80).map((item: SourceRecord) => ({ ...item, status: item.status === "processing" ? "unverified" : item.status })));
       if (Array.isArray(saved.hermesMessages)) setHermesMessages(saved.hermesMessages.slice(-100));
       if (Array.isArray(saved.activities)) setActivities(saved.activities.slice(0, 100));
+      if (Array.isArray(saved.tasks)) setTasks(saved.tasks.filter((task: any) => task && typeof task.title === "string" && typeof task.owner === "string" && typeof task.date === "string" && ["next", "queued", "done"].includes(task.status)).slice(0, 100));
       setIdeaRun(Boolean(saved.ideaRun));
       setStackRun(Boolean(saved.stackRun));
       setIdeaInput(typeof saved.ideaInput === "string" ? saved.ideaInput : "");
@@ -463,9 +468,9 @@ export default function Home() {
   const durableSnapshot = useMemo(() => ({
     schemaVersion: 1,
     onboardingComplete, challenge, event, team, uncertainty, activeNav, activeAgent,
-    sources, hermesMessages, activities, ideaRun, stackRun, ideaInput, ideaResponse,
+    sources, hermesMessages, activities, tasks, ideaRun, stackRun, ideaInput, ideaResponse,
     submissionInput, submissionResult, manualNote, uploadedName, themeMode,
-  }), [onboardingComplete, challenge, event, team, uncertainty, activeNav, activeAgent, sources, hermesMessages, activities, ideaRun, stackRun, ideaInput, ideaResponse, submissionInput, submissionResult, manualNote, uploadedName, themeMode]);
+  }), [onboardingComplete, challenge, event, team, uncertainty, activeNav, activeAgent, sources, hermesMessages, activities, tasks, ideaRun, stackRun, ideaInput, ideaResponse, submissionInput, submissionResult, manualNote, uploadedName, themeMode]);
 
   useEffect(() => {
     if (!currentUser || !workspaceReady) return;
@@ -867,7 +872,13 @@ export default function Home() {
             <div className="section-kicker"><span className="kicker-dot teal" /> Deadline engine</div>
             <h3>Time becomes another handoff.</h3>
             <p className="room-intro">Chronos turns the chosen direction into a sequence the team can actually follow. Dates are illustrative defaults; set real dates before relying on this timeline.</p>
-            <div className="task-list">{tasks.map(task => <div className="task-row" key={task.title}><div className={`task-check ${task.status === "done" ? "checked" : ""}`}>{task.status === "done" && <Check size={12} />}</div><div className="task-main"><b>{task.title}</b><span>{task.owner} · {task.date}</span></div><span className={`task-status ${task.status}`}>{task.status}</span></div>)}</div>
+            <div className="task-list">{tasks.map(task => <div className="task-row" key={task.title}><button type="button" className={`task-check ${task.status === "done" ? "checked" : ""}`} aria-label={task.status === "done" ? `Reopen ${task.title}` : `Complete ${task.title}`} onClick={() => setTasks(current => current.map(item => item.title === task.title ? { ...item, status: item.status === "done" ? "next" : "done" } : item))}>{task.status === "done" && <Check size={12} />}</button><div className="task-main"><b>{task.title}</b><span>{task.owner} · {task.date}</span></div><span className={`task-status ${task.status}`}>{task.status}</span></div>)}</div>
+            <form className="task-add-form" onSubmit={event => { event.preventDefault(); const title = newTaskTitle.trim(); if (!title) return; setTasks(current => [{ title, owner: newTaskOwner.trim() || "Team", date: newTaskDate.trim() || "Before submission", status: "next" }, ...current].slice(0, 100)); setNewTaskTitle(""); }}>
+              <input aria-label="New task title" value={newTaskTitle} onChange={event => setNewTaskTitle(event.target.value)} placeholder="Add a milestone or task…" maxLength={180} />
+              <input aria-label="Task owner" value={newTaskOwner} onChange={event => setNewTaskOwner(event.target.value)} placeholder="Owner" maxLength={60} />
+              <input aria-label="Task due date" value={newTaskDate} onChange={event => setNewTaskDate(event.target.value)} placeholder="Due / checkpoint" maxLength={80} />
+              <button type="submit" className="small-action" disabled={!newTaskTitle.trim()}><Plus size={13} /> Add task</button>
+            </form>
             <button className="primary-button" onClick={() => pushActivity("chronos", "Recorded the next deadline", "Lock one user + painful moment · Today at 18:00", "complete")}><CalendarClock size={16} /> Log next deadline</button>
           </div>
           <div><div className="countdown-card"><span className="section-kicker">Submission window</span><div className="countdown">48<span>h</span> 12<span>m</span></div><p>until the demo cut-off</p><div className="progress-line"><span style={{ width: `${Math.max(18, readinessScore)}%` }} /></div><div className="countdown-foot"><span>Readiness signal</span><span className="mono">{readinessScore}/100</span></div></div><AgentRoleChat agent={agentById("chronos")} context={allChunks} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
