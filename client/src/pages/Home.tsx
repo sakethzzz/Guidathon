@@ -329,11 +329,12 @@ function ShaderConstellation({ pointer }: { pointer: { x: number; y: number } })
     });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
     scene.add(mesh);
-    const resize = () => { const rect = canvas.getBoundingClientRect(); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.setSize(rect.width, rect.height, false); };
+    const resize = () => { const rect = canvas.getBoundingClientRect(); renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25)); renderer.setSize(Math.max(1, rect.width), Math.max(1, rect.height), false); };
     resize();
     window.addEventListener("resize", resize);
     let frame = 0;
-    const render = (time: number) => { material.uniforms.uTime.value = time * 0.001; material.uniforms.uPointer.value.set(pointerRef.current.x, pointerRef.current.y); renderer.render(scene, camera); frame = requestAnimationFrame(render); };
+    let lastFrame = 0;
+    const render = (time: number) => { frame = requestAnimationFrame(render); if (time - lastFrame < 33) return; lastFrame = time; material.uniforms.uTime.value = time * 0.001; material.uniforms.uPointer.value.set(pointerRef.current.x, pointerRef.current.y); renderer.render(scene, camera); };
     frame = requestAnimationFrame(render);
     return () => { cancelAnimationFrame(frame); window.removeEventListener("resize", resize); material.dispose(); mesh.geometry.dispose(); renderer.dispose(); };
   }, []);
