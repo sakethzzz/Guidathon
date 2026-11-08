@@ -61,7 +61,7 @@ async function callGemini(messages: ChatTurn[], maxTokens: number) {
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    signal: AbortSignal.timeout(25000),
+    signal: AbortSignal.timeout(10000),
     body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents, generationConfig: { maxOutputTokens: maxTokens, temperature: 0.42 } }),
   });
   if (!response.ok) throw new Error(`Gemini request failed (${response.status})`);
@@ -87,7 +87,7 @@ async function callGroq(messages: ChatTurn[], maxTokens: number) {
 }
 
 async function callManaged(messages: ChatTurn[], maxTokens: number) {
-  const result = await withTimeout(invokeLLM({ messages, maxTokens }), 25000, "Managed model");
+  const result = await withTimeout(invokeLLM({ messages, maxTokens }), 10000, "Managed model");
   const raw = result.choices?.[0]?.message?.content;
   const answer = typeof raw === "string" ? raw.trim() : "";
   if (!answer) throw new Error("Managed model returned an empty answer");
