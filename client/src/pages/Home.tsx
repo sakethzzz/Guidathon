@@ -352,8 +352,13 @@ export default function Home() {
   const [carouselPointer, setCarouselPointer] = useState({ x: 0, y: 0 });
   const [carouselHover, setCarouselHover] = useState<AgentId | null>(null);
   const [carouselRotation, setCarouselRotation] = useState(0);
+  const [carouselAutoplay, setCarouselAutoplay] = useState(false);
+  const [carouselDragging, setCarouselDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const carouselRotationRef = useRef(0);
   const carouselDrag = useRef<{ x: number; rotation: number; moved: boolean } | null>(null);
+  const suppressCarouselClick = useRef(false);
+  const wheelSnapTimer = useRef<number | null>(null);
   const stormVideoRef = useRef<HTMLVideoElement>(null);
   const hermesAsk = trpc.hermes.ask.useMutation();
   const ideaAsk = trpc.agents.chat.useMutation();
@@ -386,10 +391,25 @@ export default function Home() {
   }, [entered]);
 
   useEffect(() => {
-    if (!entered || activeNav !== "Agents" || carouselHover || carouselDrag.current) return;
-    const driftTimer = window.setInterval(() => setCarouselRotation(current => current - 0.42), 32);
+    if (!entered || activeNav !== "Agents" || !carouselAutoplay || carouselHover || carouselDragging) return;
+    const driftTimer = window.setInterval(() => {
+      const nextRotation = carouselRotationRef.current - 0.42;
+      carouselRotationRef.current = nextRotation;
+      setCarouselRotation(nextRotation);
+      const step = 360 / agents.length;
+      const frontIndex = ((Math.round(-nextRotation / step) % agents.length) + agents.length) % agents.length;
+      setActiveAgent(current => current === agents[frontIndex].id ? current : agents[frontIndex].id);
+    }, 32);
     return () => window.clearInterval(driftTimer);
-  }, [entered, activeNav, carouselHover]);
+  }, [entered, activeNav, carouselAutoplay, carouselHover, carouselDragging]);
+
+  useEffect(() => {
+    if (activeNav !== "Agents") return;
+    const index = agents.findIndex(agent => agent.id === activeAgent);
+    const rotation = -Math.max(0, index) * (360 / agents.length);
+    carouselRotationRef.current = rotation;
+    setCarouselRotation(rotation);
+  }, [activeNav]);
 
   const allChunks = useMemo(() => sources.filter(source => source.status === "verified").flatMap(source => source.chunks), [sources]);
   const selected = agentById(activeAgent);
@@ -410,14 +430,55 @@ export default function Home() {
     ].slice(0, 7));
   };
 
+  const updateCarouselRotation = (rotation: number) => {
+    carouselRotationRef.current = rotation;
+    setCarouselRotation(rotation);
+  };
+
   const selectAgent = (id: AgentId) => {
     const nextAgent = agentById(id);
     const nextIndex = agents.findIndex(agent => agent.id === id);
-    setCarouselRotation(-nextIndex * (360 / agents.length));
+    updateCarouselRotation(-nextIndex * (360 / agents.length));
     setHandoff({ from: selected.name, to: nextAgent.name });
     setActiveAgent(id);
     pushActivity("zeus", `Routed context to ${nextAgent.name}`, `${selected.name} → ${nextAgent.name}: ${uncertainty || "open question"}`, "live");
     window.setTimeout(() => setHandoff(null), 2100);
+  };
+
+  const moveCarousel = (direction: -1 | 1) => {
+    const currentIndex = agents.findIndex(agent => agent.id === activeAgent);
+    const nextIndex = (currentIndex + direction + agents.length) % agents.length;
+    selectAgent(agents[nextIndex].id);
+  };
+
+  const snapCarouselToNearest = () => {
+    const step = 360 / agents.length;
+    const snapped = Math.round(carouselRotationRef.current / step) * step;
+    const index = ((Math.round(-snapped / step) % agents.length) + agents.length) % agents.length;
+    selectAgent(agents[index].id);
+  };
+
+  const handleCarouselWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (Math.abs(event.deltaX) < 1 && Math.abs(event.deltaY) < 1) return;
+    event.preventDefault();
+    setCarouselDragging(true);
+    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    updateCarouselRotation(carouselRotationRef.current - delta * 0.42);
+    if (wheelSnapTimer.current !== null) window.clearTimeout(wheelSnapTimer.current);
+    wheelSnapTimer.current = window.setTimeout(() => {
+      snapCarouselToNearest();
+      setCarouselDragging(false);
+      wheelSnapTimer.current = null;
+    }, 150);
+  };
+
+  const handleCarouselKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.target instanceof HTMLElement && event.target.closest("input, textarea, select")) return;
+    if (event.key === "ArrowLeft") { event.preventDefault(); moveCarousel(-1); }
+    else if (event.key === "ArrowRight") { event.preventDefault(); moveCarousel(1); }
+    else if (event.key === "Home") { event.preventDefault(); selectAgent(agents[0].id); }
+    else if (event.key === "End") { event.preventDefault(); selectAgent(agents[agents.length - 1].id); }
+    else if (event.key === " ") { event.preventDefault(); setCarouselAutoplay(value => !value); }
   };
 
   const handleCarouselMove = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -426,26 +487,28 @@ export default function Home() {
   };
 
   const handleCarouselPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if ((event.target as HTMLElement).closest("button")) return;
-    carouselDrag.current = { x: event.clientX, rotation: carouselRotation, moved: false };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (event.button !== 0 && event.pointerType === "mouse") return;
+    carouselDrag.current = { x: event.clientX, rotation: carouselRotationRef.current, moved: false };
+    setCarouselDragging(true);
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture is an enhancement. */ }
   };
 
   const handleCarouselDrag = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!carouselDrag.current) return;
     const delta = event.clientX - carouselDrag.current.x;
-    if (Math.abs(delta) > 4) carouselDrag.current.moved = true;
-    setCarouselRotation(carouselDrag.current.rotation + delta * 0.48);
+    if (Math.abs(delta) > 5) carouselDrag.current.moved = true;
+    updateCarouselRotation(carouselDrag.current.rotation + delta * 0.48);
   };
 
   const handleCarouselPointerUp = () => {
     if (!carouselDrag.current) return;
-    const step = 360 / agents.length;
-    const snapped = Math.round(carouselRotation / step) * step;
-    const index = ((Math.round(-snapped / step) % agents.length) + agents.length) % agents.length;
-    setCarouselRotation(snapped);
-    if (carouselDrag.current.moved) selectAgent(agents[index].id);
+    const moved = carouselDrag.current.moved;
     carouselDrag.current = null;
+    setCarouselDragging(false);
+    if (moved) {
+      suppressCarouselClick.current = true;
+      snapCarouselToNearest();
+    }
   };
 
   const triggerClickSpark = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -606,7 +669,7 @@ export default function Home() {
     if (activeNav === "Agents") {
       return (
         <div className={`agents-room-body constellation-3d-room constellation-only accent-${selected.accent}`}>
-          <div className="agent-carousel-stage" aria-label="Interactive 3D circular agent carousel" onPointerMove={event => { handleCarouselMove(event); handleCarouselDrag(event); }} onPointerDown={handleCarouselPointerDown} onPointerUp={handleCarouselPointerUp} onPointerCancel={handleCarouselPointerUp} onPointerLeave={() => { setCarouselPointer({ x: 0, y: 0 }); setCarouselHover(null); if (carouselDrag.current) handleCarouselPointerUp(); }}>
+          <div className="agent-carousel-stage" role="region" tabIndex={0} aria-label="Interactive 3D circular agent carousel. Use left and right arrows to select agents, Home and End to jump, Space to toggle auto-rotation, drag or scroll to rotate." onKeyDown={handleCarouselKeyDown} onWheel={handleCarouselWheel} onPointerMove={event => { handleCarouselMove(event); handleCarouselDrag(event); }} onPointerDown={handleCarouselPointerDown} onPointerUp={handleCarouselPointerUp} onPointerCancel={handleCarouselPointerUp} onPointerLeave={() => { setCarouselPointer({ x: 0, y: 0 }); setCarouselHover(null); if (carouselDrag.current) handleCarouselPointerUp(); }}>
             <div className="carousel-stars" />
             <ShaderConstellation pointer={carouselPointer} />
             <div className="carousel-3d-world" style={{ "--tilt-x": `${-carouselPointer.y * 7}deg`, "--tilt-y": `${carouselPointer.x * 9}deg` } as CSSProperties}>
@@ -615,11 +678,18 @@ export default function Home() {
               <div className="agent-card-orbit" style={{ "--orbit-rotation": `${carouselRotation}deg` } as CSSProperties}>
                 {agents.map((agent, index) => {
                   const angle = (index / agents.length) * 360 - 90;
-                  return <button key={agent.id} className={`agent-card-3d accent-${agent.accent} ${activeAgent === agent.id ? "active" : ""} ${carouselHover === agent.id ? "hovered" : ""}`} style={{ "--card-angle": `${angle}deg`, "--card-delay": `${index * 90}ms` } as CSSProperties} onPointerEnter={() => setCarouselHover(agent.id)} onClick={() => selectAgent(agent.id)} aria-label={`Enter ${agent.name} chatspace`}><span className="agent-card-sheen" /><span className="agent-card-silhouette" /><span className="agent-portrait-frame"><img src={agent.art} alt={`${agent.name} chibi spirit face card`} /></span><span className="agent-card-footer"><b>{agent.name}</b><small>{agent.role}</small></span><span className="agent-card-index">0{index + 1}</span></button>;
+                  return <button key={agent.id} className={`agent-card-3d accent-${agent.accent} ${activeAgent === agent.id ? "active" : ""} ${carouselHover === agent.id ? "hovered" : ""}`} style={{ "--card-angle": `${angle}deg`, "--card-delay": `${index * 90}ms` } as CSSProperties} onPointerEnter={() => setCarouselHover(agent.id)} onClick={event => { if (suppressCarouselClick.current) { event.preventDefault(); suppressCarouselClick.current = false; return; } selectAgent(agent.id); }} aria-label={`Enter ${agent.name} chatspace`}><span className="agent-card-sheen" /><span className="agent-card-silhouette" /><span className="agent-portrait-frame"><img src={agent.art} alt={`${agent.name} chibi spirit face card`} /></span><span className="agent-card-footer"><b>{agent.name}</b><small>{agent.role}</small></span><span className="agent-card-index">0{index + 1}</span></button>;
                 })}
               </div>
             </div>
-            <div className="carousel-instruction"><span className="mono">ACTIVE ORBIT // {selected.name.toUpperCase()}</span><span>drag · hover · click to focus</span></div>
+            <div className="carousel-instruction">
+              <div className="carousel-instruction-copy"><span className="mono">ACTIVE ORBIT // {selected.name.toUpperCase()}</span><span>drag · scroll · arrows · click to focus</span></div>
+              <div className="carousel-controls" aria-label="Carousel controls">
+                <button type="button" onClick={() => moveCarousel(-1)} aria-label="Previous agent">PREV</button>
+                <button type="button" className={carouselAutoplay ? "is-playing" : ""} onClick={() => setCarouselAutoplay(value => !value)} aria-pressed={carouselAutoplay}>{carouselAutoplay ? "PAUSE" : "AUTO"}</button>
+                <button type="button" onClick={() => moveCarousel(1)} aria-label="Next agent">NEXT</button>
+              </div>
+            </div>
           </div>
         </div>
       );
@@ -763,6 +833,7 @@ export default function Home() {
 
 function OverviewStack({ agents, onSelect }: { agents: AgentRecord[]; onSelect: (id: AgentId) => void }) {
   const stackRef = useRef<HTMLElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const mythology: Record<AgentId, { aura: string; why: string }> = {
     hermes: { aura: "The messenger at the threshold", why: "Hermes turns ambiguity into a message the rest of the constellation can carry." },
     zeus: { aura: "The keeper of the sky-wide thread", why: "Zeus owns orchestration because every specialist needs one visible source of direction." },
@@ -771,13 +842,66 @@ function OverviewStack({ agents, onSelect }: { agents: AgentRecord[]; onSelect: 
     chronos: { aura: "The ancient shape of time", why: "Chronos makes deadlines tangible by turning progress into milestones with owners and proof." },
   };
   useGSAP(() => {
-    const cards = gsap.utils.toArray<HTMLElement>(".overview-stack-card");
-    gsap.fromTo(cards, { y: 70, opacity: 0, rotateX: 9 }, { y: 0, opacity: 1, rotateX: 0, stagger: .12, duration: .85, ease: "power3.out", scrollTrigger: { trigger: stackRef.current, start: "top 78%", end: "bottom 30%", scrub: .8 } });
-    return () => ScrollTrigger.getAll().forEach(trigger => trigger.kill());
-  }, { scope: stackRef });
-  return <section ref={stackRef} className="overview-stack-section mythic-scroll-stack"><div className="overview-quote"><span className="section-kicker"><span className="kicker-dot gold" /> GUIDATHON // THE CONSTELLATION</span><blockquote>“Make the next move defensible.”</blockquote><p>Five mythic roles, one visible path from a rough question to a build the team can stand behind.</p></div><div className="overview-stack-cards">{agents.map((agent, index) => <button className={`overview-stack-card mythic-stack-card accent-${agent.accent}`} key={agent.id} onClick={() => onSelect(agent.id)}><span className="stack-card-number">0{index + 1}</span><div className="stack-card-aura"><span>{mythology[agent.id].aura}</span><img src={agent.art} alt={`${agent.name} chibi spirit`} /></div><div className="stack-card-copy"><span className="mono">{agent.role} · greek myth</span><b>{agent.name}</b><p>{mythology[agent.id].why}</p></div><ArrowUpRight size={16} /></button>)}</div></section>;
-}
+    const viewport = viewportRef.current;
+    const cards = gsap.utils.toArray<HTMLElement>(".overview-stack-card", stackRef.current);
+    if (!viewport || cards.length === 0) return;
 
+    gsap.set(cards, { autoAlpha: 0, y: 72, scale: 0.96, filter: "blur(4px)", zIndex: (index) => index + 1, pointerEvents: "none", transformOrigin: "center center" });
+    gsap.set(cards[0], { autoAlpha: 1, y: 0, scale: 1, filter: "blur(0px)", pointerEvents: "auto", zIndex: cards.length + 1 });
+
+    const timeline = gsap.timeline({
+      scrollTrigger: {
+        trigger: viewport,
+        start: "top top+=84",
+        end: () => `+=${Math.max(window.innerHeight, 520) * 1.15 * Math.max(1, cards.length - 1)}`,
+        pin: viewport,
+        scrub: 0.55,
+        anticipatePin: 1,
+        invalidateOnRefresh: true,
+      },
+    });
+
+    cards.slice(0, -1).forEach((card, index) => {
+      const next = cards[index + 1];
+      timeline.to(card, { y: -48, scale: 0.92, autoAlpha: 0.34, filter: "blur(2px)", pointerEvents: "none", duration: 1 }, index);
+      timeline.fromTo(next,
+        { y: 72, scale: 0.96, autoAlpha: 0, filter: "blur(4px)", pointerEvents: "none" },
+        { y: 0, scale: 1, autoAlpha: 1, filter: "blur(0px)", pointerEvents: "auto", duration: 1 },
+        index
+      );
+    });
+
+    const refreshFrame = window.requestAnimationFrame(() => ScrollTrigger.refresh());
+    return () => {
+      window.cancelAnimationFrame(refreshFrame);
+      timeline.scrollTrigger?.kill();
+      timeline.kill();
+    };
+  }, { scope: stackRef });
+
+  return (
+    <section ref={stackRef} className="overview-stack-section mythic-scroll-stack">
+      <div className="overview-quote">
+        <span className="section-kicker"><span className="kicker-dot gold" /> GUIDATHON // THE CONSTELLATION</span>
+        <blockquote>“Make the next move defensible.”</blockquote>
+        <p>Five mythic roles, one visible path from a rough question to a build the team can stand behind.</p>
+      </div>
+      <div ref={viewportRef} className="overview-stack-viewport" aria-label="Scrollable stack of five GUIDATHON agents">
+        <div className="overview-stack-cards">
+          {agents.map((agent, index) => (
+            <button className={`overview-stack-card mythic-stack-card accent-${agent.accent}`} key={agent.id} onClick={() => onSelect(agent.id)}>
+              <span className="stack-card-number">0{index + 1}</span>
+              <div className="stack-card-aura"><span>{mythology[agent.id].aura}</span><img src={agent.art} alt={`${agent.name} chibi spirit`} /></div>
+              <div className="stack-card-copy"><span className="mono">{agent.role} · greek myth</span><b>{agent.name}</b><p>{mythology[agent.id].why}</p></div>
+              <ArrowUpRight size={16} />
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="overview-stack-hint"><span className="mono">SCROLL TO EXPLORE</span><span>Each turn reveals the next spirit</span></div>
+    </section>
+  );
+}
 function ModelViewer({ agent }: { agent: AgentRecord }) {
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   return <div className={`model-viewer accent-${agent.accent}`} onPointerMove={event => { const rect = event.currentTarget.getBoundingClientRect(); setTilt({ x: ((event.clientY - rect.top) / rect.height - .5) * -14, y: ((event.clientX - rect.left) / rect.width - .5) * 18 }); }} onPointerLeave={() => setTilt({ x: 0, y: 0 })} aria-label={`${agent.name} interactive model viewer`}><div className="model-viewer-grid" /><div className="model-viewer-ring ring-a" /><div className="model-viewer-ring ring-b" /><div className="model-viewer-shadow" /><img src={agent.art} alt={`${agent.name} chibi model`} style={{ transform: `translateY(-8px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) rotateZ(${tilt.y * -.08}deg) scale(1.08)` }} /><span className="model-viewer-label">drag gaze · hover to rotate</span></div>;
