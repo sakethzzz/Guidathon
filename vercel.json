@@ -5,7 +5,7 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "functions": {
-    "api/[...path].js": {
+    "api/[...path].ts": {
       "maxDuration": 60
     }
   }
