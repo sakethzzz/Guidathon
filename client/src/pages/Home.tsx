@@ -1233,6 +1233,7 @@ function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agen
     const pendingTranscript = [...messages, { role: "user" as const, text: question }];
     setMessages(pendingTranscript);
     setInput("");
+    if (currentUser) saveConversation.mutate({ agent: agent.id, messages: pendingTranscript });
     agentChat.mutate({
       agent: agent.id,
       question,
