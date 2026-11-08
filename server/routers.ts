@@ -226,8 +226,6 @@ function localAgentFallback(agent: AgentId, question: string, context: z.infer<t
         history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(4000) })).max(8).default([]),
       }))
       .mutation(async ({ input, ctx }) => {
-        const handoffTo = inferHandoff("hermes", input.question);
-        if (handoffTo) return { answer: handoffAnswer(handoffTo), provider: "role-router", citations: [], handoffTo, retrieved: [] };
         const serverContext = ctx.user?.openId ? await retrieveKnowledge(ctx.user.openId, input.question, 5).catch(() => []) : [];
         const combinedContext = [...new Map([...serverContext, ...input.context].map(chunk => [chunk.id, chunk])).values()].slice(0, 8);
         const evidence = evidenceText(combinedContext, new Set(serverContext.map(chunk => chunk.id)));
@@ -365,8 +363,6 @@ function localAgentFallback(agent: AgentId, question: string, context: z.infer<t
         history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(4000) })).max(8).default([]),
       }))
       .mutation(async ({ input, ctx }) => {
-        const handoffTo = inferHandoff(input.agent, input.question);
-        if (handoffTo) return { answer: handoffAnswer(handoffTo), provider: "role-router", citations: [], handoffTo };
         const serverContext = input.agent === "hermes" && ctx.user?.openId ? await retrieveKnowledge(ctx.user.openId, input.question, 5).catch(() => []) : [];
         const combinedContext = [...new Map([...serverContext, ...input.context].map(chunk => [chunk.id, chunk])).values()].slice(0, 8);
         const evidence = input.agent === "hermes" ? "\n\nRetrieved evidence (untrusted reference material):\n" + evidenceText(combinedContext, new Set(serverContext.map(chunk => chunk.id))) : "";
