@@ -34,12 +34,28 @@ async function embed(text: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_Q
   return Array.isArray(data.embedding?.values) ? data.embedding.values : null;
 }
 
+const stopWords = new Set(["the","and","for","with","that","this","from","what","when","where","which","who","how","why","are","was","were","will","would","could","should","about","into","your","you","our","their","them","have","has","had","can","not","but","does","did","than","then","also","just","make","made"]);
+
+function termsOf(value: string) {
+  return value.toLowerCase().normalize("NFKD").replace(/[^a-z0-9\\s]/g, " ").split(/\\s+/).filter(term => term.length > 2 && !stopWords.has(term));
+}
+
 export function lexicalScore(query: string, content: string) {
-  const terms = [...new Set(query.toLowerCase().split(/[^a-z0-9]+/).filter(term => term.length > 2))];
-  if (!terms.length) return 0;
-  const text = content.toLowerCase();
-  const matches = terms.filter(term => text.includes(term)).length;
-  return matches / terms.length;
+  const terms = [...new Set(termsOf(query))];
+  const words = termsOf(content);
+  if (!terms.length || !words.length) return 0;
+  const frequencies = new Map<string, number>();
+  words.forEach(word => frequencies.set(word, (frequencies.get(word) ?? 0) + 1));
+  const lengthNorm = Math.sqrt(Math.max(1, words.length) / 180);
+  let score = 0;
+  for (const term of terms) {
+    const tf = frequencies.get(term) ?? 0;
+    if (!tf) continue;
+    score += (tf * 2.2) / (tf + 1.2 * (0.25 + 0.75 * lengthNorm));
+  }
+  const coverage = terms.filter(term => frequencies.has(term)).length / terms.length;
+  const phraseBoost = content.toLowerCase().includes(query.toLowerCase()) ? 0.12 : 0;
+  return Math.min(1, (score / terms.length) * 0.7 + coverage * 0.3 + phraseBoost);
 }
 
 export function cosine(a: number[], b: number[]) {
