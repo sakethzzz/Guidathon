@@ -1047,3 +1047,49 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 @media (prefers-reduced-motion:reduce) {
   .antigravity-particles i,.antigravity-burst span,.agent-card-3d,.carousel-focus img { animation:none !important; transition:none !important; }
 }
+
+
+/* Small companion spirit stays visible while the user chats with an agent. */
+.role-chat-thread { position:relative; }
+.chat-companion-floating {
+  position:absolute;
+  z-index:2;
+  top:10px;
+  right:12px;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:5px 9px 5px 5px;
+  border:1px solid var(--line-strong);
+  border-radius:999px;
+  background:color-mix(in srgb,var(--panel-raised) 84%,transparent);
+  box-shadow:0 8px 24px rgba(0,0,0,.14);
+  pointer-events:none;
+  animation:companion-float 4.2s ease-in-out infinite;
+}
+.chat-companion-floating img {
+  display:block;
+  width:34px;
+  height:34px;
+  object-fit:contain;
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,.2));
+}
+.chat-companion-floating span {
+  color:var(--muted);
+  font-family:'IBM Plex Mono',monospace;
+  font-size:8px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+@keyframes companion-float {
+  0%,100% { transform:translateY(0); }
+  50% { transform:translateY(-5px); }
+}
+.theme-light .chat-companion-floating {
+  background:rgba(255,255,255,.92);
+  border-color:rgba(168,121,28,.28);
+  box-shadow:0 8px 22px rgba(40,55,80,.12);
+}
+@media (prefers-reduced-motion:reduce) {
+  .chat-companion-floating { animation:none; }
+}
