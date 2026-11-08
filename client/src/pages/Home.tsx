@@ -780,7 +780,7 @@ export default function Home() {
             </div>
             <button className="primary-button" onClick={() => { setStackRun(true); pushActivity("hephaestus", "Proposed the build stack", "React + TypeScript + Hermes retrieval now; MCP + vector store next.", "complete"); }}><Zap size={16} /> {stackRun ? "Stack staged" : "Stage technical plan"}</button>
           </div>
-          <div><div className="architecture-card"><div className="architecture-top"><span className="section-kicker">Architecture signal</span><span className="integration-pill mocked">model route</span></div><div className="architecture-flow"><span>source intake</span><ChevronRight size={14} /><span>chunk store</span><ChevronRight size={14} /><span>agent router</span><ChevronRight size={14} /><span>output</span></div><p>No hidden calls. Every boundary is inspectable now; the live Hephaestus channel can explain what to cut before the demo.</p><div className="architecture-note"><CircleHelp size={14} /> MCP bridge optional · model chat active</div></div><AgentRoleChat agent={agentById("hephaestus")} context={allChunks} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
+          <div><div className="architecture-card"><div className="architecture-top"><span className="section-kicker">Architecture signal</span><span className="integration-pill mocked">model route</span></div><div className="architecture-flow"><span>source intake</span><ChevronRight size={14} /><span>chunk store</span><ChevronRight size={14} /><span>agent router</span><ChevronRight size={14} /><span>output</span></div><p>No hidden calls. Every boundary is inspectable now; the live Hephaestus channel can explain what to cut before the demo.</p><div className="architecture-note"><CircleHelp size={14} /> MCP bridge optional · model chat active</div></div><McpToolsPanel /><AgentRoleChat agent={agentById("hephaestus")} context={allChunks} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
         </div>
       );
     }
@@ -1027,6 +1027,45 @@ function AnimatedSidebar({ activeNav, onSelect, sourceCount }: { activeNav: NavI
 function SourceIntake({ sources, manualNote, setManualNote, addManualNote, onUpload, uploadedName }: { sources: SourceRecord[]; manualNote: string; setManualNote: (value: string) => void; addManualNote: () => void; onUpload: () => void; uploadedName: string }) {
   return (
     <aside className="source-intake"><div className="section-kicker"><span className="kicker-dot gold" /> Source intake</div><div className="upload-dropzone" onClick={onUpload}><UploadCloud size={19} /><b>{uploadedName || "Drop a brief or upload a file"}</b><span>Text files are parsed locally · other types remain unverified</span><button className="upload-button" onClick={event => { event.stopPropagation(); onUpload(); }}><Paperclip size={14} /> choose file</button></div><div className="manual-note"><div className="manual-heading"><span>or add a manual note</span><span className="mono">UNVERIFIED → PROCESSED</span></div><textarea value={manualNote} onChange={event => setManualNote(event.target.value)} placeholder="Paste a problem statement, judging rubric, or mentor note…" rows={4} /><button className="small-action" onClick={addManualNote} disabled={!manualNote.trim()}><Plus size={14} /> queue note</button></div><div className="source-list"><div className="source-list-heading"><span>Corpus status</span><span className="mono">{sources.length} records</span></div>{sources.slice(0, 4).map(source => <div className="source-row" key={source.id}><div className={`source-icon ${source.status}`}><FileText size={14} /></div><div><b>{source.name}</b><span>{source.detail}</span></div><span className={`source-status ${source.status}`}>{source.status === "verified" ? "READY" : source.status === "processing" ? "PARSE" : "NEW"}</span></div>)}</div><div className="intake-note"><CircleHelp size={13} /><span>Only <b>verified</b> sources enter retrieval. Nothing is silently promoted.</span></div></aside>
+  );
+}
+
+function McpToolsPanel() {
+  const { data, isLoading, refetch } = trpc.agents.tools.useQuery(undefined, { refetchInterval: 60000 });
+  const [toolName, setToolName] = useState("");
+  const [argumentsText, setArgumentsText] = useState("{}");
+  const [confirmed, setConfirmed] = useState(false);
+  const [resultText, setResultText] = useState("");
+  const call = trpc.agents.callTool.useMutation();
+  const tools = data?.tools ?? [];
+  const selectedTool = tools.find(tool => tool.name === toolName);
+  const sensitive = /(delete|remove|send|publish|deploy|create|update|write|execute|payment|purchase)/i.test(toolName);
+  const invoke = () => {
+    let args: Record<string, unknown>;
+    try {
+      const parsed = JSON.parse(argumentsText);
+      if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") throw new Error("Arguments must be a JSON object.");
+      args = parsed as Record<string, unknown>;
+    } catch (error) {
+      setResultText(error instanceof Error ? error.message : "Invalid JSON arguments");
+      return;
+    }
+    call.mutate({ name: toolName, arguments: args, confirm: confirmed }, {
+      onSuccess: value => setResultText(JSON.stringify(value, null, 2)),
+      onError: error => setResultText(error.message),
+    });
+  };
+  return (
+    <section className="mcp-tools-panel">
+      <div className="mcp-tools-head"><div><span className="section-kicker">Hephaestus // external tool bridge</span><h3>MCP tool bench</h3><p>Discover tools from one server-side MCP endpoint. Secrets stay on the server; write-like tools require an explicit confirmation.</p></div><button className="small-action" onClick={() => void refetch()}>refresh tools</button></div>
+      {isLoading ? <p className="mcp-state">Discovering configured MCP tools…</p> : !data?.configured ? <div className="mcp-unconfigured"><b>No MCP server connected</b><span>Set MCP_SERVER_URL and optionally MCP_SERVER_TOKEN in the server environment, then restart the backend. No tool calls are being simulated.</span></div> : data.reason ? <div className="mcp-unconfigured"><b>MCP server unavailable</b><span>{data.reason}</span></div> : tools.length === 0 ? <div className="mcp-unconfigured"><b>Connected, but no tools were advertised</b><span>Check the server's tools/list response and transport compatibility.</span></div> : (
+        <>
+          <div className="mcp-tool-list">{tools.map(tool => <button key={tool.name} className={tool.name === toolName ? "active" : ""} onClick={() => { setToolName(tool.name); setResultText(""); setConfirmed(false); }}><b>{tool.name}</b><span>{tool.description || "No description supplied"}</span></button>)}</div>
+          {selectedTool && <div className="mcp-tool-run"><b>Run {selectedTool.name}</b><textarea value={argumentsText} onChange={event => setArgumentsText(event.target.value)} rows={3} aria-label="MCP tool JSON arguments" /><label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} /> I explicitly approve this call if it changes external data.</label><button className="primary-button" onClick={invoke} disabled={call.isPending || (sensitive && !confirmed)}>{call.isPending ? "Calling tool…" : "Run MCP tool"} <ArrowUpRight size={14} /></button></div>}
+        </>
+      )}
+      {resultText && <pre className="mcp-tool-result">{resultText}</pre>}
+    </section>
   );
 }
 
