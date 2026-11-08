@@ -4,7 +4,6 @@ import { registerOAuthRoutes } from "./oauth";
 import { publicPlatformScript } from "./publicConfig";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
-import { handleMcpRequest } from "../mcpServer";
 
 const app = express();
 
@@ -18,7 +17,6 @@ app.get("/api/health", (_req, res) => {
     service: "guidathon-api",
     capabilities: {
       localAgentFallback: true,
-      builtInMcpServer: true,
       geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
       groqConfigured: Boolean(process.env.GROQ_API_KEY),
       managedModelConfigured: Boolean(process.env.MANUS_API_URL && process.env.MANUS_API_KEY),
@@ -26,13 +24,6 @@ app.get("/api/health", (_req, res) => {
       externalMcpConfigured: Boolean(process.env.MCP_SERVER_URL),
     },
   });
-});
-
-app.post("/api/mcp", (req, res) => {
-  const response = handleMcpRequest(req.body);
-  res.set("Cache-Control", "no-store");
-  if (response === null) return res.status(202).end();
-  return res.type("application/json").json(response);
 });
 
 app.get("/api/platform/config.js", (_req, res) => {
