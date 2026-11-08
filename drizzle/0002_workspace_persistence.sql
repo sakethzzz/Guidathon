@@ -18,3 +18,13 @@ CREATE TABLE `agent_conversations` (
   CONSTRAINT `agent_conversations_storage_key` PRIMARY KEY(`storage_key`),
   INDEX `agent_conversations_owner_agent_idx` (`owner_open_id`, `agent_id`)
 );
+--> statement-breakpoint
+CREATE TABLE `judge_evaluations` (
+  `id` varchar(64) NOT NULL,
+  `owner_open_id` varchar(64) NOT NULL,
+  `score` int NOT NULL,
+  `payload` mediumtext NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT `judge_evaluations_id` PRIMARY KEY(`id`),
+  INDEX `judge_evaluations_owner_created_idx` (`owner_open_id`, `created_at`)
+);
