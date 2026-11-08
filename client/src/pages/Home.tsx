@@ -251,19 +251,30 @@ const initialTasks: Task[] = [
   { title: "Record the 90s demo", date: "Thu · 20:00", owner: "Zeus", status: "queued" },
 ];
 
+const retrievalStopWords = new Set(["the","and","for","with","that","this","from","what","when","where","which","who","how","why","are","was","were","will","would","could","should","about","into","your","you","our","their","them","have","has","had","can","not","but","does","did","than","then","also","just","make","made"]);
+
 function tokenize(value: string) {
-  return new Set(value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean));
+  return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(word => word.length > 1 && !retrievalStopWords.has(word));
 }
 
-function scorePassage(query: string, passage: string) {
+function scorePassage(query: string, passage: string, corpusSize = 1, documentFrequency: Record<string, number> = {}) {
   const terms = tokenize(query);
   const words = tokenize(passage);
-  if (!terms.size) return 0;
-  let overlap = 0;
-  terms.forEach(term => {
-    if (words.has(term)) overlap += 1;
-  });
-  return Math.min(0.98, 0.42 + (overlap / terms.size) * 0.56);
+  if (!terms.length || !words.length) return 0;
+  const frequencies = new Map<string, number>();
+  words.forEach(word => frequencies.set(word, (frequencies.get(word) ?? 0) + 1));
+  const uniqueTerms = [...new Set(terms)];
+  const lengthNorm = Math.sqrt(Math.max(1, words.length) / 120);
+  let score = 0;
+  for (const term of uniqueTerms) {
+    const tf = frequencies.get(term) ?? 0;
+    if (!tf) continue;
+    const idf = Math.log(1 + (corpusSize - (documentFrequency[term] ?? 0) + 0.5) / ((documentFrequency[term] ?? 0) + 0.5));
+    score += idf * (tf * 2.2) / (tf + 1.2 * (0.25 + 0.75 * lengthNorm));
+    if (passage.toLowerCase().includes(query.toLowerCase())) score += 1.1;
+  }
+  const coverage = uniqueTerms.filter(term => frequencies.has(term)).length / uniqueTerms.length;
+  return Math.min(0.99, (score / Math.max(1, uniqueTerms.length * 1.7)) * 0.72 + coverage * 0.28);
 }
 
 function splitIntoChunks(text: string, source: string, prefix: string): Chunk[] {
@@ -624,9 +635,14 @@ export default function Home() {
   const askHermes = () => {
     const question = hermesInput.trim();
     if (!question || hermesAsk.isPending) return;
+    const corpusTerms = allChunks.map(chunk => new Set(tokenize(`${chunk.heading} ${chunk.passage}`)));
+    const documentFrequency: Record<string, number> = {};
+    for (const term of new Set(tokenize(question))) {
+      documentFrequency[term] = corpusTerms.filter(terms => terms.has(term)).length;
+    }
     const ranked = allChunks
-      .map(chunk => ({ ...chunk, score: scorePassage(question, `${chunk.heading} ${chunk.passage}`) }))
-      .filter(chunk => (chunk.score ?? 0) > 0.44)
+      .map(chunk => ({ ...chunk, score: scorePassage(question, `${chunk.heading} ${chunk.passage}`, allChunks.length, documentFrequency) }))
+      .filter(chunk => (chunk.score ?? 0) >= 0.16)
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
       .slice(0, 5);
     setRetrieval(ranked);
@@ -1199,7 +1215,7 @@ function JudgeArena({ challenge, evidence }: { challenge: string; evidence: stri
 
 function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agents)[number]; context?: Chunk[]; onHandoff?: (id: AgentId) => void }) {
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Array<{ role: "user" | "agent"; text: string }>>([]);
+  const [messages, setMessages] = useState<Array<{ role: "user" | "agent"; text: string }>>(() => { try { const saved = JSON.parse(localStorage.getItem(`guidathon-chat-${agent.id}`) || "[]"); return Array.isArray(saved) ? saved.slice(-40) : []; } catch { return []; } });
   const [provider, setProvider] = useState("not called yet");
   const [handoffTo, setHandoffTo] = useState<AgentId | null>(null);
   const { data: currentUser } = trpc.auth.me.useQuery();
@@ -1208,9 +1224,12 @@ function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agen
   const agentChat = trpc.agents.chat.useMutation();
 
   useEffect(() => {
-    setMessages([]);
+    try { const saved = JSON.parse(localStorage.getItem(`guidathon-chat-${agent.id}`) || "[]"); setMessages(Array.isArray(saved) ? saved.slice(-40) : []); } catch { setMessages([]); }
     setProvider("not called yet");
   }, [agent.id]);
+  useEffect(() => {
+    try { localStorage.setItem(`guidathon-chat-${agent.id}`, JSON.stringify(messages.slice(-40))); } catch { /* Keep the active chat usable when browser storage is full. */ }
+  }, [agent.id, messages]);
   useEffect(() => {
     if (conversation.isSuccess) setMessages(conversation.data.map(message => ({ role: message.role, text: message.text })));
   }, [conversation.isSuccess, conversation.data]);
@@ -1220,33 +1239,6 @@ function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agen
     athena: "I am Athena, the idea pressure tester. I compare hypotheses by user value, proof, and scope before recommending a direction.",
     hephaestus: "I am Hephaestus, the builder. I turn a selected direction into a practical stack, workflow, and integration boundary.",
     chronos: "I am Chronos, the timekeeper. I turn the build into dated milestones, owners, and a submission sequence.",
-  };
-
-  const roleReply = (question: string) => {
-    const lower = question.toLowerCase();
-    if (agent.id === "hermes") {
-      if (lower.includes("judge") || lower.includes("criteria")) return "For judging, start with the organizer’s explicit criteria and the review mode. I can attach the current Devpost chunks and separate sourced facts from your team’s interpretation.";
-      if (lower.includes("idea") || lower.includes("build")) return "For an idea, give me one user, one painful moment, and one observable improvement. I will help frame the smallest defensible version before Athena pressure-tests it.";
-      return "I will answer from the verified corpus when it matches, then label general guidance separately. Try asking about hackathon formats, judging, teams, or demo scope.";
-    }
-    if (agent.id === "zeus") {
-      if (lower.includes("next") || lower.includes("route")) return "The next route is Hermes for evidence, Athena for a thesis, Hephaestus for the build boundary, then Chronos for the submission clock. I keep that order visible.";
-      if (lower.includes("missing") || lower.includes("context")) return "The missing handoff fields are usually the target user, proof signal, owner, or deadline. I would stop the route until the missing field is named.";
-      return "I coordinate movement, not specialist opinions. Give me the current uncertainty and I will identify which spirit should own the next decision.";
-    }
-    if (agent.id === "athena") {
-      if (lower.includes("choose") || lower.includes("best") || lower.includes("idea")) return "Choose the idea with the clearest proof in the available time, not the largest feature list. I score each option on user pain, evidence, and demo focus.";
-      if (lower.includes("novel") || lower.includes("different")) return "Novelty is useful only when it creates a sharper outcome. Keep the unusual mechanism, but narrow the promise until one person can feel the improvement.";
-      return "I respond with a thesis, trade-off, and proof plan. Ask me to compare two ideas or to make a broad concept weekend-sized.";
-    }
-    if (agent.id === "hephaestus") {
-      if (lower.includes("stack") || lower.includes("tech")) return "Start with the smallest stack that makes the core loop visible: React + TypeScript for the workspace, a server boundary for model calls, and a vector store only when the corpus earns it.";
-      if (lower.includes("mcp") || lower.includes("tool")) return "MCP should sit behind one adapter boundary. Keep tool schemas explicit, log every call, and let Zeus decide when a tool is safe to invoke.";
-      return "I turn the decision into components, data boundaries, and a build order. Ask about stack, architecture, MCP, or what to cut before the demo.";
-    }
-    if (lower.includes("deadline") || lower.includes("time")) return "Work backward from submission: freeze the idea first, prove the core loop second, record the demo third, and leave a final buffer for the submission form.";
-    if (lower.includes("schedule") || lower.includes("task")) return "Give every task an owner, an observable done signal, and a latest safe finish. Chronos will not accept a milestone that only says ‘work on it’.";
-    return "I make time visible. Ask about deadlines, sequencing, task ownership, or how to protect the final demo window.";
   };
 
   const askRole = async () => {
@@ -1287,7 +1279,7 @@ function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agen
       <div className="role-chat-head"><div><span className="section-kicker">{agent.name}&apos;s role chat</span><span className="role-chat-caption">specialist lens · general questions welcome</span></div><span className="role-chat-provider"><span className="status-dot live" />{provider}</span></div>
       <div className="role-chat-intro"><span className="role-chat-avatar"><img src={agent.art} alt="" /></span><p><b>{agent.name}</b><span>{roleIntros[agent.id]}</span><em>{agent.quote}</em></p></div>
       <div className="role-chat-thread">
-        {!messages.length && !agentChat.isPending && <div className="role-chat-empty"><span>✦</span> Ask anything. {agent.name} brings a specialist perspective when it helps.</div>}
+        {!messages.length && !agentChat.isPending && <div className="role-chat-empty"><span>✦</span> Ask anything. {agent.name} can help broadly and brings a specialist perspective when it helps.</div>}
         {messages.slice(-4).map((message, index) => <div className={`role-chat-line ${message.role}`} key={`${message.role}-${index}`}><b>{message.role === "agent" ? agent.name : "you"}</b><span>{message.text}</span></div>)}
         {agentChat.isPending && <div className="role-chat-line agent role-chat-thinking"><b>{agent.name}</b><span>Thinking through the current brief…</span></div>}
       </div>
