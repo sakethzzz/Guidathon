@@ -116,6 +116,50 @@ function evidenceText(context: z.infer<typeof hermesContextSchema>[], verifiedId
 }
 
 
+
+function localHeuristicEvaluation(input: {
+  challenge: string; product: string; evidence: string; implementation: string; experience: string;
+}) {
+  const sources: Record<string, string> = {
+    novelty: input.product + " " + input.challenge,
+    userValue: input.challenge + " " + input.product,
+    technical: input.implementation,
+    feasibility: input.implementation + " " + input.product,
+    evidence: input.evidence,
+    orchestration: input.implementation + " " + input.product,
+    experience: input.experience,
+    reliability: input.implementation + " " + input.experience,
+  };
+  const criteria = evaluationRubric.map(item => {
+    const text = sources[item.key].trim();
+    const words = text.split(/\\s+/).filter(Boolean);
+    const proofSignals = (text.match(/\\b(user|metric|test|tested|demo|source|citation|permission|auth|error|fallback|accessible|mobile|latency|owner|handoff|risk|constraint|prototype|deployment)\\b/gi) ?? []).length;
+    const score = text.length === 0 ? 1 : Math.min(7, 2 + Math.floor(Math.min(words.length, 180) / 45) + Math.min(2, Math.floor(proofSignals / 3)));
+    return {
+      key: item.key, label: item.label, weight: item.weight, score,
+      evidence: text.length
+        ? `Local heuristic only: ${words.length} words and ${proofSignals} proof-related signals were supplied for this dimension. This is not an independent quality judgment.`
+        : "No supporting material was supplied for this dimension; the local heuristic assigns a low evidence score.",
+      improvement: item.key === "evidence" ? "Attach primary sources, citations, and a traceable proof for each important claim."
+        : item.key === "technical" ? "Provide a reproducible demo, implementation details, and test results."
+        : item.key === "experience" ? "Add a user journey, mobile screenshots, accessibility checks, and usability feedback."
+        : "Add specific, verifiable evidence and a measurable acceptance test for this dimension.",
+    };
+  });
+  const score = calculateWeightedScore(criteria);
+  return {
+    score,
+    summary: "Offline heuristic assessment. This score measures the amount of dimension-specific material supplied, not product quality or a judge's opinion.",
+    verdict: "Use this as a completeness checklist only. Re-run with a hosted model or a human judge for substantive scoring.",
+    criteria,
+    strengths: criteria.filter(item => item.score >= 5).slice(0, 3).map(item => `${item.label}: supporting material is present.`),
+    criticalGaps: criteria.filter(item => item.score <= 2).slice(0, 4).map(item => `${item.label}: add verifiable supporting material.`),
+    nextActions: ["Add evidence and implementation proof for the lowest-scoring dimensions.", "Run the project through a real judge or a configured model before relying on a final score."],
+    provider: "local-heuristic",
+    rubricVersion: "GUIDATHON-8D-v1",
+  };
+}
+
 function localAgentFallback(agent: AgentId, question: string, context: z.infer<typeof hermesContextSchema>[]) {
   const q = question.trim();
   const evidence = context.slice(0, 3).map(chunk =>
@@ -273,7 +317,8 @@ function localAgentFallback(agent: AgentId, question: string, context: z.infer<t
           await saveJudgeEvaluation(ctx.user.openId, { ...evaluation, input });
           return evaluation;
         } catch (error) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Evaluation unavailable" });
+          console.warn("Judge model unavailable; returning a clearly labeled local completeness heuristic:", error instanceof Error ? error.message : "unknown error");
+          return localHeuristicEvaluation(input);
         }
       }),
   }),
