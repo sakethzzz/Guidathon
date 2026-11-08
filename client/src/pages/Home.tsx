@@ -1020,7 +1020,7 @@ function SourceIntake({ sources, manualNote, setManualNote, addManualNote, onUpl
 }
 
 function McpToolsPanel() {
-  const { data, isLoading, refetch } = trpc.agents.tools.useQuery(undefined, { refetchInterval: 60000 });
+  const { data, isLoading, isError, refetch } = trpc.agents.tools.useQuery(undefined, { refetchInterval: 60000 });
   const [toolName, setToolName] = useState("");
   const [argumentsText, setArgumentsText] = useState("{}");
   const [confirmed, setConfirmed] = useState(false);
@@ -1047,7 +1047,7 @@ function McpToolsPanel() {
   return (
     <section className="mcp-tools-panel">
       <div className="mcp-tools-head"><div><span className="section-kicker">Hephaestus // external tool bridge</span><h3>MCP tool bench</h3><p>Discover tools from one server-side MCP endpoint. Secrets stay on the server; write-like tools require an explicit confirmation.</p></div><button className="small-action" onClick={() => void refetch()}>refresh tools</button></div>
-      {isLoading ? <p className="mcp-state">Discovering configured MCP tools…</p> : !data?.configured ? <div className="mcp-unconfigured"><b>No MCP server connected</b><span>Set MCP_SERVER_URL and optionally MCP_SERVER_TOKEN in the server environment, then restart the backend. No tool calls are being simulated.</span></div> : data.reason ? <div className="mcp-unconfigured"><b>MCP server unavailable</b><span>{data.reason}</span></div> : tools.length === 0 ? <div className="mcp-unconfigured"><b>Connected, but no tools were advertised</b><span>Check the server's tools/list response and transport compatibility.</span></div> : (
+      {isLoading ? <p className="mcp-state">Discovering configured MCP tools…</p> : isError ? <div className="mcp-unconfigured"><b>Sign in to inspect MCP tools</b><span>Tool schemas and execution are restricted to an authenticated workspace.</span></div> : !data?.configured ? <div className="mcp-unconfigured"><b>No MCP server connected</b><span>Set MCP_SERVER_URL and optionally MCP_SERVER_TOKEN in the server environment, then restart the backend. No tool calls are being simulated.</span></div> : data.reason ? <div className="mcp-unconfigured"><b>MCP server unavailable</b><span>{data.reason}</span></div> : tools.length === 0 ? <div className="mcp-unconfigured"><b>Connected, but no tools were advertised</b><span>Check the server's tools/list response and transport compatibility.</span></div> : (
         <>
           <div className="mcp-tool-list">{tools.map(tool => <button key={tool.name} className={tool.name === toolName ? "active" : ""} onClick={() => { setToolName(tool.name); setResultText(""); setConfirmed(false); }}><b>{tool.name}</b><span>{tool.description || "No description supplied"}</span></button>)}</div>
           {selectedTool && <div className="mcp-tool-run"><b>Run {selectedTool.name}</b><textarea value={argumentsText} onChange={event => setArgumentsText(event.target.value)} rows={3} aria-label="MCP tool JSON arguments" /><label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} /> I explicitly approve this call if it changes external data.</label><button className="primary-button" onClick={invoke} disabled={call.isPending || (sensitive && !confirmed)}>{call.isPending ? "Calling tool…" : "Run MCP tool"} <ArrowUpRight size={14} /></button></div>}
