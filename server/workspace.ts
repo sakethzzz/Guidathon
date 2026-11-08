@@ -1,5 +1,6 @@
-import { and, eq, sql } from "drizzle-orm";
-import { agentConversations, workspaceSnapshots } from "../drizzle/schema";
+import { and, desc, eq, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { agentConversations, judgeEvaluations, workspaceSnapshots } from "../drizzle/schema";
 import { getDb } from "./db";
 
 export const WORKSPACE_ID = "main" as const;
@@ -69,4 +70,31 @@ export async function saveAgentConversation(ownerOpenId: string, agentId: Worksp
   await db.insert(agentConversations).values({ storageKey: key, ownerOpenId, agentId, messages: serialized })
     .onDuplicateKeyUpdate({ set: { messages: serialized, updatedAt: new Date() } });
   return { saved: true as const, count: messages.slice(-100).length };
+}
+
+export async function saveJudgeEvaluation(ownerOpenId: string, payload: Record<string, unknown>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const serialized = JSON.stringify(payload);
+  if (Buffer.byteLength(serialized, "utf8") > 30_000) throw new Error("Judge result exceeds the 30 KB safety limit.");
+  const id = randomUUID();
+  const score = Number(payload.score);
+  if (!Number.isFinite(score) || score < 0 || score > 100) throw new Error("Judge score is invalid.");
+  await db.insert(judgeEvaluations).values({ id, ownerOpenId, score: Math.round(score), payload: serialized });
+  return { id, saved: true as const };
+}
+
+export async function loadJudgeEvaluations(ownerOpenId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select({ id: judgeEvaluations.id, score: judgeEvaluations.score, payload: judgeEvaluations.payload, createdAt: judgeEvaluations.createdAt })
+    .from(judgeEvaluations).where(eq(judgeEvaluations.ownerOpenId, ownerOpenId))
+    .orderBy(desc(judgeEvaluations.createdAt)).limit(10);
+  return rows.map(row => {
+    try {
+      return { id: row.id, score: row.score, result: JSON.parse(row.payload) as Record<string, unknown>, createdAt: row.createdAt.toISOString() };
+    } catch {
+      return { id: row.id, score: row.score, result: {}, createdAt: row.createdAt.toISOString() };
+    }
+  });
 }
