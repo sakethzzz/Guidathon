@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { index, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -40,7 +40,9 @@ export const knowledgeChunks = mysqlTable("knowledge_chunks", {
   embedding: text("embedding"),
   status: mysqlEnum("status", ["verified", "unverified"]).default("unverified").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, table => ({
+  workspaceStatusIdx: index("knowledge_chunks_workspace_status_idx").on(table.workspaceId, table.status),
+}));
 
 export type KnowledgeChunk = typeof knowledgeChunks.$inferSelect;
 export type InsertKnowledgeChunk = typeof knowledgeChunks.$inferInsert;
