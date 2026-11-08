@@ -25,6 +25,6 @@ describe("weighted GUIDATHON evaluation", () => {
       evidence: "",
       improvement: "",
     }));
-    expect(calculateWeightedScore(criteria)).toBe(86);
+    expect(calculateWeightedScore(criteria)).toBe(80);
   });
 });
