@@ -25,7 +25,7 @@ GROQ_MODEL=llama-3.3-70b-versatile
 - MySQL schema is in `drizzle/schema.ts`.
 - Migration: `drizzle/0001_knowledge_chunks.sql`.
 - Apply migrations with `pnpm db:migrate` after setting `DATABASE_URL`.
-- Gemini key enables embeddings and Gemini chat. Groq can serve chat fallback. Without a database, Hermes still uses the visible local starter corpus but uploaded chunks do not persist across sessions.
+- Gemini key enables embeddings and Gemini chat. Groq can serve chat fallback. The optional managed-provider fallback uses `MANUS_API_URL` and `MANUS_API_KEY`. Without a database, Hermes still uses the visible local starter corpus but uploaded chunks do not persist across sessions.
 - A signed-in session is required before the server stores private workspace chunks. Anonymous sessions remain local-only.
 
 ## MCP: what it is and how to connect it
@@ -47,7 +47,7 @@ The current adapter supports one configured Streamable HTTP MCP server. It does 
 
 n8n is a workflow automation engine; MCP is a tool protocol. Use n8n for deterministic multi-step processes (e.g. create a task, send a notification, update a spreadsheet) and expose a narrow n8n webhook through an MCP server if an agent needs to trigger it. It does not replace RAG, the database, or the agent router. For this deadline, adding an unconfigured n8n service would add another failure point, so it is intentionally not a required dependency.
 
-## Safety and testing
+## Full-stack deployment\n\nThe existing `Dockerfile` builds the React client and Express/tRPC server together. `render.yaml` provides a Docker-based Render web-service blueprint with `/api/health` as its health check. Add the environment variables in the hosting dashboard; do not commit secrets. The existing `vercel.json` is still a static-client configuration and does not deploy this Express API by itself.\n\n## Safety and testing
 
 - User-provided source text is treated as untrusted reference material, not as model instructions.
 - Never claim an external action happened without a successful tool response.
