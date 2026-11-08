@@ -32,12 +32,18 @@ app.get("/api/platform/config.js", (_req, res) => {
 
 registerOAuthRoutes(app);
 
-app.use(
-  "/api/trpc",
-  createExpressMiddleware({
-    router: appRouter,
-    createContext,
-  })
-);
+const trpcMiddleware = createExpressMiddleware({ router: appRouter, createContext });
+app.use("/api/trpc", (req, res, next) => {
+  // Vercel's filesystem router can interpret dotted tRPC procedure names as
+  // file extensions. The browser moves the procedure path into this query key
+  // so every tRPC request reaches this stable, extension-free function route.
+  const requestUrl = new URL(req.originalUrl, "http://localhost");
+  const procedurePath = requestUrl.searchParams.get("__trpcPath");
+  if (procedurePath) {
+    requestUrl.searchParams.delete("__trpcPath");
+    req.url = `/${procedurePath}${requestUrl.search}`;
+  }
+  trpcMiddleware(req, res, next);
+});
 
 export default app;
