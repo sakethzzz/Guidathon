@@ -898,3 +898,19 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .judge-results > .mono { display:block; color:var(--text-muted,#a7a6b2); font-size:9px; letter-spacing:.1em; }
 .judge-error { color:#ff9b9b; font-size:12px; }
 @media (max-width:700px) { .judge-input-grid,.judge-criteria,.judge-feedback-grid { grid-template-columns:1fr; } .judge-results { padding:14px; } }
+
+
+/* Durable workspace status and Judge Arena history */
+.judge-history { margin-top: 24px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 10px; background: rgba(7,16,31,.5); }
+.judge-history-list { display: flex; flex-direction: column; gap: 7px; margin-top: 12px; }
+.judge-history-row { display: grid; grid-template-columns: 70px minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+.judge-history-row:last-child { border-bottom: 0; }
+.judge-history-row > strong { color: var(--gold); font: 600 17px 'IBM Plex Mono',monospace; }
+.judge-history-row > strong small { margin-left: 2px; color: var(--faint); font-size: 8px; }
+.judge-history-row > span { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.judge-history-row time { color: var(--faint); font: 8px 'IBM Plex Mono',monospace; }
+@media (max-width: 620px) {
+  .judge-history-row { grid-template-columns: 55px minmax(0,1fr); }
+  .judge-history-row time { grid-column: 2; }
+  .topbar-status { max-width: 46vw; overflow: hidden; white-space: nowrap; font-size: 8px; }
+}
