@@ -1227,13 +1227,16 @@ function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agen
     return "I make time visible. Ask about deadlines, sequencing, task ownership, or how to protect the final demo window.";
   };
 
-  const askRole = () => {
+  const askRole = async () => {
     const question = input.trim();
-    if (!question || agentChat.isPending) return;
+    if (!question || agentChat.isPending || saveConversation.isPending) return;
     const pendingTranscript = [...messages, { role: "user" as const, text: question }];
     setMessages(pendingTranscript);
     setInput("");
-    if (currentUser) saveConversation.mutate({ agent: agent.id, messages: pendingTranscript });
+    if (currentUser) {
+      try { await saveConversation.mutateAsync({ agent: agent.id, messages: pendingTranscript }); }
+      catch { /* Keep the live chat usable if persistence is temporarily unavailable. */ }
+    }
     agentChat.mutate({
       agent: agent.id,
       question,
@@ -1267,7 +1270,7 @@ function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agen
         {agentChat.isPending && <div className="role-chat-line agent role-chat-thinking"><b>{agent.name}</b><span>Thinking through the current brief…</span></div>}
       </div>
       {handoffTo && <button className="role-handoff" onClick={() => onHandoff?.(handoffTo)}>Open {agentById(handoffTo).name}&apos;s room <ArrowUpRight size={13} /></button>}
-      <div className="role-chat-input"><input value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => event.key === "Enter" && askRole()} placeholder={`Ask ${agent.name} about their role…`} disabled={agentChat.isPending || conversation.isLoading} /><button onClick={askRole} aria-label={`Ask ${agent.name}`} disabled={agentChat.isPending || conversation.isLoading}><span>send</span><ArrowUpRight size={14} /></button></div>
+      <div className="role-chat-input"><input value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => event.key === "Enter" && askRole()} placeholder={`Ask ${agent.name} about their role…`} disabled={agentChat.isPending || conversation.isLoading || saveConversation.isPending} /><button onClick={askRole} aria-label={`Ask ${agent.name}`} disabled={agentChat.isPending || conversation.isLoading || saveConversation.isPending}><span>send</span><ArrowUpRight size={14} /></button></div>
     </div>
   );
 }
