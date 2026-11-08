@@ -375,6 +375,7 @@ export default function Home() {
   const wheelSnapTimer = useRef<number | null>(null);
   const stormVideoRef = useRef<HTMLVideoElement>(null);
   const hermesAsk = trpc.hermes.ask.useMutation();
+  const hermesIngest = trpc.hermes.ingest.useMutation();
   const ideaAsk = trpc.agents.chat.useMutation();
 
   useEffect(() => {
@@ -570,6 +571,14 @@ export default function Home() {
     }, {
       onSuccess: result => {
         setHermesMessages(current => [...current, { role: "assistant", content: result.answer, citations: result.citations }]);
+        if (result.retrieved?.length) setRetrieval(result.retrieved as Chunk[]);
+        if (result.handoffTo) {
+          const target = agentById(result.handoffTo);
+          setHandoff({ from: "Hermes", to: target.name });
+          setActiveAgent(result.handoffTo);
+          setActiveNav(agentRoomFor[result.handoffTo]);
+          window.setTimeout(() => setHandoff(null), 2100);
+        }
         pushActivity("hermes", "Answered with model support", `${result.citations.length} source IDs were available to the response.`, "complete");
       },
       onError: () => {
@@ -582,6 +591,13 @@ export default function Home() {
 
   const addSource = (record: SourceRecord) => {
     setSources(current => [record, ...current]);
+    const canParse = record.kind !== "upload" || !record.detail.toLowerCase().includes("unverified");
+    if (canParse && record.chunks.length) {
+      hermesIngest.mutate({ chunks: record.chunks.map(chunk => ({
+        id: chunk.id, sourceName: record.name, heading: chunk.heading,
+        content: chunk.passage, provenance: chunk.provenance,
+      })) });
+    }
     window.setTimeout(() => {
       setSources(current => current.map(source => source.id === record.id ? { ...source, status: "verified", detail: `${record.chunks.length} chunks · local parse complete` } : source));
       pushActivity("hermes", "Processed a new source", `${record.name} is now searchable but still locally verified only.`, "complete");
