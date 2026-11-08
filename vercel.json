@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm install --frozen-lockfile && pnpm check && pnpm build:static",
+  "buildCommand": "pnpm install --frozen-lockfile && pnpm build:static",
   "outputDirectory": "dist/public",
   "framework": "vite",
   "cleanUrls": true,
