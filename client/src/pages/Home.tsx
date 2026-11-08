@@ -241,7 +241,7 @@ const initialSources: SourceRecord[] = [
 const initialActivity: Activity[] = [
   { id: "a1", agent: "hermes", action: "Opened the constellation", detail: "Waiting for your challenge context.", time: "now", state: "live" },
   { id: "a2", agent: "hermes", action: "Loaded public starter corpus", detail: "8 curated chunks from Devpost, MLH, Google Design Sprint, OWASP, and W3C are ready for Hermes.", time: "09:41", state: "complete" },
-  { id: "a3", agent: "zeus", action: "Integration check", detail: "Hermes server model is active; optional MCP tools are not configured.", time: "09:40", state: "queued" },
+  { id: "a3", agent: "zeus", action: "Integration check", detail: "Model providers are checked when a request is sent; local retrieval fallback is available and optional MCP is unconfigured.", time: "09:40", state: "queued" },
 ];
 
 const initialTasks: Task[] = [
@@ -881,7 +881,7 @@ export default function Home() {
           <div className="hermes-chat room-column">
             <div className="section-kicker"><span className="kicker-dot blue" /> Hermes knowledge room</div>
             <h3>Ask the guide anything about hackathons.</h3>
-            <p className="room-intro">Hermes combines a model-backed answer with the visible source chunks below. Ask about rules, judging, scope, teams, demos, or what to build next.</p>
+            <p className="room-intro">Hermes retrieves relevant passages from your project knowledge and uses an available model when configured; offline mode shows the retrieved evidence without inventing citations. Ask about rules, judging, scope, teams, demos, or what to build next.</p>
             <div className="hermes-transcript">
               <div className="chat-companion-floating" aria-hidden="true"><img src={agentById("hermes").art} alt="" /><span>Hermes</span></div>
               <div className="chat-bubble assistant"><div className="chat-speaker"><span className="chat-avatar">✦</span><b>Hermes</b><span>guide + knowledge</span></div><p>Ask me what a hackathon is, how judging works, or how to turn your idea into a weekend-sized build. I will separate cited facts from general guidance.</p></div>
@@ -889,7 +889,7 @@ export default function Home() {
               {hermesAsk.isPending && <div className="chat-bubble assistant thinking"><div className="chat-speaker"><span className="chat-avatar">✦</span><b>Hermes</b><span>retrieving + thinking</span></div><p><span className="thinking-dot" /> <span className="thinking-dot" /> <span className="thinking-dot" /> I&apos;m checking the source pack and composing a precise answer…</p></div>}
             </div>
             <div className="hermes-composer"><textarea value={hermesInput} onChange={event => setHermesInput(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); askHermes(); } }} placeholder="e.g. What makes a hackathon idea defensible?" rows={2} /><button className="primary-button" onClick={askHermes} disabled={hermesAsk.isPending || !hermesInput.trim()}>{hermesAsk.isPending ? "Hermes is thinking" : "Ask Hermes"}<ArrowUpRight size={15} /></button></div>
-            <div className="retrieval-state"><span className="status-dot live" /> Hermes model route · {readyCount} verified sources · {allChunks.length} chunks · Enter to send</div>
+            <div className="retrieval-state"><span className="status-dot live" /> Hermes RAG · {readyCount} processed sources · {allChunks.length} chunks · parse status is not fact-checking · Enter to send</div>
             {retrieval.length > 0 && <div className="retrieval-results hermes-evidence"><div className="result-heading"><span>Evidence attached to latest answer</span><span className="mono">{retrieval.length} matches</span></div>{retrieval.map(chunk => <div className="chunk-card" key={chunk.id}><div className="chunk-meta"><span className="mono chunk-id">{chunk.id}</span><span className="score">match {Math.round((chunk.score ?? 0) * 100)}%</span></div><h4>{chunk.heading}</h4><p>{chunk.passage}</p><div className="chunk-source"><Link2 size={12} /> {chunk.source} · {chunk.provenance}</div></div>)}</div>}
           </div>
           <SourceIntake sources={sources} manualNote={manualNote} setManualNote={setManualNote} addManualNote={addManualNote} onUpload={() => fileInputRef.current?.click()} uploadedName={uploadedName} />
@@ -998,7 +998,7 @@ export default function Home() {
       </section>
       <header className="topbar">
         <div className="brand-lockup"><div className="brand-sigil">✦</div><div><div className="brand-wordmark">GUIDA<span>THON</span></div><div className="brand-subtitle">evidence / action / outcome</div></div></div>
-        <div className="topbar-status" aria-live="polite"><span className="status-dot live" /> constellation online <span className="status-divider" /> <span className="mono">{currentUser ? (workspaceSave.isPending ? "SAVING..." : workspaceSave.isError || workspaceQuery.isError ? "CLOUD SAVE ISSUE" : workspaceReady ? "CLOUD WORKSPACE" : "LOADING WORKSPACE") : "LOCAL SESSION"}</span></div>
+        <div className="topbar-status" aria-live="polite"><span className="status-dot live" /> workspace ready <span className="status-divider" /> <span className="mono">{currentUser ? (workspaceSave.isPending ? "SAVING..." : workspaceSave.isError || workspaceQuery.isError ? "CLOUD SAVE ISSUE" : workspaceReady ? "CLOUD WORKSPACE" : "LOADING WORKSPACE") : "LOCAL SESSION"}</span></div>
         <div className="topbar-actions"><button className="icon-button theme-toggle" aria-label={`Switch to ${themeMode === "dark" ? "light" : "dark"} theme`} title={`Switch to ${themeMode === "dark" ? "light" : "dark"} theme`} onClick={() => setThemeMode(mode => mode === "dark" ? "light" : "dark")}>{themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}</button><button className="help-button" aria-label="What is GUIDATHON?" onClick={() => setAboutOpen(true)}><CircleHelp size={17} /></button></div>
       </header>
       <div className="workspace-shell">
@@ -1020,7 +1020,7 @@ export default function Home() {
 
 function AgentRoomHero({ agent }: { agent: AgentRecord }) {
   const lore = agentLore[agent.id];
-  const modelRoute = agent.id === "hermes" || agent.id === "athena" ? "Gemini preferred · Groq / managed fallback" : "Groq preferred · Gemini / managed fallback";
+  const modelRoute = "Provider resolved on request · offline fallback available";
   return (
     <section className={`agent-room-hero accent-${agent.accent}`} data-agent={agent.id}>
       <img className="agent-room-hero-art" src={agent.art} alt="" aria-hidden="true" />
@@ -1030,7 +1030,7 @@ function AgentRoomHero({ agent }: { agent: AgentRecord }) {
         <p>{lore.myth}</p>
         <div className="agent-room-responsibility"><b>PRIMARY DIRECTIVE</b><span>{lore.responsibility}</span></div>
         <div className="agent-room-handoff">{lore.handoff}</div>
-        <span className="agent-model-route">MODEL ROUTE · {modelRoute} · actual provider appears after response</span>
+        <span className="agent-model-route">MODEL ROUTE · {modelRoute}</span>
       </div>
       {agent.id === "chronos" && <div className="chronos-hero-clock" aria-hidden="true"><i className="clock-hand hour" /><i className="clock-hand minute" /><span>TIME / IS / A / RESOURCE</span></div>}
       <div className="agent-room-mini"><img src={agent.art} alt={`Mini ${agent.name} chibi avatar`} /><span>{agent.name}</span><small>{agent.role}</small></div>
@@ -1055,7 +1055,7 @@ function ConstellationAgentDock({ agents, selected, onFocus, onEnter }: { agents
         <div className="constellation-mini-board">
           <span className="mono">JARVIS / AGENT TELEMETRY</span>
           <div><small>DOMAIN</small><b>{selected.short}</b></div>
-          <div><small>MODEL ROUTE</small><b>{selected.id === "hermes" || selected.id === "athena" ? "Gemini → Groq → Managed" : "Groq → Gemini → Managed"}</b></div>
+          <div><small>MODEL ROUTE</small><b>{"Auto route · resolved on request"}</b></div>
           <div><small>HANDOFF</small><b>{lore.handoff}</b></div>
           <div><small>TOOLS</small><b>MCP adapter slots · disconnected</b></div>
         </div>
