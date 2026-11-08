@@ -1,11 +1,11 @@
 {
-  "buildCommand": "pnpm install --frozen-lockfile && pnpm build:static",
+  "buildCommand": "pnpm install --frozen-lockfile && pnpm build:api && pnpm build:static",
   "outputDirectory": "dist/public",
   "framework": "vite",
   "cleanUrls": true,
   "trailingSlash": false,
   "functions": {
-    "api/[...path].ts": {
+    "api/[...path].js": {
       "maxDuration": 60
     }
   }
