@@ -13,7 +13,10 @@ export type EvaluationCriterionKey = typeof evaluationRubric[number]["key"];
 export type EvaluationCriterion = { key: EvaluationCriterionKey; score: number; evidence: string; improvement: string };
 
 export function calculateWeightedScore(criteria: EvaluationCriterion[]) {
-  const scoreByKey = new Map(criteria.map(item => [item.key, Math.max(0, Math.min(10, item.score))]));
+  const scoreByKey = new Map(criteria.map(item => [
+    item.key,
+    Number.isFinite(item.score) ? Math.max(0, Math.min(10, item.score)) : 0,
+  ]));
   const totalWeight = evaluationRubric.reduce((sum, item) => sum + item.weight, 0);
   const weighted = evaluationRubric.reduce((sum, item) => sum + (scoreByKey.get(item.key) ?? 0) * item.weight, 0);
   return Math.round((weighted / totalWeight) * 10);
