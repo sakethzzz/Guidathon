@@ -17,3 +17,15 @@ Source: [MLH · Member Event Guidelines](https://github.com/MLH/mlh-policies/blo
 The static Preview uses a transparent token-overlap retriever so users can inspect ranking before the synthesis. Each result exposes a stable chunk ID, source label, passage, match score, and provenance. A future server-side adapter can replace this function with embeddings, a database-backed chunk store, or MCP tools without changing the visible handoff contract.
 
 The next ingestion slice should add a server-side fetch/parse queue with robots.txt and rate-limit compliance, content hashing, heading-aware chunking, source snapshots, and explicit review states. The UI should never promote an unverified scrape to grounded evidence without a successful fetch and parse result.
+
+
+## Expanded agent playbook (2026-11-08)
+
+The hackathon starter pack now includes additional concise chunks for idea validation, security, and accessibility:
+
+- Devpost judging and public voting: common idea-quality, implementation, and impact criteria; organizers may customize the actual rubric. https://help.devpost.com/article/64-judging-public-voting
+- Google Design Sprint Kit: Understand, Define, Sketch, Decide, Prototype, Validate; methods can be shortened when the goal and test remain clear. https://designsprintkit.withgoogle.com/methodology
+- OWASP Top 10:2025: awareness checklist spanning access control, configuration, supply chain, cryptography, injection, insecure design, authentication, integrity, logging, and exception handling. https://top10.owasp.org/2025/en/
+- W3C WAI WCAG overview: stable accessibility standards; accessible interaction and perceivable interface states should be considered during design and testing. https://www.w3.org/WAI/standards-guidelines/wcag/
+
+These are a compact seed corpus, not a trained/fine-tuned model and not an exhaustive hackathon knowledge base. Athena receives the same evidence pack when useful, but her reasoning is governed by her own role prompt and validation framework.
