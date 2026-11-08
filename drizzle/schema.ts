@@ -25,4 +25,21 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+
+/** Server-side knowledge chunks. Embeddings are JSON vectors so MySQL can store
+ * them without a vendor-specific vector extension; cosine ranking is performed
+ * by the retrieval adapter. Workspace scoping prevents cross-team leakage. */
+export const knowledgeChunks = mysqlTable("knowledge_chunks", {
+  id: varchar("id", { length: 191 }).primaryKey(),
+  workspaceId: varchar("workspace_id", { length: 96 }).notNull(),
+  sourceName: varchar("source_name", { length: 255 }).notNull(),
+  heading: varchar("heading", { length: 255 }).notNull(),
+  content: text("content").notNull(),
+  provenance: varchar("provenance", { length: 500 }).notNull(),
+  embedding: text("embedding"),
+  status: mysqlEnum("status", ["verified", "unverified"]).default("unverified").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type KnowledgeChunk = typeof knowledgeChunks.$inferSelect;
+export type InsertKnowledgeChunk = typeof knowledgeChunks.$inferInsert;
