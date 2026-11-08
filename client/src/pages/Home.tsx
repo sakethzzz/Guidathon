@@ -914,7 +914,7 @@ export default function Home() {
       </section>
       <header className="topbar">
         <div className="brand-lockup"><div className="brand-sigil">✦</div><div><div className="brand-wordmark">GUIDA<span>THON</span></div><div className="brand-subtitle">evidence / action / outcome</div></div></div>
-        <div className="topbar-status"><span className="status-dot live" /> constellation online <span className="status-divider" /> <span className="mono">LOCAL DEMO / v0.3</span></div>
+        <div className="topbar-status" aria-live="polite"><span className="status-dot live" /> constellation online <span className="status-divider" /> <span className="mono">{currentUser ? (workspaceSave.isPending ? "SAVING..." : workspaceSave.isError ? "SAVE FAILED" : workspaceReady ? "CLOUD WORKSPACE" : "LOADING WORKSPACE") : "LOCAL SESSION"}</span></div>
         <button className="help-button" aria-label="What is GUIDATHON?" onClick={() => setAboutOpen(true)}><CircleHelp size={17} /></button>
       </header>
       <div className="workspace-shell">
@@ -1143,6 +1143,7 @@ function JudgeArena({ challenge, evidence }: { challenge: string; evidence: stri
   const [implementation, setImplementation] = useState("Implemented on a feature branch. Agent chat routes through configured model providers with role prompts. Specialist handoff routing is rule-based. RAG persistence requires DATABASE_URL and GEMINI_API_KEY; MCP requires an HTTPS MCP_SERVER_URL and optional token. CI workflow is defined, but no successful build/test run has been confirmed yet.");
   const [experience, setExperience] = useState("Responsive React interface with dark/light themes, keyboard-operable carousel controls, and reduced-motion/accessibility work still needs a full manual audit.");
   const evaluation = trpc.evaluation.evaluate.useMutation();
+  const history = trpc.evaluation.history.useQuery(undefined, { retry: false });
   const result = evaluation.data;
   return <div className="room-body judge-arena">
     <div className="section-kicker"><span className="kicker-dot gold" /> Independent scoring / 8 dimensions</div>
@@ -1154,9 +1155,10 @@ function JudgeArena({ challenge, evidence }: { challenge: string; evidence: stri
       <label>UX / accessibility evidence<textarea value={experience} onChange={event => setExperience(event.target.value)} rows={4} /></label>
       <label>Retrieved source evidence<textarea value={evidence} readOnly rows={4} placeholder="Add sources in Hermes' room to include evidence here." /></label>
     </div>
-    <button className="primary-button" disabled={evaluation.isPending || !product.trim()} onClick={() => evaluation.mutate({ challenge, product, implementation, experience, evidence })}>
+    <button className="primary-button" disabled={evaluation.isPending || !product.trim()} onClick={() => evaluation.mutate({ challenge, product, implementation, experience, evidence }, { onSuccess: () => void history.refetch() })}>
       {evaluation.isPending ? "Judges are reviewing evidence…" : "Run evidence-based evaluation"} <ArrowUpRight size={15} />
     </button>
+    {history.data?.length ? <div className="judge-history"><div className="section-kicker">Saved evaluations // latest 10</div><div className="judge-history-list">{history.data.map(run => <div className="judge-history-row" key={run.id}><strong>{run.score}<small>/100</small></strong><span>{String(run.result.summary ?? "Evaluation saved")}</span><time>{new Date(run.createdAt).toLocaleString()}</time></div>)}</div></div> : null}
     {evaluation.error && <p role="alert" className="judge-error">{evaluation.error.message}</p>}
     {result && <div className="judge-results">
       <div className="judge-score"><span className="mono">WEIGHTED SCORE / 100</span><strong>{result.score}</strong><p>{result.verdict}</p></div>
