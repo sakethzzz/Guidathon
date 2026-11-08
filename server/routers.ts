@@ -242,9 +242,7 @@ export const appRouter = router({
     callTool: protectedProcedure
       .input(z.object({ name: z.string().min(1).max(128), arguments: z.record(z.string(), z.unknown()).default({}), confirm: z.boolean().default(false) }))
       .mutation(async ({ input }) => {
-        const sensitive = /(delete|remove|send|publish|deploy|create|update|write|execute|payment|purchase)/i.test(input.name);
-        if (sensitive && !input.confirm) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "This tool may change external data. Confirm the action explicitly before running it." });
-        try { return await callExternalMcpTool(input.name, input.arguments); }
+        try { return await callExternalMcpTool(input.name, input.arguments, input.confirm); }
         catch (error) { throw new TRPCError({ code: "BAD_GATEWAY", message: error instanceof Error ? error.message : "MCP tool call failed" }); }
       }),
     chat: publicProcedure
