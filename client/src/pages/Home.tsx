@@ -10,7 +10,6 @@ import {
   Inbox,
   Layers3,
   Link2,
-  MessageSquareText,
   Network,
   Paperclip,
   Play,
@@ -389,9 +388,6 @@ export default function Home() {
   const [uploadedName, setUploadedName] = useState("");
   const [themeMode, setThemeMode] = useState<"dark" | "light">("light");
   const [aboutOpen, setAboutOpen] = useState(false);
-  const [adminOpen, setAdminOpen] = useState(false);
-  const [adminInput, setAdminInput] = useState("");
-  const [adminMessages, setAdminMessages] = useState<Array<{ role: "user" | "admin"; text: string }>>([]);
   const [ideaInput, setIdeaInput] = useState("");
   const [ideaResponse, setIdeaResponse] = useState("");
   const [submissionInput, setSubmissionInput] = useState("");
@@ -715,12 +711,6 @@ export default function Home() {
     pushActivity("zeus", "Re-ran submission readiness", `${looksLikeRepo ? "Repository" : "Files"} received; live correction list updated.`, "complete");
   };
 
-  const sendAdminMessage = () => {
-    const value = adminInput.trim();
-    if (!value) return;
-    setAdminMessages(current => [...current, { role: "user", text: value }, { role: "admin", text: "Thanks — your issue is in the admin queue. I’ll review the relevant room, model state, and handoff trace and respond here." }]);
-    setAdminInput("");
-  };
 
   const switchNav = (id: NavId) => {
     setActiveNav(id);
@@ -891,13 +881,12 @@ export default function Home() {
           <div className="sidebar-bottom"><div className="agent-mini"><div className="mini-avatar hermes">H</div><div><b>Hermes</b><span>guide room</span></div><span className="online-dot" /></div><button className="settings-link" onClick={() => switchNav("Settings")}><Settings2 size={14} /> Workspace settings</button></div>
         </aside>
         <main className="workspace-main">
-          {activeNav !== "Overview" && activeNav !== "Agents" && <div className="workspace-heading"><div><div className="eyebrow"><span className="eyebrow-line" /> WORKSPACE / {activeNav.toUpperCase()}</div><h1>{activeNav}</h1><p>The {activeNav.toLowerCase()} room stays connected to your latest handoff.</p></div><div className="heading-actions"><span className="integration-pill unverified"><span className="status-dot live" /> Hermes model active · MCP optional</span><button className="icon-button" aria-label="Message admin" onClick={() => setAdminOpen(true)}><MessageSquareText size={16} /></button></div></div>}
+          {activeNav !== "Overview" && activeNav !== "Agents" && <div className="workspace-heading"><div><div className="eyebrow"><span className="eyebrow-line" /> WORKSPACE / {activeNav.toUpperCase()}</div><h1>{activeNav}</h1><p>The {activeNav.toLowerCase()} room stays connected to your latest handoff.</p></div><div className="heading-actions"><span className="integration-pill unverified"><span className="status-dot live" /> Hermes model active · MCP optional</span></div></div>}
           {activeNav === "Overview" || activeNav === "Agents" ? renderRoom() : <section className="room-panel"><div className="room-panel-top"><div className="room-title"><div className={`room-avatar accent-${selected.accent}`}>{selected.glyph}</div><div><div className="eyebrow small">current room / {selected.role.toLowerCase()}</div><h2>{selected.name}<span> · {selected.short}</span></h2></div></div><div className="room-state"><span className="status-dot live" /> working context <span className="mono">HND-{onboardingComplete ? "042" : "001"}</span></div></div><div className="handoff-banner"><ArrowUpRight size={14} /><span><b>Latest handoff</b> {onboardingComplete ? `${event} · ${team} · ${uncertainty}` : "No handoff yet. Hermes is waiting for your first brief."}</span><button onClick={() => setActiveAgent("zeus")}>inspect thread <ChevronRight size={13} /></button></div>{activeNavAgent[activeNav] && <AgentRoomHero agent={selected} />} {renderRoom()}</section>}
         </main>
       </div>
       <input ref={fileInputRef} type="file" className="hidden-file-input" onChange={handleFile} accept=".txt,.md,.csv,.json,.html,.css,.js,.jsx,.ts,.tsx,.py,.java,.go,.rs,.yaml,.yml,text/*,.pdf" />
       {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
-      {adminOpen && <AdminMessageModal input={adminInput} setInput={setAdminInput} messages={adminMessages} onSend={sendAdminMessage} onClose={() => setAdminOpen(false)} />}
     </div>
   );
 }
@@ -1038,10 +1027,6 @@ function SourceAgentRoom({ agents, selected, onSelect, context, sources, manualN
 
 function AboutModal({ onClose }: { onClose: () => void }) {
   return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="About GUIDATHON"><div className="about-modal"><button className="modal-close" onClick={onClose} aria-label="Close"><X size={16} /></button><span className="section-kicker"><span className="kicker-dot gold" /> What is this site for?</span><h2>A mentorship constellation for teams under a deadline.</h2><p>GUIDATHON helps a hackathon team move from an uncertain brief to a cited decision, a buildable stack, and a submission-safe timeline. The spirits are not a column of fake assistants: each owns a decision and leaves a handoff artifact for the next room.</p><div className="creator-card"><div className="creator-sigil">S</div><div><span className="mono">made by</span><strong>Saketh</strong><p>Sophomore · Vignan. Built as an experimental interface for turning agentic AI into an observable mentorship workflow.</p></div></div><div className="about-actions"><button className="primary-button" onClick={onClose}>Enter the constellation <ArrowUpRight size={15} /></button><span className="mono">evidence / action / outcome</span></div></div></div>;
-}
-
-function AdminMessageModal({ input, setInput, messages, onSend, onClose }: { input: string; setInput: (value: string) => void; messages: Array<{ role: "user" | "admin"; text: string }>; onSend: () => void; onClose: () => void }) {
-  return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Message admin"><div className="admin-modal"><div className="modal-title-row"><div><span className="section-kicker"><span className="kicker-dot blue" /> Admin channel</span><h2>Need help with the site?</h2></div><button className="modal-close" onClick={onClose} aria-label="Close"><X size={16} /></button></div><p className="room-intro">Drop a question or report a rough edge. Your message stays attached to this local session.</p><div className="admin-thread">{messages.length === 0 && <div className="role-chat-empty"><MessageSquareText size={15} /> No messages yet. Ask about a room, model, or interaction.</div>}{messages.map((message, index) => <div className={`admin-message ${message.role}`} key={`${message.role}-${index}`}><span>{message.role === "admin" ? "ADMIN" : "YOU"}</span><p>{message.text}</p></div>)}</div><div className="admin-compose"><input value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => event.key === "Enter" && onSend()} placeholder="What should I look at?" /><button className="primary-button" onClick={onSend}>Send <ArrowUpRight size={14} /></button></div></div></div>;
 }
 
 function AnimatedSidebar({ activeNav, onSelect, sourceCount }: { activeNav: NavId; onSelect: (id: NavId) => void; sourceCount: number }) {
