@@ -16,10 +16,11 @@ async function embed(text: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_Q
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${encodeURIComponent(key)}`,
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
     {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-goog-api-key": key },
+      signal: AbortSignal.timeout(15000),
       body: JSON.stringify({
         model: "models/gemini-embedding-001",
         content: { parts: [{ text: text.slice(0, 8000) }] },
