@@ -2,7 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { invokeLLM } from "./_core/llm";
-import { persistKnowledge, retrieveKnowledge } from "./rag";
+import { markKnowledgeProcessed, persistKnowledge, retrieveKnowledge } from "./rag";
 import { inferHandoff, handoffAnswer } from "@shared/agentRouting";
 import { calculateWeightedScore, evaluationRubric } from "@shared/evaluation";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
@@ -119,6 +119,9 @@ export const appRouter = router({
         try { return await persistKnowledge(ctx.user.openId, input.chunks); }
         catch (error) { throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Knowledge ingestion failed" }); }
       }),
+    completeIngestion: protectedProcedure
+      .input(z.object({ ids: z.array(z.string().min(1).max(191)).min(1).max(50) }))
+      .mutation(async ({ input, ctx }) => markKnowledgeProcessed(ctx.user.openId, input.ids)),
     ask: publicProcedure
       .input(z.object({
         question: z.string().trim().min(1).max(2000),
