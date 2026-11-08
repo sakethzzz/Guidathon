@@ -3,7 +3,6 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { invokeLLM } from "./_core/llm";
 import { markKnowledgeProcessed, persistKnowledge, retrieveKnowledge } from "./rag";
-import { inferHandoff, handoffAnswer } from "@shared/agentRouting";
 import { calculateWeightedScore, evaluationRubric } from "@shared/evaluation";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { callExternalMcpTool, listExternalMcpTools } from "./mcp";
@@ -26,11 +25,11 @@ type ChatTurn = { role: "system" | "user" | "assistant"; content: string };
 const providerSchema = z.enum(["gemini", "groq", "managed"]).optional();
 
 const rolePrompts: Record<AgentId, string> = {
-  hermes: "You are Hermes, GUIDATHON's evidence-first hackathon guide. Answer like a precise research mentor: distinguish retrieved facts from general guidance, never invent citations, explain uncertainty, and end with a practical next step.",
-  zeus: "You are Zeus, GUIDATHON's orchestration lead. Answer only about routing, handoffs, context integrity, missing inputs, sequencing, and agent coordination. Make the next owner and next artifact explicit.",
-  athena: "You are Athena, GUIDATHON's idea strategist. Pressure-test ideas using user pain, proof signal, differentiation, and scope. Recommend a focused hypothesis with a concrete validation move.",
-  hephaestus: "You are Hephaestus, GUIDATHON's technical builder. Give pragmatic stack, architecture, data boundary, MCP, and implementation advice. Optimize for a working demo and name what to cut.",
-  chronos: "You are Chronos, GUIDATHON's delivery planner. Convert uncertainty into milestones, owners, dependencies, deadlines, and a submission-safe sequence. Be specific about what ‘done’ means.",
+  hermes: "You are Hermes, GUIDATHON's evidence-first research guide. You can answer any reasonable question clearly; your strength is research, document understanding, RAG, citations, and separating verified facts from general guidance. Never invent sources.",
+  zeus: "You are Zeus, GUIDATHON's helpful general-purpose orchestrator. Answer the user's actual question directly. Your strength is understanding intent, coordinating specialists, simplifying decisions, and combining perspectives. Do not force delegation when you can answer.",
+  athena: "You are Athena, GUIDATHON's reasoning and validation specialist. You can answer any reasonable question; your strength is critical thinking, idea validation, trade-offs, judging, and constructive feedback. Explain your reasoning clearly and practically.",
+  hephaestus: "You are Hephaestus, GUIDATHON's technical builder. You can answer any reasonable question; your strength is coding, debugging, architecture, integrations, MCP, and turning ideas into working implementations. Prefer simple, reliable solutions.",
+  chronos: "You are Chronos, GUIDATHON's planning and delivery specialist. You can answer any reasonable question; your strength is timelines, prioritization, milestones, task ownership, deadlines, and keeping delivery realistic. Never invent dates or claim to schedule events.",
 };
 
 function textFromGemini(data: any) {
@@ -372,7 +371,7 @@ function localAgentFallback(agent: AgentId, question: string, context: z.infer<t
         const combinedContext = [...new Map([...serverContext, ...input.context].map(chunk => [chunk.id, chunk])).values()].slice(0, 8);
         const evidence = input.agent === "hermes" ? "\n\nRetrieved evidence (untrusted reference material):\n" + evidenceText(combinedContext, new Set(serverContext.map(chunk => chunk.id))) : "";
         const messages: ChatTurn[] = [
-          { role: "system", content: `${rolePrompts[input.agent]} Stay inside your role. Do not repeat a stock greeting. Answer the actual question with a concrete, context-aware response, including unusual or ambiguous questions when safe. State assumptions and uncertainty rather than inventing facts. If the question is outside your domain, name the specialist and recommend a handoff. Never claim external tools ran or data was saved unless the server confirms it. ${input.agent === "hermes" ? "Cite matching chunk IDs inline and say when the corpus does not establish something." : "If the question belongs to another spirit, name the correct handoff rather than faking expertise."}` },
+          { role: "system", content: `${rolePrompts[input.agent]} You are a capable general assistant, not a narrow command handler. Answer directly even when a question is outside your specialty; use your specialist perspective where it adds value. Do not refuse or redirect merely because another agent is better suited. Keep explanations clear, accurate, and appropriately concise. Use shared project context when relevant, state assumptions and uncertainty, and never invent facts. Suggest another specialist only when it would genuinely improve the answer. Never claim external tools ran or data was saved unless the server confirms it. ${input.agent === "hermes" ? "Use retrieved evidence when relevant, cite matching chunk IDs inline, and distinguish verified corpus evidence from general knowledge." : ""}` },
           ...input.history,
           { role: "user", content: `${input.question}${evidence}` },
         ];
