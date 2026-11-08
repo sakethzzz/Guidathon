@@ -4,6 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { invokeLLM } from "./_core/llm";
 import { persistKnowledge, retrieveKnowledge } from "./rag";
 import { inferHandoff, handoffAnswer } from "@shared/agentRouting";
+import { calculateWeightedScore, evaluationRubric } from "@shared/evaluation";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { callExternalMcpTool, listExternalMcpTools } from "./mcp";
 import { TRPCError } from "@trpc/server";
@@ -155,6 +156,69 @@ export const appRouter = router({
         } catch (error) {
           const message = error instanceof Error ? error.message : "Hermes could not answer";
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message });
+        }
+      }),
+  }),
+
+  evaluation: router({
+    evaluate: publicProcedure
+      .input(z.object({
+        challenge: z.string().trim().min(1).max(3000),
+        product: z.string().trim().min(1).max(6000),
+        evidence: z.string().max(6000).default(""),
+        implementation: z.string().max(6000).default(""),
+        experience: z.string().max(4000).default(""),
+      }))
+      .mutation(async ({ input }) => {
+        const rubric = evaluationRubric.map(item => ({ key: item.key, label: item.label, weight: item.weight, question: item.question }));
+        const prompt = [
+          "Evaluate this hackathon project as a skeptical, constructive senior judge.",
+          "Return only JSON with summary, verdict, criteria (exactly 8 objects with key, score 0..10, evidence, improvement), strengths, criticalGaps, nextActions.",
+          "Use only evidence provided. Do not assume unconfigured MCP, vector database, deployment, external tools, or tested features exist. Aspirations are not proof. Missing evidence must reduce scores. A 94/100 is exceptional and must be earned.",
+          "Rubric: " + JSON.stringify(rubric),
+          "Challenge: " + input.challenge,
+          "Product: " + input.product,
+          "Evidence: " + (input.evidence || "Not provided"),
+          "Implementation and test proof: " + (input.implementation || "Not provided"),
+          "UX and accessibility proof: " + (input.experience || "Not provided"),
+        ].join("\n\n");
+        try {
+          const result = await runModel([
+            { role: "system", content: "You are a rigorous hackathon judge. Output valid JSON only. Never fabricate tests, users, citations, deployments, or integrations." },
+            { role: "user", content: prompt },
+          ], 1400, "gemini");
+          const start = result.answer.indexOf("{");
+          const end = result.answer.lastIndexOf("}");
+          if (start < 0 || end <= start) throw new Error("The evaluator returned invalid structured output.");
+          const parsed = JSON.parse(result.answer.slice(start, end + 1)) as {
+            summary?: string; verdict?: string;
+            criteria?: Array<{ key?: string; score?: number; evidence?: string; improvement?: string }>;
+            strengths?: string[]; criticalGaps?: string[]; nextActions?: string[];
+          };
+          const criteria = evaluationRubric.map(item => {
+            const found = parsed.criteria?.find(candidate => candidate.key === item.key);
+            const score = Number(found?.score);
+            if (!Number.isFinite(score)) throw new Error("Missing judge criterion: " + item.key);
+            return {
+              key: item.key, label: item.label, weight: item.weight,
+              score: Math.max(0, Math.min(10, score)),
+              evidence: String(found?.evidence ?? "No evidence supplied."),
+              improvement: String(found?.improvement ?? "Add verifiable proof."),
+            };
+          });
+          return {
+            score: calculateWeightedScore(criteria),
+            summary: String(parsed.summary ?? "Evaluation completed."),
+            verdict: String(parsed.verdict ?? "Improve the lowest-scoring criteria."),
+            criteria,
+            strengths: Array.isArray(parsed.strengths) ? parsed.strengths.slice(0, 4) : [],
+            criticalGaps: Array.isArray(parsed.criticalGaps) ? parsed.criticalGaps.slice(0, 4) : [],
+            nextActions: Array.isArray(parsed.nextActions) ? parsed.nextActions.slice(0, 3) : [],
+            provider: result.provider,
+            rubricVersion: "GUIDATHON-8D-v1",
+          };
+        } catch (error) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Evaluation unavailable" });
         }
       }),
   }),
