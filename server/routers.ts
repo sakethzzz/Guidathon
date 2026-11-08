@@ -159,7 +159,7 @@ export const appRouter = router({
       }),
   }),
   agents: router({
-    tools: publicProcedure.query(async () => {
+    tools: protectedProcedure.query(async () => {
       try { return await listExternalMcpTools(); }
       catch (error) { return { configured: true, tools: [], reason: error instanceof Error ? error.message : "MCP discovery failed" }; }
     }),
