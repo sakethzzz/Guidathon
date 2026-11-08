@@ -867,3 +867,24 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 @media (prefers-reduced-motion: reduce) {
   .agent-room-mini img,.agent-room-hero[data-agent="chronos"]::before,.cloud-mist { animation:none !important; }
 }
+
+
+/* Individual agent environments */
+.agent-room-hero[data-agent="hermes"] { background:radial-gradient(ellipse at 82% 50%,rgba(64,150,255,.2),transparent 42%),linear-gradient(105deg,#061326,#0a1d34 65%,#102a46); }
+.agent-room-hero[data-agent="hermes"]::before { border-style:dashed; background:radial-gradient(ellipse,rgba(109,183,255,.12),transparent 68%); }
+.agent-room-hero[data-agent="zeus"] { background:radial-gradient(ellipse at 85% 45%,rgba(151,132,255,.22),transparent 38%),linear-gradient(105deg,#0c1024,#151a36 65%,#28264a); }
+.agent-room-hero[data-agent="zeus"]::before { border-color:rgba(177,164,255,.36); box-shadow:0 0 60px rgba(137,123,255,.2),inset 0 0 60px rgba(137,123,255,.12); }
+.agent-room-hero[data-agent="athena"] { background:radial-gradient(ellipse at 85% 45%,rgba(242,125,171,.19),transparent 38%),linear-gradient(105deg,#24101d,#301628 65%,#47213a); }
+.agent-room-hero[data-agent="athena"]::before { border-color:rgba(255,161,202,.34); box-shadow:0 0 60px rgba(255,127,185,.18),inset 0 0 60px rgba(255,127,185,.1); }
+.agent-room-hero[data-agent="hephaestus"] { background:radial-gradient(ellipse at 85% 45%,rgba(255,128,52,.2),transparent 38%),linear-gradient(105deg,#21120c,#2b1a12 65%,#4a2918); }
+.agent-room-hero[data-agent="hephaestus"]::before { border-color:rgba(255,157,91,.38); box-shadow:0 0 60px rgba(255,116,42,.2),inset 0 0 60px rgba(255,116,42,.1); }
+.agent-room-hero[data-agent="chronos"] { background:radial-gradient(ellipse at 85% 45%,rgba(31,255,152,.17),transparent 40%),linear-gradient(105deg,#041814,#08251e 65%,#0c3b2d); }
+.chronos-hero-clock { position:absolute; z-index:0; right:18%; top:50%; width:150px; height:150px; transform:translateY(-50%); border:1px solid rgba(86,255,171,.35); border-radius:50%; background:repeating-conic-gradient(from 0deg,rgba(92,255,178,.6) 0deg 1deg,transparent 1deg 30deg),radial-gradient(circle,rgba(5,30,22,.88) 0 57%,transparent 58%); box-shadow:0 0 45px rgba(43,255,154,.18),inset 0 0 30px rgba(43,255,154,.13); animation:chronos-clock-pulse 5s ease-in-out infinite; }
+.chronos-hero-clock::before,.chronos-hero-clock::after { content:""; position:absolute; left:50%; top:50%; width:6px; height:6px; border-radius:50%; background:#7dffc0; transform:translate(-50%,-50%); box-shadow:0 0 10px #3cffaa; }
+.chronos-hero-clock::after { width:80%; height:80%; background:none; border:1px dashed rgba(82,255,166,.26); }
+.chronos-hero-clock .clock-hand { position:absolute; left:50%; bottom:50%; width:2px; height:33%; border-radius:4px; transform-origin:50% 100%; background:#8affc2; box-shadow:0 0 9px rgba(77,255,169,.7); }
+.chronos-hero-clock .clock-hand.hour { transform:translateX(-50%) rotate(38deg); height:24%; }
+.chronos-hero-clock .clock-hand.minute { transform:translateX(-50%) rotate(148deg); height:35%; }
+.chronos-hero-clock > span { position:absolute; left:50%; bottom:-20px; width:190px; transform:translateX(-50%); color:rgba(124,255,192,.65); text-align:center; font:7px 'IBM Plex Mono',monospace; letter-spacing:.18em; }
+@keyframes chronos-clock-pulse { 0%,100%{filter:brightness(.9);transform:translateY(-50%) rotate(0deg)} 50%{filter:brightness(1.35);transform:translateY(-50%) rotate(12deg)} }
+@media (max-width:620px) { .chronos-hero-clock { right:23%; top:15%; width:85px; height:85px; opacity:.5; } .chronos-hero-clock > span { display:none; } }
