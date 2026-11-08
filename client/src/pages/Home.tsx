@@ -171,6 +171,34 @@ const seedChunks: Chunk[] = [
     passage: "The current MLH member-event guidance emphasizes free attendance, student participation requirements, no early elimination rounds, and allowing hackers to use generative AI and LLMs.",
     provenance: "public source · https://github.com/MLH/mlh-policies/blob/main/member-event-guidelines.md · 2027 season",
   },
+  {
+    id: "chunk://devpost-criteria/001",
+    source: "Devpost · Judging and public voting",
+    heading: "Common judging criteria combine idea, implementation, and impact",
+    passage: "Devpost describes common hackathon criteria as quality of the idea, implementation quality, and potential impact. Criteria should mirror what organizers want projects to focus on; participants must check the actual event rubric because organizers can customize it.",
+    provenance: "public source · https://help.devpost.com/article/64-judging-public-voting",
+  },
+  {
+    id: "chunk://design-sprint/001",
+    source: "Google Design Sprint Kit · Methodology",
+    heading: "A focused validation loop moves from understanding to testing",
+    passage: "The Design Sprint Kit describes six phases: Understand, Define, Sketch, Decide, Prototype, and Validate. A shorter workshop can be appropriate when time is tight, provided the team chooses methods that fit the goal and leaves a testable solution.",
+    provenance: "public source · https://designsprintkit.withgoogle.com/methodology",
+  },
+  {
+    id: "chunk://owasp-top10/001",
+    source: "OWASP · Top 10 2025",
+    heading: "Baseline web security risks must be checked before a demo",
+    passage: "OWASP Top 10:2025 lists broken access control, security misconfiguration, software supply-chain failures, cryptographic failures, injection, insecure design, authentication failures, software or data integrity failures, security logging and alerting failures, and mishandling exceptional conditions. Treat this as an awareness checklist, not a substitute for a threat model or testing.",
+    provenance: "public source · https://top10.owasp.org/2025/en/",
+  },
+  {
+    id: "chunk://w3c-wcag/001",
+    source: "W3C WAI · WCAG overview",
+    heading: "Accessibility should be treated as a product requirement",
+    passage: "W3C's Web Content Accessibility Guidelines are published as stable, referenceable standards. Teams should design and test for accessible interaction, keyboard operation, understandable content, and perceivable interface states rather than treating accessibility as a last-minute visual polish task.",
+    provenance: "public source · https://www.w3.org/WAI/standards-guidelines/wcag/",
+  },
 ];
 
 const initialSources: SourceRecord[] = [
@@ -187,14 +215,22 @@ const initialSources: SourceRecord[] = [
     name: "mlh-member-events.md",
     kind: "fixture",
     status: "verified",
-    chunks: seedChunks.slice(2),
+    chunks: seedChunks.slice(2, 4),
     detail: "Public source · cited and ready",
+  },
+  {
+    id: "src-playbook",
+    name: "validation-security-accessibility.md",
+    kind: "fixture",
+    status: "verified",
+    chunks: seedChunks.slice(4),
+    detail: "Google Design Sprint · OWASP · W3C · cited and ready",
   },
 ];
 
 const initialActivity: Activity[] = [
   { id: "a1", agent: "hermes", action: "Opened the constellation", detail: "Waiting for your challenge context.", time: "now", state: "live" },
-  { id: "a2", agent: "hermes", action: "Loaded public starter corpus", detail: "4 cited chunks from Devpost + MLH are ready for Hermes.", time: "09:41", state: "complete" },
+  { id: "a2", agent: "hermes", action: "Loaded public starter corpus", detail: "8 curated chunks from Devpost, MLH, Google Design Sprint, OWASP, and W3C are ready for Hermes.", time: "09:41", state: "complete" },
   { id: "a3", agent: "zeus", action: "Integration check", detail: "Hermes server model is active; optional MCP tools are not configured.", time: "09:40", state: "queued" },
 ];
 
