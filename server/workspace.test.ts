@@ -15,7 +15,7 @@ describe("durable workspace boundaries", () => {
 
   it("drops malformed messages and keeps only the latest 100 valid turns", () => {
     const messages = Array.from({ length: 105 }, (_, index) => ({ role: "user" as const, text: "turn-" + index, createdAt: "2026-11-08T00:00:00.000Z" }));
-    messages.push({ role: "user", text: "not valid", createdAt: "now" });
+    messages.push({ role: "system" as "user", text: "not valid", createdAt: "now" });
     const normalized = normalizeAgentMessages(messages);
     expect(normalized).toHaveLength(100);
     expect(normalized[0].text).toBe("turn-5");
