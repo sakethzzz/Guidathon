@@ -71,3 +71,15 @@ export const agentConversations = mysqlTable("agent_conversations", {
 }, table => ({
   ownerAgentIdx: index("agent_conversations_owner_agent_idx").on(table.ownerOpenId, table.agentId),
 }));
+
+
+/** Append-only Judge Arena history with the full rubric response and evidence. */
+export const judgeEvaluations = mysqlTable("judge_evaluations", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  ownerOpenId: varchar("owner_open_id", { length: 64 }).notNull(),
+  score: int("score").notNull(),
+  payload: mediumtext("payload").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, table => ({
+  ownerCreatedIdx: index("judge_evaluations_owner_created_idx").on(table.ownerOpenId, table.createdAt),
+}));
