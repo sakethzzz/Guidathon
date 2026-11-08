@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { knowledgeChunks } from "../drizzle/schema";
 import { getDb } from "./db";
 
@@ -73,7 +73,7 @@ export async function persistKnowledge(workspaceId: string, chunks: KnowledgeInp
         content: chunk.content.slice(0, 12000),
         provenance: chunk.provenance.slice(0, 500),
         embedding: vector ? JSON.stringify(vector) : null,
-        status: "verified",
+        status: "unverified",
       },
     });
     count += 1;
@@ -85,7 +85,7 @@ export async function retrieveKnowledge(workspaceId: string, query: string, limi
   const db = await getDb();
   if (!db) return [];
   const rows = await db.select().from(knowledgeChunks)
-    .where(eq(knowledgeChunks.workspaceId, workspaceId))
+    .where(and(eq(knowledgeChunks.workspaceId, workspaceId), eq(knowledgeChunks.status, "verified")))
     .limit(300) as StoredChunk[];
   if (!rows.length) return [];
   const queryVector = await embed(query, "RETRIEVAL_QUERY").catch(() => null);
