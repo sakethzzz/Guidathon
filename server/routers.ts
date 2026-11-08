@@ -128,6 +128,12 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const handoffTo = inferHandoff("hermes", input.question);
         if (handoffTo) return { answer: handoffAnswer(handoffTo), provider: "role-router", citations: [], handoffTo, retrieved: [] };
+        if (ctx.user?.openId && input.context.length) {
+          await persistKnowledge(ctx.user.openId, input.context.map(chunk => ({
+            id: chunk.id, sourceName: chunk.source, heading: chunk.heading,
+            content: chunk.passage, provenance: chunk.provenance,
+          }))).catch(() => null);
+        }
         const serverContext = ctx.user?.openId ? await retrieveKnowledge(ctx.user.openId, input.question, 5).catch(() => []) : [];
         const combinedContext = [...new Map([...serverContext, ...input.context].map(chunk => [chunk.id, chunk])).values()].slice(0, 8);
         const evidence = evidenceText(combinedContext);
