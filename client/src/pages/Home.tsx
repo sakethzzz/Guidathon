@@ -878,6 +878,7 @@ function AgentRoomHero({ agent }: { agent: AgentRecord }) {
         <div className="agent-room-handoff">{lore.handoff}</div>
         <span className="agent-model-route">MODEL ROUTE · {modelRoute} · actual provider appears after response</span>
       </div>
+      {agent.id === "chronos" && <div className="chronos-hero-clock" aria-hidden="true"><i className="clock-hand hour" /><i className="clock-hand minute" /><span>TIME / IS / A / RESOURCE</span></div>}
       <div className="agent-room-mini"><img src={agent.art} alt={`Mini ${agent.name} chibi avatar`} /><span>{agent.name}</span><small>{agent.role}</small></div>
     </section>
   );
