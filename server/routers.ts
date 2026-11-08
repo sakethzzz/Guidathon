@@ -115,7 +115,24 @@ function evidenceText(context: z.infer<typeof hermesContextSchema>[], verifiedId
     : "No retrieved source chunks matched this question.";
 }
 
-export const appRouter = router({
+
+function localAgentFallback(agent: AgentId, question: string, context: z.infer<typeof hermesContextSchema>[]) {
+  const q = question.trim();
+  const evidence = context.slice(0, 3).map(chunk =>
+    `- **${chunk.heading}**: ${chunk.passage.slice(0, 420)} ${chunk.source ? `(Source: ${chunk.source})` : ""}`
+  ).join("\\n");
+  const plans: Record<AgentId, string> = {
+    hermes: evidence
+      ? `I couldn't reach a hosted model, so here's a local evidence-first response.\\n\\n**Relevant material**\\n${evidence}\\n\\nThese excerpts are reference material, not independent fact-checks. Use the source links/provenance to verify important claims.\\n\\n**Next step:** tell me which claim or requirement you want to validate, and I can help turn it into a checklist.`
+      : `I couldn't reach a hosted model, and the current knowledge corpus has no verified passage to answer this confidently. I won't invent a sourced answer.\\n\\n**A useful next step:** add the event brief, judging rubric, official rules, or relevant notes in Sources. I can then retrieve the matching passages locally.\\n\\nFor now, break the question into: (1) what the official source says, (2) what your team has already built, and (3) what still needs proof.`,
+    zeus: `**Orchestration snapshot**\\n\\n- **Objective:** ${q}\\n- **First owner:** Hermes, to collect requirements and evidence.\\n- **Decision owner:** Athena, to compare options and risks.\\n- **Execution owner:** Hephaestus, to define the smallest buildable implementation.\\n- **Delivery owner:** Chronos, to sequence tasks and protect the deadline.\\n\\n**Gate:** don't delegate implementation until the acceptance criteria and source of truth are explicit. This is a local planning fallback; no other agent or external tool was executed.`,
+    athena: `**Idea pressure-test**\\n\\nFor “${q}”, evaluate four things before committing:\\n1. **Pain:** who experiences this problem, and how often?\\n2. **Proof:** what observable evidence shows the problem is real?\\n3. **Differentiation:** why is this better than the obvious workaround?\\n4. **Scope:** what is the smallest demo that proves the core value?\\n\\n**Recommended experiment:** interview or observe three target users, write one testable hypothesis, and build only the one workflow needed to test it. Record the evidence and the result. This is a structured local fallback, not an AI-generated market assessment.`,
+    hephaestus: `**Build plan**\\n\\nFor “${q}”:\\n1. Define one user journey and its acceptance criteria.\\n2. Map the UI, API boundary, data model, and external dependencies.\\n3. Implement the happy path with typed inputs, validation, and useful error states.\\n4. Add one integration at a time behind an adapter so it can be replaced.\\n5. Test the flow end-to-end with a clean demo account and capture proof.\\n\\n**Keep it free-first:** use the existing stack, local deterministic behavior, and open-source components before adding paid services. No code was changed by this response.`,
+    chronos: `**Execution sequence**\\n\\nFor “${q}”, use this order:\\n- **Now:** define the deliverable, owner, and acceptance test.\\n- **Next:** finish the smallest working end-to-end path.\\n- **Then:** test failure cases, persistence, and mobile usability.\\n- **Before submission:** freeze scope, rehearse the demo, and prepare screenshots plus a fallback recording.\\n\\nCreate each task with one owner and a binary done condition. Add actual dates after confirming the event deadline. This is a local planning fallback; it does not create calendar events.`,
+  };
+  return { answer: plans[agent], provider: "local-fallback", citations: agent === "hermes" ? context.map(chunk => chunk.id) : [], handoffTo: null, fallback: true };
+}
+\nexport const appRouter = router({
   system: systemRouter,
   workspace: router({
     load: protectedProcedure.query(async ({ ctx }) => {
@@ -186,8 +203,8 @@ export const appRouter = router({
             ], 700, input.provider);
           return { answer: result.answer, provider: result.provider, citations: combinedContext.map(chunk => chunk.id), handoffTo: null, retrieved: combinedContext.map(chunk => ({ ...chunk, evidenceStatus: serverContext.some(item => item.id === chunk.id) ? "server-verified" : "client-supplied-unverified" })) };
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Hermes could not answer";
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message });
+          console.warn("Hermes hosted-model route unavailable; using local evidence fallback:", error instanceof Error ? error.message : "unknown error");
+          return { ...localAgentFallback("hermes", input.question, combinedContext), retrieved: combinedContext.map(chunk => ({ ...chunk, evidenceStatus: serverContext.some(item => item.id === chunk.id) ? "server-verified" : "client-supplied-unverified" })) };
         }
       }),
   }),
@@ -318,8 +335,8 @@ export const appRouter = router({
           const result = await runModel(messages, 600, input.provider ?? (input.agent === "hermes" || input.agent === "athena" ? "gemini" : "groq"));
           return { answer: result.answer, provider: result.provider, citations: input.agent === "hermes" ? combinedContext.map(chunk => chunk.id) : [], handoffTo: null };
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Agent model unavailable";
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message });
+          console.warn(`${input.agent} hosted-model route unavailable; using local fallback:`, error instanceof Error ? error.message : "unknown error");
+          return localAgentFallback(input.agent, input.question, combinedContext);
         }
       }),
   }),
