@@ -34,6 +34,7 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -1177,8 +1178,80 @@ function OverviewStack({ agents, onSelect }: { agents: AgentRecord[]; onSelect: 
 }
 
 function ModelViewer({ agent }: { agent: AgentRecord }) {
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
-  return <div className={`model-viewer accent-${agent.accent}`} onPointerMove={event => { const rect = event.currentTarget.getBoundingClientRect(); setTilt({ x: ((event.clientY - rect.top) / rect.height - .5) * -14, y: ((event.clientX - rect.left) / rect.width - .5) * 18 }); }} onPointerLeave={() => setTilt({ x: 0, y: 0 })} aria-label={`${agent.name} interactive model viewer`}><div className="model-viewer-grid" /><div className="model-viewer-ring ring-a" /><div className="model-viewer-ring ring-b" /><div className="model-viewer-shadow" /><img src={agent.art} alt={`${agent.name} chibi model`} style={{ transform: `translateY(-8px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) rotateZ(${tilt.y * -.08}deg) scale(1.08)` }} /><span className="model-viewer-label">drag gaze · hover to rotate</span></div>;
+  const mountRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 50);
+    camera.position.set(0, 0, 4.6);
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setClearColor(0x000000, 0);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    mount.appendChild(renderer.domElement);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enablePan = false;
+    controls.enableZoom = false;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.autoRotate = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    controls.autoRotateSpeed = 1.15;
+    const group = new THREE.Group();
+    scene.add(group);
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(1.12, 0.012, 8, 120), new THREE.MeshBasicMaterial({ color: 0xe8c56b, transparent: true, opacity: 0.56 }));
+    halo.rotation.x = Math.PI * 0.18;
+    group.add(halo);
+    const haloBack = new THREE.Mesh(new THREE.TorusGeometry(0.86, 0.008, 8, 100), new THREE.MeshBasicMaterial({ color: 0x7bc9ff, transparent: true, opacity: 0.38 }));
+    haloBack.rotation.y = Math.PI * 0.42;
+    group.add(haloBack);
+    const texture = new THREE.TextureLoader().load(agent.art, loaded => {
+      loaded.colorSpace = THREE.SRGBColorSpace;
+      loaded.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      renderer.render(scene, camera);
+    });
+    const avatar = new THREE.Mesh(new THREE.PlaneGeometry(1.82, 2.16), new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide, depthWrite: false }));
+    avatar.position.z = 0.08;
+    group.add(avatar);
+    const ambient = new THREE.AmbientLight(0xffffff, 1.1);
+    scene.add(ambient);
+    const keyLight = new THREE.PointLight(0xffd98b, 2.2, 8);
+    keyLight.position.set(2, 2, 3);
+    scene.add(keyLight);
+    let frame = 0;
+    let width = 1;
+    let height = 1;
+    const resize = () => {
+      const rect = mount.getBoundingClientRect();
+      width = Math.max(1, rect.width);
+      height = Math.max(1, rect.height);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height, false);
+    };
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(mount);
+    const animate = () => {
+      frame = window.requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    animate();
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      controls.dispose();
+      texture.dispose();
+      avatar.geometry.dispose();
+      (avatar.material as THREE.Material).dispose();
+      halo.geometry.dispose(); (halo.material as THREE.Material).dispose();
+      haloBack.geometry.dispose(); (haloBack.material as THREE.Material).dispose();
+      renderer.dispose();
+      renderer.domElement.remove();
+    };
+  }, [agent.art]);
+  return <div ref={mountRef} className={`model-viewer accent-${agent.accent}`} aria-label={`${agent.name} interactive 3D chibi model overview`}><div className="model-viewer-grid" /><div className="model-viewer-shadow" /><span className="model-viewer-label">drag to orbit · auto turntable</span></div>;
 }
 
 function SourceAgentRoom({ agents, selected, onSelect, onHandoff, context, sources, manualNote, setManualNote, addManualNote, onUpload, uploadedName }: { agents: AgentRecord[]; selected: AgentRecord; onSelect: (id: AgentId) => void; onHandoff: (id: AgentId) => void; context: Chunk[]; sources: SourceRecord[]; manualNote: string; setManualNote: (value: string) => void; addManualNote: () => void; onUpload: () => void; uploadedName: string }) {
