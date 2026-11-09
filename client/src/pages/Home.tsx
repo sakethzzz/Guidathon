@@ -79,9 +79,53 @@ type Task = {
   status: "next" | "queued" | "done";
 };
 
-function createAgentArt(glyph: string, base: string, accent: string) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><defs><radialGradient id="a"><stop stop-color="${accent}" stop-opacity=".55"/><stop offset="1" stop-color="${base}" stop-opacity="0"/></radialGradient><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${accent}"/><stop offset="1" stop-color="${base}"/></linearGradient></defs><rect width="240" height="240" rx="42" fill="${base}"/><circle cx="120" cy="108" r="104" fill="url(#a)"/><circle cx="120" cy="108" r="76" fill="none" stroke="${accent}" stroke-opacity=".38" stroke-width="1.5"/><circle cx="120" cy="108" r="62" fill="none" stroke="${accent}" stroke-opacity=".24" stroke-dasharray="3 8"/><path d="M120 24 133 92 201 108 133 124 120 192 107 124 39 108 107 92Z" fill="url(#b)" fill-opacity=".16" stroke="${accent}" stroke-opacity=".7"/><text x="120" y="137" text-anchor="middle" font-family="Georgia,serif" font-size="92" fill="#fff7e7">${glyph}</text><text x="120" y="220" text-anchor="middle" font-family="monospace" font-size="10" letter-spacing="4" fill="${accent}">GUIDATHON</text></svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+function createAgentArt(id: AgentId, base: string, accent: string) {
+  const personas: Record<AgentId, { hair: string; cloak: string; trim: string; hairShape: string; headwear: string; prop: string; beard?: string }> = {
+    hermes: {
+      hair: "#c88948", cloak: "#246d9b", trim: "#f1c86b",
+      hairShape: 'M76 91 Q65 53 99 43 Q125 26 155 48 Q179 64 163 101 Q151 80 135 77 Q112 91 76 91Z',
+      headwear: '<path d="M70 61 Q89 35 119 39 Q150 31 173 59 L158 68 Q145 55 132 57 Q106 45 84 70Z" fill="#e7bd62" stroke="#fff0b4" stroke-width="3"/><path d="M78 56 Q51 40 43 60 Q59 57 70 78 M161 56 Q188 39 198 60 Q179 58 170 78" fill="none" stroke="#f5d98b" stroke-width="7" stroke-linecap="round"/>',
+      prop: '<path d="M177 112 Q192 92 205 110 Q192 127 177 112Z M183 108 Q193 98 201 108" fill="none" stroke="#f2d17d" stroke-width="4" stroke-linecap="round"/><path d="M191 117 L191 174" stroke="#f2d17d" stroke-width="5" stroke-linecap="round"/>',
+    },
+    zeus: {
+      hair: "#e8e0d5", cloak: "#55469b", trim: "#c7b5ff",
+      hairShape: 'M75 90 Q61 47 101 40 Q126 22 157 43 Q184 62 162 102 Q148 82 136 78 Q110 88 75 90Z',
+      headwear: '<path d="M81 56 L91 32 L108 47 L122 20 L138 47 L156 31 L165 61Z" fill="#f3d36e" stroke="#fff1ad" stroke-width="3"/><circle cx="122" cy="38" r="5" fill="#fff8d9"/>',
+      prop: '<path d="M178 92 L190 111 L180 127 L198 139 L184 159" fill="none" stroke="#fff0a4" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>',
+      beard: '<path d="M91 119 Q119 157 151 119 Q149 164 122 169 Q96 161 91 119Z" fill="#e8e0d5" stroke="#fff" stroke-width="2"/>',
+    },
+    athena: {
+      hair: "#49313b", cloak: "#9d4e79", trim: "#f1b5d0",
+      hairShape: 'M75 94 Q65 53 99 42 Q126 24 155 47 Q177 66 163 104 Q150 81 136 76 Q111 90 75 94Z',
+      headwear: '<path d="M72 67 Q73 34 119 28 Q164 33 169 67 L151 62 L145 77 L94 77 L88 62Z" fill="#c68a4d" stroke="#f6d18c" stroke-width="3"/><path d="M120 30 Q113 10 128 7 Q139 24 132 32" fill="#e8bd69" stroke="#f6d18c" stroke-width="3"/>',
+      prop: '<path d="M177 116 Q197 100 210 120 L204 157 Q190 168 177 151Z" fill="#a66c42" stroke="#f2d29a" stroke-width="4"/><circle cx="194" cy="132" r="9" fill="#f4dfb0"/><circle cx="190" cy="130" r="2" fill="#49313b"/><circle cx="198" cy="130" r="2" fill="#49313b"/>',
+    },
+    hephaestus: {
+      hair: "#6a3828", cloak: "#9b512b", trim: "#ffbd76",
+      hairShape: 'M74 91 Q65 52 98 42 Q125 25 154 45 Q178 65 163 99 Q146 80 134 78 Q110 92 74 91Z',
+      headwear: '<path d="M81 58 Q91 36 120 37 Q151 35 162 59" fill="none" stroke="#f3b56f" stroke-width="8" stroke-linecap="round"/><rect x="87" y="55" width="28" height="17" rx="7" fill="#28313a" stroke="#ffcf8e" stroke-width="4"/><rect x="127" y="55" width="28" height="17" rx="7" fill="#28313a" stroke="#ffcf8e" stroke-width="4"/><path d="M115 63 H127" stroke="#ffcf8e" stroke-width="4"/>',
+      prop: '<path d="M186 104 L186 173" stroke="#d79a57" stroke-width="7" stroke-linecap="round"/><path d="M168 99 H204 V118 H168Z" fill="#9ca6ad" stroke="#e8c99c" stroke-width="3"/>',
+      beard: '<path d="M91 119 Q120 151 151 119 Q147 164 121 166 Q96 161 91 119Z" fill="#78412e" stroke="#b7774d" stroke-width="3"/>',
+    },
+    chronos: {
+      hair: "#d4dce4", cloak: "#286e68", trim: "#a9eee0",
+      hairShape: 'M73 100 Q53 51 96 34 Q127 16 160 42 Q185 68 163 107 Q150 81 136 78 Q108 91 73 100Z',
+      headwear: '<path d="M66 87 Q55 28 119 20 Q184 26 174 88 Q160 62 148 59 Q119 42 91 61Z" fill="#315e63" stroke="#a9eee0" stroke-width="4"/><path d="M81 51 Q118 7 158 51" fill="none" stroke="#d6fff4" stroke-width="3" opacity=".8"/>',
+      prop: '<path d="M185 104 L205 124 L185 144 L205 164" fill="none" stroke="#b7eee2" stroke-width="4"/><path d="M178 99 H212 M178 169 H212" stroke="#b7eee2" stroke-width="4" stroke-linecap="round"/><path d="M185 105 L205 124 L185 144 L205 163Z" fill="#b7eee2" opacity=".18"/>',
+    },
+  };
+  const person = personas[id];
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">' +
+    '<defs><radialGradient id="glow"><stop stop-color="' + accent + '" stop-opacity=".42"/><stop offset="1" stop-color="' + base + '" stop-opacity="0"/></radialGradient><linearGradient id="robe" x1="0" y1="0" x2="1" y2="1"><stop stop-color="' + person.cloak + '"/><stop offset="1" stop-color="' + base + '"/></linearGradient></defs>' +
+    '<rect width="240" height="240" rx="42" fill="' + base + '"/><circle cx="120" cy="110" r="105" fill="url(#glow)"/><circle cx="120" cy="108" r="83" fill="none" stroke="' + accent + '" stroke-opacity=".32" stroke-width="1.5"/><circle cx="120" cy="108" r="70" fill="none" stroke="' + accent + '" stroke-opacity=".2" stroke-dasharray="3 8"/>' +
+    '<path d="M44 191 Q55 147 91 143 L149 143 Q185 148 196 191 L196 219 L44 219Z" fill="url(#robe)" stroke="' + person.trim + '" stroke-opacity=".8" stroke-width="3"/><path d="M89 147 L120 181 L151 147" fill="none" stroke="' + person.trim + '" stroke-width="5" stroke-linecap="round"/><path d="M103 176 L120 190 L137 176" fill="none" stroke="#fff3d1" stroke-opacity=".75" stroke-width="3"/>' +
+    '<path d="M74 111 Q61 86 79 65 Q83 44 120 41 Q157 43 162 68 Q180 88 165 113 L153 93 L87 94Z" fill="' + person.hair + '"/><ellipse cx="120" cy="91" rx="43" ry="48" fill="#f2cba9" stroke="#ffe4ca" stroke-width="2"/>' + person.hairShape +
+    '<ellipse cx="75" cy="98" rx="7" ry="11" fill="#eab995"/><ellipse cx="165" cy="98" rx="7" ry="11" fill="#eab995"/><path d="M100 94 Q108 88 115 94 M126 94 Q134 88 141 94" fill="none" stroke="#553b36" stroke-width="3" stroke-linecap="round"/><ellipse cx="108" cy="105" rx="4.5" ry="6" fill="#26313b"/><ellipse cx="133" cy="105" rx="4.5" ry="6" fill="#26313b"/><circle cx="109" cy="103" r="1.5" fill="#fff"/><circle cx="134" cy="103" r="1.5" fill="#fff"/><ellipse cx="92" cy="116" rx="7" ry="4" fill="#e98e8b" opacity=".45"/><ellipse cx="148" cy="116" rx="7" ry="4" fill="#e98e8b" opacity=".45"/><path d="M113 124 Q120 130 128 124" fill="none" stroke="#a75f61" stroke-width="2.5" stroke-linecap="round"/>' +
+    (person.beard || "") + person.headwear +
+    '<path d="M95 155 L85 171 L101 179 M145 155 L155 171 L139 179" fill="none" stroke="#f2cba9" stroke-width="11" stroke-linecap="round"/><path d="M102 205 Q120 213 138 205" fill="none" stroke="' + person.trim + '" stroke-width="4" stroke-linecap="round"/><circle cx="61" cy="57" r="3" fill="' + accent + '"/><circle cx="185" cy="63" r="2.5" fill="' + accent + '"/>' +
+    person.prop + '<path d="M37 215 H203" stroke="' + accent + '" stroke-opacity=".45"/></svg>';
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 }
 
 const agents: Array<{
@@ -89,19 +133,17 @@ const agents: Array<{
   name: string;
   role: string;
   short: string;
-  glyph: string;
   accent: string;
   art: string;
   theme: string;
   quote: string;
 }> = [
-  { id: "hermes", name: "Hermes", role: "Guide + knowledge", short: "Answers, frames, routes", glyph: "✦", accent: "blue", art: createAgentArt("✦", "#10233a", "#83c5ff"), theme: "skyline blue", quote: "Ask the fog a better question." },
-  { id: "zeus", name: "Zeus", role: "Orchestrator", short: "Routes the next move", glyph: "ϟ", accent: "violet", art: createAgentArt("ϟ", "#1b1738", "#b7a1ff"), theme: "storm violet", quote: "Every handoff needs a keeper." },
-  { id: "athena", name: "Athena", role: "Lead strategist", short: "Shapes winning ideas", glyph: "Δ", accent: "rose", art: createAgentArt("Δ", "#351a2b", "#f4a6c6"), theme: "rose strategy", quote: "A sharp idea survives contact." },
-  { id: "hephaestus", name: "Hephaestus", role: "Stack + workflow", short: "Turns plans buildable", glyph: "⌘", accent: "orange", art: createAgentArt("⌘", "#392014", "#ffb36c"), theme: "forge orange", quote: "Make the next build smaller." },
-  { id: "chronos", name: "Chronos", role: "Time + submission", short: "Makes time visible", glyph: "◷", accent: "teal", art: createAgentArt("◷", "#102d29", "#74e5c1"), theme: "tide teal", quote: "A deadline is a shape, not a threat." },
+  { id: "hermes", name: "Hermes", role: "Guide + knowledge", short: "Answers, frames, routes", accent: "blue", art: createAgentArt("hermes", "#10233a", "#83c5ff"), theme: "skyline blue", quote: "Ask the fog a better question." },
+  { id: "zeus", name: "Zeus", role: "Orchestrator", short: "Routes the next move", accent: "violet", art: createAgentArt("zeus", "#1b1738", "#b7a1ff"), theme: "storm violet", quote: "Every handoff needs a keeper." },
+  { id: "athena", name: "Athena", role: "Lead strategist", short: "Shapes winning ideas", accent: "rose", art: createAgentArt("athena", "#351a2b", "#f4a6c6"), theme: "rose strategy", quote: "A sharp idea survives contact." },
+  { id: "hephaestus", name: "Hephaestus", role: "Stack + workflow", short: "Turns plans buildable", accent: "orange", art: createAgentArt("hephaestus", "#392014", "#ffb36c"), theme: "forge orange", quote: "Make the next build smaller." },
+  { id: "chronos", name: "Chronos", role: "Time + submission", short: "Makes time visible", accent: "teal", art: createAgentArt("chronos", "#102d29", "#74e5c1"), theme: "tide teal", quote: "A deadline is a shape, not a threat." },
 ];
-
 const antigravityParticles = Array.from({ length: 76 }, (_, index) => ({
   id: index,
   left: `${(index * 37.7) % 100}%`,
