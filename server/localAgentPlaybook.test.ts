@@ -11,6 +11,10 @@ describe("local agent review playbook", () => {
     expect(localAgentReply("athena", "Suggest something").answer).toMatch(/user backwards/i);
     expect(localAgentReply("chronos", "Suggest something").answer).toMatch(/three checkpoints/i);
   });
+  it("gives Athena strategy recommendations and Chronos a schedule", () => {
+    expect(localAgentReply("athena", "Suggest three ways to improve a student hackathon project.").answer).toMatch(/three high-impact ways/i);
+    expect(localAgentReply("chronos", "Give me a simple 3-step plan to finish a hackathon project.").answer).toMatch(/3-step finish plan/i);
+  });
   it("clearly identifies itself as a local review fallback", () => {
     expect(localAgentReply("zeus", "Hello").provider).toBe("local-review-playbook");
     expect(localAgentReply("zeus", "Hello").mode).toBe("review-fallback");
