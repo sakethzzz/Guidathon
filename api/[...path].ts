@@ -13,8 +13,8 @@ const app = express();
 app.use(express.json({ limit: "4mb" }));
 app.use(express.urlencoded({ limit: "4mb", extended: true }));
 
-app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
-app.get("/api/platform/config.js", (_req, res) => {
+app.get("/api/health", (_req: any, res: any) => res.json({ status: "ok" }));
+app.get("/api/platform/config.js", (_req: any, res: any) => {
   res.set("Cache-Control", "no-store").type("application/javascript").send(publicPlatformScript());
 });
 
