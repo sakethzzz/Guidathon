@@ -1056,3 +1056,6 @@ button:disabled { cursor: not-allowed; opacity: .58; }
   transform: translateZ(0);
   will-change: transform, opacity, filter;
 }
+
+
+.room-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; border-radius: inherit; }
