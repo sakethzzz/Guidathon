@@ -18,7 +18,7 @@ const commonAnswers = {
   judging: "Judges typically look for problem clarity, user value, originality, technical execution, feasibility, evidence, usability, and a convincing demo. Treat the published event rubric as authoritative. Make every important claim easy to verify and show the working product rather than relying on slides alone.",
   validate: "Validate the idea before expanding the build: state the user and pain clearly, speak to or observe a few representative users if possible, compare existing alternatives, and test the riskiest assumption with a tiny prototype. Record what you observed and define a measurable pass/fail signal.",
   stack: "Choose the simplest stack your team can build and debug confidently. Decide the frontend, backend/API, persistence, model/provider, and deployment path; then test one complete vertical slice early. Avoid adding services or MCP integrations unless a real workflow needs them.",
-  mcp: "MCP (Model Context Protocol) connects an AI application to external tools and data sources through a standard interface. An MCP server exposes tools; the agent still needs a working language model to interpret questions and formulate answers. Connecting an MCP server alone will not fix a missing model credential.",
+  mcp: "MCP (Model Context Protocol) is a standard way for AI applications to connect to external tools and data. An MCP server makes tools available through a common interface; the AI application can then call those tools when useful. Think of it as a universal adapter between an AI app and services such as files, databases, or APIs. MCP provides tool connectivity, not the AI model itself, so an agent still needs a working model to understand questions and produce answers.",
   demo: "Make the demo reliable before making it ambitious. Prepare a known-good account and dataset, rehearse the exact click path, show one complete user journey, and keep a short fallback recording or screenshots. Avoid depending on unverified APIs or live integrations during the final presentation.",
 };
 
@@ -32,7 +32,7 @@ export function localAgentReply(agent: ReviewAgentId, question: string, context 
     answer = commonAnswers.guidathon;
   } else if (has(q, /what is an mvp|minimum viable product|define mvp/)) {
     answer = commonAnswers.mvp;
-  } else if (has(q, /what is mcp|model context protocol|connect.*mcp/)) {
+  } else if (has(q, /\b(mcp)\b|model context protocol/)) {
     answer = commonAnswers.mcp;
   } else if (agent === "athena" && has(q, /suggest|three ways|improve|ideas|brainstorm|better|innovate|differentiat/)) {
     answer = "Here are three high-impact ways to improve the project:\n\n1. **Narrow the user problem:** choose one clearly defined user group and one painful task. Make the before/after outcome obvious.\n\n2. **Prove one differentiator:** identify what existing alternatives fail to do, then demonstrate one feature that closes that gap. Avoid adding features that do not strengthen this advantage.\n\n3. **Make the demo evidence-led:** show the complete user journey, measure one outcome (time saved, errors reduced, or task completion), and include a real test or user observation.\n\n**My recommendation:** prioritize the smallest end-to-end workflow that proves a meaningful user benefit. Share the challenge statement and I can tailor these three improvements.";
@@ -53,7 +53,7 @@ export function localAgentReply(agent: ReviewAgentId, question: string, context 
   } else if (agent === "athena") {
     answer = "Let's make this decision from the user backwards. First, name the exact user and the frustrating task they need to complete. Next, identify what existing alternatives fail to do. Then test one differentiated solution with a small prototype. My recommendation is to prioritize one measurable user outcome over adding more features. Share the challenge statement or idea and I can help narrow it down.";
   } else if (agent === "hermes") {
-    answer = "I can explain the concept and help structure research. Start by separating what is known, what needs a reliable source, and what is still an assumption. For a hackathon, capture the challenge rules, target-user evidence, technical references, and judging criteria in a source ledger. I don't have a live external research/model connection in this review mode, so I won't invent citations.";
+    answer = "I can help explain concepts and organize reliable information. Tell me the specific term or question and I'll answer it directly, then separate established facts from assumptions. For research claims, I'll only cite sources that are actually available rather than inventing references.";
   } else if (agent === "hephaestus") {
     answer = "For a reliable implementation, build and test one vertical slice first: user action → frontend state → API request → server validation → persistence or model call → visible result. Then add error handling, loading states, and deployment checks. Keep secrets server-side and verify every external integration independently. Share the error or stack and I can narrow the diagnosis.";
   } else if (agent === "chronos") {
