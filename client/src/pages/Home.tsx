@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { ChangeEvent, type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
+import ScrollStack, { ScrollStackItem } from "@/components/ScrollStack/ScrollStack";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -1090,8 +1091,6 @@ function ConstellationAgentDock({ agents, selected, onFocus, onEnter }: { agents
 }
 
 function OverviewStack({ agents, onSelect }: { agents: AgentRecord[]; onSelect: (id: AgentId) => void }) {
-  const stackRef = useRef<HTMLElement>(null);
-  const viewportRef = useRef<HTMLDivElement>(null);
   const mythology: Record<AgentId, { aura: string; why: string }> = {
     hermes: { aura: "The messenger at the threshold", why: "Hermes turns ambiguity into a message the rest of the constellation can carry." },
     zeus: { aura: "The keeper of the sky-wide thread", why: "Zeus owns orchestration because every specialist needs one visible source of direction." },
@@ -1099,68 +1098,46 @@ function OverviewStack({ agents, onSelect }: { agents: AgentRecord[]; onSelect: 
     hephaestus: { aura: "The maker beneath the mountain", why: "Hephaestus converts a winning thesis into a stack, workflow, and honest build boundary." },
     chronos: { aura: "The ancient shape of time", why: "Chronos makes deadlines tangible by turning progress into milestones with owners and proof." },
   };
-  useGSAP(() => {
-    const viewport = viewportRef.current;
-    const cards = gsap.utils.toArray<HTMLElement>(".overview-stack-card", stackRef.current);
-    if (!viewport || cards.length === 0) return;
-
-    gsap.set(cards, { autoAlpha: 0, y: 72, scale: 0.96, filter: "blur(4px)", zIndex: (index) => index + 1, pointerEvents: "none", transformOrigin: "center center" });
-    gsap.set(cards[0], { autoAlpha: 1, y: 0, scale: 1, filter: "blur(0px)", pointerEvents: "auto", zIndex: cards.length + 1 });
-
-    const timeline = gsap.timeline({
-      scrollTrigger: {
-        trigger: viewport,
-        start: "top top+=84",
-        end: () => `+=${Math.max(window.innerHeight, 520) * 1.15 * Math.max(1, cards.length - 1)}`,
-        pin: viewport,
-        scrub: 0.55,
-        anticipatePin: 1,
-        invalidateOnRefresh: true,
-      },
-    });
-
-    cards.slice(0, -1).forEach((card, index) => {
-      const next = cards[index + 1];
-      timeline.to(card, { y: -48, scale: 0.92, autoAlpha: 0.34, filter: "blur(2px)", pointerEvents: "none", duration: 1 }, index);
-      timeline.fromTo(next,
-        { y: 72, scale: 0.96, autoAlpha: 0, filter: "blur(4px)", pointerEvents: "none" },
-        { y: 0, scale: 1, autoAlpha: 1, filter: "blur(0px)", pointerEvents: "auto", duration: 1 },
-        index
-      );
-    });
-
-    const refreshFrame = window.requestAnimationFrame(() => ScrollTrigger.refresh());
-    return () => {
-      window.cancelAnimationFrame(refreshFrame);
-      timeline.scrollTrigger?.kill();
-      timeline.kill();
-    };
-  }, { scope: stackRef });
 
   return (
-    <section ref={stackRef} className="overview-stack-section mythic-scroll-stack">
+    <section className="overview-stack-section mythic-scroll-stack">
       <div className="overview-quote">
         <span className="section-kicker"><span className="kicker-dot gold" /> GUIDATHON // THE CONSTELLATION</span>
         <blockquote>“Make the next move defensible.”</blockquote>
         <p>Five mythic roles, one visible path from a rough question to a build the team can stand behind.</p>
       </div>
-      <div ref={viewportRef} className="overview-stack-viewport" aria-label="Scrollable stack of five GUIDATHON agents">
-        <div className="overview-stack-cards">
-          {agents.map((agent, index) => (
-            <button className={`overview-stack-card mythic-stack-card accent-${agent.accent}`} key={agent.id} onClick={() => onSelect(agent.id)}>
-              <span className="stack-card-number">0{index + 1}</span>
+      <ScrollStack
+        className="overview-reactbits-stack"
+        itemDistance={250}
+        itemStackDistance={34}
+        stackPosition={56}
+        itemScale={0.055}
+        baseScale={0.78}
+        dimAmount={0.18}
+        blurAmount={1.5}
+        tiltAmount={1.5}
+        rotationAmount={0.35}
+        holdDistance={160}
+        smoothScroll={false}
+        snap={false}
+      >
+        {agents.map((agent, index) => (
+          <ScrollStackItem key={agent.id} itemClassName={`overview-reactbits-card accent-${agent.accent}`}>
+            <button className={`overview-stack-card mythic-stack-card accent-${agent.accent}`} onClick={() => onSelect(agent.id)} aria-label={`Open ${agent.name}'s workspace`}>
+              <span className="stack-card-number">0{index + 1} / 05</span>
               <div className="stack-card-art-bg" aria-hidden="true"><img src={agent.art} alt="" /></div>
               <div className="stack-card-aura"><span>{mythology[agent.id].aura}</span><img src={agent.art} alt={`${agent.name} chibi spirit`} /></div>
               <div className="stack-card-copy"><span className="mono">{agent.role} · greek myth</span><b>{agent.name}</b><p>{mythology[agent.id].why}</p></div>
-              <ArrowUpRight size={16} />
+              <span className="stack-card-open">OPEN AGENT <ArrowUpRight size={16} /></span>
             </button>
-          ))}
-        </div>
-      </div>
-      <div className="overview-stack-hint"><span className="mono">SCROLL TO EXPLORE</span><span>Each turn reveals the next spirit</span></div>
+          </ScrollStackItem>
+        ))}
+      </ScrollStack>
+      <div className="overview-stack-hint"><span className="mono">SCROLL TO STACK // FIVE SPECIALISTS</span><span>Scroll inside the stack to bring each agent to the front · tap a card to enter</span></div>
     </section>
   );
 }
+
 function ModelViewer({ agent }: { agent: AgentRecord }) {
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   return <div className={`model-viewer accent-${agent.accent}`} onPointerMove={event => { const rect = event.currentTarget.getBoundingClientRect(); setTilt({ x: ((event.clientY - rect.top) / rect.height - .5) * -14, y: ((event.clientX - rect.left) / rect.width - .5) * 18 }); }} onPointerLeave={() => setTilt({ x: 0, y: 0 })} aria-label={`${agent.name} interactive model viewer`}><div className="model-viewer-grid" /><div className="model-viewer-ring ring-a" /><div className="model-viewer-ring ring-b" /><div className="model-viewer-shadow" /><img src={agent.art} alt={`${agent.name} chibi model`} style={{ transform: `translateY(-8px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) rotateZ(${tilt.y * -.08}deg) scale(1.08)` }} /><span className="model-viewer-label">drag gaze · hover to rotate</span></div>;
