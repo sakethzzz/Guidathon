@@ -61,7 +61,7 @@ async function callGemini(messages: ChatTurn[], maxTokens: number) {
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(8000),
     body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents, generationConfig: { maxOutputTokens: maxTokens, temperature: 0.42 } }),
   });
   if (!response.ok) throw new Error(`Gemini request failed (${response.status})`);
@@ -76,7 +76,7 @@ async function callGroq(messages: ChatTurn[], maxTokens: number) {
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(8000),
     body: JSON.stringify({ model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile", messages, max_tokens: maxTokens, temperature: 0.42 }),
   });
   if (!response.ok) throw new Error(`Groq request failed (${response.status})`);
