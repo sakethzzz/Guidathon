@@ -7,6 +7,7 @@ import { calculateWeightedScore, evaluationRubric } from "@shared/evaluation";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { callExternalMcpTool, listExternalMcpTools } from "./mcp";
 import { TRPCError } from "@trpc/server";
+import { getDemoAnswer, getDemoQuestions } from "./demoAnswers";
 import { loadWorkspace, saveWorkspace, loadAgentConversation, saveAgentConversation, saveJudgeEvaluation, loadJudgeEvaluations } from "./workspace";
 import { z } from "zod";
 
@@ -390,8 +391,22 @@ export const appRouter = router({
           const citedIds = input.agent === "hermes" ? extractCitedChunkIds(result.answer, combinedContext) : [];
           return { answer: result.answer, provider: result.provider, citations: citedIds, handoffTo: null };
         } catch (error) {
-          console.warn(`${input.agent} hosted-model route unavailable; using local fallback:`, error instanceof Error ? error.message : "unknown error");
-          return localAgentFallback(input.agent, input.question, combinedContext);
+          console.warn(`${input.agent} hosted-model route unavailable; checking the prepared demo playbook:`, error instanceof Error ? error.message : "unknown error");
+          const preparedAnswer = getDemoAnswer(input.agent, input.question);
+          if (preparedAnswer) {
+            return { answer: preparedAnswer, provider: "guidathon-demo-playbook", citations: [], handoffTo: null };
+          }
+          return {
+            answer: [
+              "Demo mode is active: I do not have a live model response or a prepared answer for that exact question, so I will not guess.",
+              "Try one of these prepared questions:",
+              ...getDemoQuestions(input.agent).map(question => `• ${question}`),
+              "A configured model provider is required for open-ended answers.",
+            ].join("\\n"),
+            provider: "guidathon-demo-playbook",
+            citations: [],
+            handoffTo: null,
+          };
         }
       }),
   }),
