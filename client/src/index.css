@@ -1179,7 +1179,7 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 
 /* React Bits ScrollStack integration — five specialist agent cards */
 .overview-stack-section.mythic-scroll-stack { overflow: visible; perspective: none; }
-.overview-reactbits-stack {
+.overview-stack-section .overview-reactbits-stack {
   height: min(68vh, 590px);
   min-height: 480px;
   overflow-x: hidden;
@@ -1232,7 +1232,7 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .overview-reactbits-stack .scroll-stack-card { transform-origin: 50% 0; }
 .overview-reactbits-stack .scroll-stack__end { pointer-events:none; }
 @media (max-width: 760px) {
-  .overview-reactbits-stack { height: 560px; min-height: 500px; }
+  .overview-stack-section .overview-reactbits-stack { height: 560px; min-height: 500px; }
   .overview-reactbits-stack .overview-reactbits-card { height: 390px; min-height: 390px; }
   .overview-reactbits-stack .overview-stack-card {
     grid-template-columns: 24px minmax(0,1fr) 18px;
