@@ -390,8 +390,12 @@ export const appRouter = router({
           const citedIds = input.agent === "hermes" ? extractCitedChunkIds(result.answer, combinedContext) : [];
           return { answer: result.answer, provider: result.provider, citations: citedIds, handoffTo: null };
         } catch (error) {
-          console.warn(`${input.agent} hosted-model route unavailable; using local fallback:`, error instanceof Error ? error.message : "unknown error");
-          return localAgentFallback(input.agent, input.question, combinedContext);
+          const detail = error instanceof Error ? error.message : "No hosted model provider is configured";
+          console.error(`${input.agent} hosted-model route unavailable:`, detail);
+          throw new TRPCError({
+            code: "BAD_GATEWAY",
+            message: `The ${input.agent} model is unavailable. Configure GEMINI_API_KEY or GROQ_API_KEY in the deployment environment, then retry. No canned answer was substituted.`,
+          });
         }
       }),
   }),
