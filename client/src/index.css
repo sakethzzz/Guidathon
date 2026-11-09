@@ -923,3 +923,64 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .task-row .task-check { cursor:pointer; }
 .task-row .task-check:focus-visible { outline:1px solid var(--gold); outline-offset:3px; }
 @media (max-width:700px) { .task-add-form { grid-template-columns:1fr 1fr; } .task-add-form input:first-child { grid-column:1/-1; } .task-add-form button { grid-column:1/-1; } }
+
+
+
+/* Release hardening: native page scroll, responsive agent rooms, and touch-safe motion */
+html, body, #root { min-height: 100%; }
+html { overflow-x: clip; scroll-behavior: smooth; }
+body { overflow-x: clip; overflow-y: auto; overscroll-behavior-y: auto; }
+.app-shell { overflow-x: clip; overflow-y: visible; }
+.workspace-shell, .workspace-main, .room-panel, .room-body { min-width: 0; }
+.overview-stack-viewport { touch-action: pan-y; }
+.agent-carousel-stage { touch-action: pan-y; overscroll-behavior: auto; }
+.source-chat-layout { min-width: 0; }
+.model-viewer-canvas { display: block; }
+.model-viewer-fallback { object-fit: contain; }
+
+/* Mobile: no pinned scroll scenes; all five agents remain naturally reachable. */
+@media (max-width: 760px) {
+  html, body { scroll-behavior: auto; }
+  .app-shell, .app-shell * { cursor: auto !important; }
+  .cursor-trail, .thunder-cursor { display: none !important; }
+  .app-shell { overflow-x: clip; overflow-y: visible; }
+  .line-sidebar { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+  .workspace-main { padding: 20px 13px 34px; }
+  .workspace-heading { gap: 12px; }
+  .heading-actions { flex-wrap: wrap; gap: 8px; }
+  .overview-stack-section { min-height: 0; padding: 18px 12px 24px; overflow: visible; }
+  .overview-stack-viewport { height: auto !important; min-height: 0 !important; margin-top: 14px; overflow: visible; }
+  .overview-stack-cards { display: grid !important; position: relative; gap: 11px; }
+  .overview-stack-viewport .mythic-stack-card,
+  .overview-stack-viewport .mythic-stack-card:nth-child(n) {
+    position: relative !important; inset: auto !important; width: 100% !important; height: auto !important;
+    min-height: 178px !important; margin: 0 !important; opacity: 1 !important; visibility: visible !important;
+    transform: none !important; filter: none !important; pointer-events: auto !important;
+  }
+  .overview-stack-viewport .stack-card-aura { min-height: 145px; }
+  .overview-stack-hint { display: none; }
+  .source-chat-layout, .source-room, .submission-room, .settings-room, .rag-room, .split-room {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .choose-room-column { min-height: 0; }
+  .choose-room-column > button { min-height: 42px; }
+  .model-viewer { min-height: 310px; }
+  .source-role-chat, .source-role-chat .role-chat { min-height: 300px; }
+  .agent-carousel-stage { min-height: 490px; touch-action: pan-y; }
+  .judge-input-grid, .judge-criteria, .judge-feedback-grid { grid-template-columns: minmax(0, 1fr); }
+  .task-add-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .task-add-form input:first-child, .task-add-form button { grid-column: 1 / -1; }
+  .room-panel { min-height: 0; }
+  .room-body { padding: 14px; }
+  .field-grid { grid-template-columns: minmax(0, 1fr); }
+  .full-field { grid-column: auto; }
+  .query-box { min-width: 0; }
+  .query-box input { width: 100%; }
+  .retrieval-results { max-height: 42vh; }
+  .bottom-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .source-chat-layout { grid-template-columns: 150px minmax(220px, .8fr) minmax(270px, 1.2fr); gap: 9px; }
+  .workspace-shell { grid-template-columns: 190px minmax(0, 1fr); }
+  .workspace-main { padding-left: 22px; padding-right: 22px; }
+}
