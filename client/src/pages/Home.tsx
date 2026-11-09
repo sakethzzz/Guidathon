@@ -590,7 +590,8 @@ export default function Home() {
       onError: () => setRagStats(current => ({ ...current, mode: "browser lexical fallback · ingestion unavailable" }))
     });
   }, [currentUser, workspaceReady]);
-\n  const selected = agentById(activeAgent);
+
+  const selected = agentById(activeAgent);
   const readyCount = sources.filter(source => source.status === "verified").length;
   const deadlineMs = new Date(deadlineAt).getTime();
   const remainingMs = Number.isFinite(deadlineMs) ? Math.max(0, deadlineMs - clockNow) : 0;
