@@ -17,6 +17,9 @@ function configuredServers(): McpServerConfig[] {
     servers = parsed as McpServerConfig[];
   } else if (process.env.MCP_SERVER_URL?.trim()) {
     servers = [{ name: "default", url: process.env.MCP_SERVER_URL.trim(), tokenEnv: "MCP_SERVER_TOKEN" }];
+  } else {
+    // Public read-only Wikipedia MCP server; no account or API key required.
+    servers = [{ name: "wikipedia", url: "https://wikipedia.caseyjhand.com/mcp" }];
   }
   return servers.filter(server => server.enabled !== false).map(server => {
     if (!/^[a-z0-9][a-z0-9_-]{0,39}$/i.test(server.name)) throw new Error("Invalid MCP server name");
@@ -121,18 +124,46 @@ function stripHtml(value: string) {
 }
 
 export async function searchPublicKnowledge(question: string): Promise<{ text: string; citations: string[] }> {
-  const url = new URL("https://en.wikipedia.org/w/api.php");
-  url.search = new URLSearchParams({ action: "query", list: "search", srsearch: question, srlimit: "3", format: "json", origin: "*" }).toString();
+  const endpoint = "https://en.wikipedia.org/w/api.php";
+  const headers = { "user-agent": "GUIDATHON/1.0 (https://github.com/sakethzzz/Guidathon; read-only research assistant)" };
   try {
-    const response = await fetch(url, { headers: { "user-agent": "GUIDATHON/1.0 (research assistant)" }, signal: AbortSignal.timeout(7000) });
-    if (!response.ok) return { text: "", citations: [] };
-    const data = await response.json() as { query?: { search?: Array<{ title: string; snippet: string }> } };
-    const results = data.query?.search ?? [];
-    return {
-      text: results.map(item => "Wikipedia: " + item.title + "\n" + stripHtml(item.snippet)).join("\n\n").slice(0, 7000),
-      citations: results.map(item => "https://en.wikipedia.org/wiki/" + encodeURIComponent(item.title.replace(/ /g, "_"))),
+    const searchUrl = new URL(endpoint);
+    searchUrl.search = new URLSearchParams({
+      action: "query", list: "search", srsearch: question, srlimit: "3",
+      format: "json", origin: "*",
+    }).toString();
+    const searchResponse = await fetch(searchUrl, { headers, signal: AbortSignal.timeout(6500) });
+    if (!searchResponse.ok) return { text: "", citations: [] };
+    const searchData = await searchResponse.json() as {
+      query?: { search?: Array<{ title: string; pageid: number }> };
     };
-  } catch { return { text: "", citations: [] }; }
+    const hits = searchData.query?.search ?? [];
+    if (!hits.length) return { text: "", citations: [] };
+
+    const articleUrl = new URL(endpoint);
+    articleUrl.search = new URLSearchParams({
+      action: "query", prop: "extracts|info", exintro: "0", explaintext: "1",
+      exchars: "2600", inprop: "url", pageids: hits.map(hit => String(hit.pageid)).join("|"),
+      format: "json", origin: "*",
+    }).toString();
+    const articleResponse = await fetch(articleUrl, { headers, signal: AbortSignal.timeout(7500) });
+    if (!articleResponse.ok) {
+      return {
+        text: hits.map(hit => "Wikipedia: " + hit.title).join("\n"),
+        citations: hits.map(hit => "https://en.wikipedia.org/wiki/" + encodeURIComponent(hit.title.replace(/ /g, "_"))),
+      };
+    }
+    const articleData = await articleResponse.json() as {
+      query?: { pages?: Record<string, { title?: string; extract?: string; fullurl?: string }> };
+    };
+    const pages = Object.values(articleData.query?.pages ?? {});
+    return {
+      text: pages.map(page => "Wikipedia: " + (page.title ?? "Article") + "\n" + stripHtml(page.extract ?? "").slice(0, 2600)).join("\n\n").slice(0, 9000),
+      citations: pages.map(page => page.fullurl || "https://en.wikipedia.org/wiki/" + encodeURIComponent((page.title ?? "").replace(/ /g, "_"))).filter(Boolean),
+    };
+  } catch {
+    return { text: "", citations: [] };
+  }
 }
 
 export async function buildAgentResearchContext(question: string): Promise<{ text: string; citations: string[]; toolsUsed: string[] }> {
