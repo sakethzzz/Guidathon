@@ -25,4 +25,12 @@ describe("GUIDATHON retrieval scoring", () => {
     expect(lexicalScore("", "some source text")).toBe(0);
     expect(lexicalScore("!!! ...", "some source text")).toBe(0);
   });
+
+  it("ignores common question words instead of diluting retrieval matches", () => {
+    expect(lexicalScore("what are the judging rules for teams", "The judging rules apply to all teams.")).toBe(1);
+  });
+
+  it("tokenizes non-English text without breaking Unicode words", () => {
+    expect(lexicalScore("తెలుగు భాష", "తెలుగు భాషలో పోటీ")).toBe(1);
+  });
 });
