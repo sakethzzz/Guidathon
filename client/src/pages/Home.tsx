@@ -697,10 +697,10 @@ export default function Home() {
   const addSource = (record: SourceRecord) => {
     setSources(current => [record, ...current]);
     const canParse = record.kind !== "upload" || !record.detail.toLowerCase().includes("unverified");
-    const finishLocalProcessing = (persisted: boolean) => {
+    const finishLocalProcessing = (ingestion: { persisted: boolean; vectorized?: boolean; vectorCount?: number }) => {
       window.setTimeout(() => {
         if (!canParse) {
-          setSources(current => current.map(source => source.id === record.id ? { ...source, status: "unverified", detail: "Metadata captured · content not parsed" } : source));
+          setSources(current => current.map(source => source.id === record.id ? { ...source, status: "unverified", detail: record.detail } : source));
           pushActivity("hermes", "Kept an upload unverified", `${record.name} was not parsed and cannot enter retrieval.`, "complete");
           return;
         }
@@ -708,14 +708,17 @@ export default function Home() {
           setSources(current => current.map(source => source.id === record.id ? { ...source, status: "verified", detail: `${record.chunks.length} chunks · locally parsed · not persisted` } : source));
           pushActivity("hermes", "Processed a new source locally", `${record.name} is available in this browser session; server persistence is unavailable.`, "complete");
         };
-        if (!persisted) {
+        if (!ingestion.persisted) {
           markLocal();
           return;
         }
         hermesComplete.mutate({ ids: record.chunks.map(chunk => chunk.id) }, {
           onSuccess: result => {
-            setSources(current => current.map(source => source.id === record.id ? { ...source, status: "verified", detail: `${result.count} chunks · parsed and saved to your workspace` } : source));
-            pushActivity("hermes", "Persisted processed knowledge", `${record.name} is now available to this authenticated workspace.`, "complete");
+            const embeddingStatus = ingestion.vectorized
+              ? `${ingestion.vectorCount ?? result.count}/${result.count} vector embeddings stored`
+              : `lexical fallback · ${ingestion.vectorCount ?? 0}/${result.count} vectors stored`;
+            setSources(current => current.map(source => source.id === record.id ? { ...source, status: "verified", detail: `${result.count} chunks · persisted · ${embeddingStatus}` } : source));
+            pushActivity("hermes", "Persisted processed knowledge", `${record.name} is available to this authenticated workspace; ${embeddingStatus}.`, "complete");
           },
           onError: markLocal,
         });
@@ -729,8 +732,8 @@ export default function Home() {
       id: chunk.id, sourceName: record.name, heading: chunk.heading,
       content: chunk.passage, provenance: chunk.provenance,
     })) }, {
-      onSuccess: result => finishLocalProcessing(Boolean(result.persisted)),
-      onError: () => finishLocalProcessing(false),
+      onSuccess: result => finishLocalProcessing({ persisted: Boolean(result.persisted), vectorized: result.vectorized, vectorCount: result.vectorCount }),
+      onError: () => finishLocalProcessing({ persisted: false }),
     });
   };
   const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
