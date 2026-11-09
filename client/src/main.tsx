@@ -63,7 +63,15 @@ const trpcClient = trpc.createClient({
         return {};
       },
       fetch(input, init) {
-        return globalThis.fetch(input, {
+        const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+        const requestUrl = new URL(rawUrl, window.location.origin);
+        const trpcPrefix = "/api/trpc/";
+        if (requestUrl.pathname.startsWith(trpcPrefix)) {
+          const procedurePath = requestUrl.pathname.slice(trpcPrefix.length);
+          requestUrl.pathname = "/api/trpc";
+          requestUrl.searchParams.set("__trpcPath", procedurePath);
+        }
+        return globalThis.fetch(requestUrl.toString(), {
           ...(init ?? {}),
           credentials: "include",
         });

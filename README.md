@@ -60,8 +60,40 @@ Use the **Source intake** panel in the Hermes room. Text and common source-code 
 
 The project includes `vercel.json` for the static frontend build. The interactive frontend and local fallback can be deployed as static output. The live Hermes model route requires a server runtime with the managed service environment or an equivalent provider endpoint; a pure static Vercel deployment will need a serverless API adapter and provider credentials if the managed server is not used.
 
-The current managed project has Server enabled for Preview and development. MCP tools remain an optional adapter boundary: the UI shows their state honestly and does not claim external tool execution until a concrete MCP connector is configured.
+The current managed project has Server enabled for Preview and development. For a Render deployment, configure DATABASE_URL, MANUS_PROJECT_ID, MANUS_JWT_SECRET, MANUS_OAUTH_API_URL, and at least one model provider key. MANUS_API_URL and MANUS_API_KEY enable the optional managed-model fallback; MCP_SERVER_URL and MCP_SERVER_TOKEN enable the optional MCP bridge. The repository includes a placeholder-only .env.example and Render environment declarations; real credentials must be added in the hosting provider's secret settings and must never be committed. MCP tools remain an optional adapter boundary: the UI shows their state honestly and does not claim external tool execution until a concrete MCP connector is configured.
 
 ## Model routing
 
-All model calls stay server-side. `server/routers.ts` exposes `hermes.ask` and `agents.chat`; the browser never receives provider keys. The provider adapter attempts Gemini when `GEMINI_API_KEY` is present, then Groq when `GROQ_API_KEY` is present, and finally the managed Manus LLM route. Hermes always receives the ranked retrieved chunks plus conversation history, while the other spirits receive a role-specific system contract and answer only within their domain. The active provider is shown in each chatspace so the interface does not pretend a provider was used when it was not.
+All model calls stay server-side. `server/routers.ts` exposes `hermes.ask` and `agents.chat`; the browser never receives provider keys. The provider adapter attempts the selected Gemini/Groq route, then Vercel AI Gateway when credentials are available, then OpenRouter's free-model router (`openrouter/free`) when `OPENROUTER_API_KEY` is configured, and finally the managed Manus LLM route. OpenRouter free models are rate-limited and model availability can change; a free OpenRouter API key is still required. Add `OPENROUTER_API_KEY` and optionally `OPENROUTER_MODEL=openrouter/free` in the hosting provider's secret settings. No provider key is bundled or committed. Hermes always receives the ranked retrieved chunks plus conversation history, while the other spirits receive a role-specific system contract and answer only within their domain. The active provider is shown in each chatspace so the interface does not pretend a provider was used when it was not.
+
+
+## Persistence and evidence trust
+
+The current knowledge store uses MySQL through Drizzle. When GEMINI_API_KEY is configured, chunks are embedded with Gemini Embedding 001 (768 dimensions); vectors are serialized in the MySQL knowledge_chunks.embedding column and ranked with cosine similarity in the application. If an individual vector is unavailable, retrieval can use lexical overlap. This is an application-managed vector retrieval MVP, not a dedicated vector database or a MySQL native vector index.
+
+Knowledge ingestion is authenticated and scoped to the signed-in user's workspace. Newly uploaded chunks begin as unverified. After supported text parsing completes, the client asks the server to mark those exact workspace-owned chunk IDs as processed. In this app, verified means the intake/parse step completed; it does not mean the factual claims in a user-uploaded document were independently fact-checked. Browser-supplied context is labeled unverified and is never silently persisted by chat requests. Persistent retrieval only returns processed chunks from the current user's workspace.
+
+The Judge Arena uses an eight-dimension weighted rubric and calculates the final score server-side. The evaluator is instructed to penalize missing proof; 94/100 is an aspirational quality bar, not a default or guaranteed result.
+
+
+## Durable workspace persistence
+
+When a user is authenticated and `DATABASE_URL` is configured, GUIDATHON now restores and autosaves the active project workspace. The versioned owner-scoped snapshot includes the challenge brief, onboarding context, source ledger, Hermes transcript, idea/build outputs, submission notes, theme, and recent activity. Autosave is debounced and the top bar reports the workspace save state.
+
+Specialist agent conversations are stored independently per owner and agent, so switching rooms does not merge transcripts. Judge Arena results are saved as append-only history (latest ten shown in the UI). These features require the authenticated MySQL deployment and migration `0002_workspace_persistence.sql`; anonymous preview sessions remain local-only.
+
+The current product intentionally supports one default workspace per account. Named projects and database-backed integration tests remain follow-up work. Chronos tasks can now be added, assigned an owner/checkpoint, completed or reopened, and are included in the durable workspace snapshot.
+
+
+## Release configuration and honest model evaluation
+
+Authentication is implemented with the Manus OAuth callback, signed HS256 session cookies, database-backed user records, and protected tRPC procedures. It is **not active in a deployment until** `DATABASE_URL`, `MANUS_PROJECT_ID`, `MANUS_JWT_SECRET`, and `MANUS_OAUTH_API_URL` are configured. Without a database, the context deliberately leaves requests anonymous and protected persistence endpoints unavailable. Check `/api/health` and its `authenticationConfigured` capability before demonstrating sign-in.
+
+The current agent knowledge is prompt + retrieval based, not fine-tuned model weights. The starter corpus is a small, curated, source-attributed set of eight chunks. Gemini Embedding 001 creates 768-dimensional retrieval vectors when the key is available. Retrieval uses cosine similarity for vectorized records and normalized lexical term coverage when embeddings are unavailable. Do not describe this as training a foundation model.
+
+Agent quality is guarded by deterministic regression tests:
+- `shared/agentRouting.test.ts`: seven cases covering Hermes, Zeus, Athena, Hephaestus, Chronos, and no-forced-handoff behavior.
+- `shared/evaluation.test.ts`: eight-dimension, 100-point weighted judge rubric and score-boundary handling.
+- `server/rag.test.ts`: vector cosine and lexical retrieval scoring, including case-insensitive fallback and empty queries.
+
+These tests measure routing, retrieval mechanics, and scoring contracts; they do not prove that every live model response is factually correct. Live model evaluation requires configured provider credentials and a separate judged prompt set.

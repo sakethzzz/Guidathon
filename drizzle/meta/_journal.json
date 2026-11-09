@@ -8,6 +8,20 @@
       "when": 1788785580464,
       "tag": "0000_initial_users",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1794000000000,
+      "tag": "0001_knowledge_chunks",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1794090000000,
+      "tag": "0002_workspace_persistence",
+      "breakpoints": true
     }
   ]
 }

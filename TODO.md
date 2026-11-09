@@ -120,3 +120,23 @@
 - [x] Light mode is now the normal default: clean background, restrained cursor treatment, and no gold particle overlay.
 - [x] Dark mode now activates a site-wide Antigravity-inspired gold particle field with slow floating flakes, a glowing cursor ring/core, and a radial click burst.
 - [x] The field remains pointer-transparent, responsive on mobile, and respects reduced-motion preferences; existing click-only sound behavior remains unchanged.
+
+
+## Production-readiness pass (2026-11-08)
+
+- [x] Preserve the existing mythic visual system, five specialist rooms, role chats, interactive constellation, model-viewer stage, RAG, MCP boundary, and Judge Arena while hardening the feature branch separately from the original draft PR.
+- [x] Require authentication for knowledge ingestion and Judge Arena evaluation.
+- [x] Stop chat requests from silently persisting browser-supplied context as trusted knowledge.
+- [x] Label browser-provided evidence as unverified and distinguish it from server-retrieved processed chunks in the model context and response metadata.
+- [x] Keep newly ingested chunks unverified until the authenticated workspace confirms successful local parsing.
+- [x] Restrict persistent retrieval to processed chunks belonging to the authenticated user's workspace.
+- [x] Reset a chunk to unverified when its content is re-ingested, preventing stale verification from carrying over to changed content.
+- [x] Align the Drizzle schema's workspace/status index with the SQL migration.
+- [x] Add automated tests for retrieval trust boundaries, vector/lexical fallback, MCP confirmation, and evaluation score normalization.\n- [ ] Add database-backed integration tests for snapshot round-trips, agent transcript isolation, and Judge Arena history.
+- [ ] Add provider timeouts, retry/backoff, structured-output validation, and model-call rate limits.
+- [x] Persist the core project brief, onboarding context, source ledger, Hermes transcript, idea/build artifacts, submission notes, theme, and activity stream in an owner-scoped, versioned workspace snapshot with debounced autosave.\n- [x] Persist each specialist agent transcript independently and restore it in that agent’s room.\n- [x] Persist Judge Arena evaluations as append-only, owner-scoped history and show the latest ten saved runs.\n- [x] Make Chronos milestones editable: add tasks, assign an owner/checkpoint, mark complete/reopen, and persist task state in the workspace snapshot.\n- [ ] Expand the single-workspace model into named projects/workspaces.
+- [ ] Complete MCP transport compatibility, tool-schema validation, permission policy, and audit logging.
+- [ ] Run migration against a disposable MySQL instance and verify multi-user isolation (requires DATABASE_URL).
+- [ ] Complete mobile, keyboard, reduced-motion, and screen-reader QA.
+- [ ] Verify production deployment with real environment variables, health checks, and a live smoke test.
+- [ ] Earn the target Judge Arena score through reproducible evidence; 94/100 is a goal, never a preset.
