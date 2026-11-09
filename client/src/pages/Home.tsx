@@ -1009,7 +1009,7 @@ export default function Home() {
 
   return (
     <div className={`app-shell theme-${themeMode} ${entered ? "has-entered" : "is-landing"}`} onPointerDown={triggerClickSpark}>
-      <video ref={stormVideoRef} className="storm-video" autoPlay muted loop playsInline preload="auto" aria-hidden="true"><source src="/media/guidathon-storm-loop.mp4" type="video/mp4" /></video>
+      <video ref={stormVideoRef} className="storm-video" autoPlay muted loop playsInline preload="metadata" aria-hidden="true"><source src="/media/guidathon-storm-loop.mp4" type="video/mp4" /></video>
       <div className="storm-noise" />
       {goldFlakes && <AntigravityField cursor={cursor} spark={clickSpark} />}
       {handoff && <div className="handoff-transition" aria-live="polite"><div className="cloud-curtain cloud-left" /><div className="cloud-curtain cloud-right" /><div className="cloud-mist cloud-mist-one" /><div className="cloud-mist cloud-mist-two" /><div className="handoff-transition-copy"><span className="mono">CONTEXT IN MOTION</span><strong>{handoff.from} <i>→</i> {handoff.to}</strong><small>carrying the latest brief forward</small></div></div>}
