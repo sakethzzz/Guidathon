@@ -431,6 +431,7 @@ export default function Home() {
   const workspaceSave = trpc.workspace.save.useMutation();
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const workspaceHydrated = useRef(false);
+  const seedRagIngested = useRef(false);
   const localWorkspaceHydrated = useRef(false);
 
   useEffect(() => {
@@ -573,7 +574,21 @@ export default function Home() {
     const timer = window.setTimeout(() => workspaceSave.mutate({ snapshot: durableSnapshot }), 850);
     return () => window.clearTimeout(timer);
   }, [currentUser, workspaceReady, durableSnapshot]);
-  const selected = agentById(activeAgent);
+
+  useEffect(() => {
+    if (!currentUser || !workspaceReady || seedRagIngested.current) return;
+    seedRagIngested.current = true;
+    const seed = sources.filter(source => source.status === "verified").flatMap(source => source.chunks).slice(0, 50);
+    if (!seed.length) return;
+    hermesIngest.mutate({ chunks: seed.map(chunk => ({ id: chunk.id, sourceName: chunk.source, heading: chunk.heading, content: chunk.passage, provenance: chunk.provenance })) }, {
+      onSuccess: result => {
+        if (!result.persisted) { setRagStats(current => ({ ...current, mode: "browser lexical fallback · server store unavailable" })); return; }
+        hermesComplete.mutate({ ids: seed.map(chunk => chunk.id) }, { onSuccess: () => setRagStats(current => ({ persisted: result.count, embedded: result.vectorCount ?? 0, mode: result.vectorized ? "Gemini embeddings + cosine retrieval" : "stored chunks · lexical fallback", lastQuery: current.lastQuery, topScore: current.topScore })) });
+      },
+      onError: () => setRagStats(current => ({ ...current, mode: "browser lexical fallback · ingestion unavailable" }))
+    });
+  }, [currentUser, workspaceReady]);
+\n  const selected = agentById(activeAgent);
   const readyCount = sources.filter(source => source.status === "verified").length;
   const deadlineMs = new Date(deadlineAt).getTime();
   const remainingMs = Number.isFinite(deadlineMs) ? Math.max(0, deadlineMs - clockNow) : 0;
