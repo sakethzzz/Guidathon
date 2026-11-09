@@ -17,8 +17,6 @@ import {
   Radar,
   Settings2,
   Sparkles,
-  Sun,
-  Moon,
   Target,
   Timer,
   UploadCloud,
@@ -401,7 +399,6 @@ export default function Home() {
   const [ideaResponse, setIdeaResponse] = useState("");
   const [submissionInput, setSubmissionInput] = useState("");
   const [submissionResult, setSubmissionResult] = useState("");
-  const [cursor, setCursor] = useState({ x: -100, y: -100 });
   const [clickSpark, setClickSpark] = useState<{ id: number; x: number; y: number } | null>(null);
   const [handoff, setHandoff] = useState<{ from: string; to: string } | null>(null);
   const [carouselPointer, setCarouselPointer] = useState({ x: 0, y: 0 });
@@ -464,19 +461,6 @@ export default function Home() {
     workspaceHydrated.current = true;
     setWorkspaceReady(true);
   }, [currentUser, workspaceQuery.isSuccess, workspaceQuery.data]);
-
-  useEffect(() => {
-    let lastUpdate = 0;
-    const handleMove = (event: PointerEvent) => {
-      if (event.pointerType === "touch") return;
-      const now = performance.now();
-      if (now - lastUpdate < 40) return;
-      lastUpdate = now;
-      setCursor({ x: event.clientX, y: event.clientY });
-    };
-    window.addEventListener("pointermove", handleMove, { passive: true });
-    return () => window.removeEventListener("pointermove", handleMove);
-  }, []);
 
   useEffect(() => {
     try { localStorage.setItem("guidathon-gold-flakes", goldFlakes ? "on" : "off"); } catch { /* storage may be unavailable */ }
@@ -865,7 +849,7 @@ export default function Home() {
       return <SourceAgentRoom agents={agents} selected={selected} onSelect={selectAgent} onHandoff={enterAgentRoom} context={allChunks} sources={sources} manualNote={manualNote} setManualNote={setManualNote} addManualNote={addManualNote} onUpload={() => fileInputRef.current?.click()} uploadedName={uploadedName} />;
     }
     if (activeNav === "Settings") {
-      return <div className="room-body settings-room"><div className="settings-card"><div className="section-kicker"><span className="kicker-dot gold" /> Workspace controls</div><h3>Shape the constellation to your working style.</h3><div className="setting-row"><div><b>Goldfall mode</b><p>Keep the dark console clean, or let translucent gold confetti drift across the foreground.</p></div><button className={`theme-switch ${goldFlakes ? "dark" : "light"}`} aria-pressed={goldFlakes} onClick={() => setGoldFlakes(value => !value)}><span /> {goldFlakes ? "goldfall on" : "dark only"}</button></div><div className="setting-row"><div><b>Interaction sound</b><p>Click-only spark and rumble; no passive audio.</p></div><span className="integration-pill unverified">enabled</span></div></div><div className="history-card"><div className="section-kicker"><span className="kicker-dot blue" /> Agent history</div><h3>What the spirits have done</h3><div className="history-log">{activities.map(activity => <div className="history-row" key={activity.id}><span className="mono">{activity.time}</span><b>{agentById(activity.agent).name}</b><span>{activity.action} — {activity.detail}</span></div>)}</div></div></div>;
+      return <div className="room-body settings-room"><div className="settings-card"><div className="section-kicker"><span className="kicker-dot gold" /> Workspace controls</div><h3>Shape the constellation to your working style.</h3><div className="setting-row"><div><b>Goldfall mode</b><p>Keep the dark console clean, or let translucent gold confetti drift across the foreground.</p></div><button className="theme-switch" aria-pressed={goldFlakes} onClick={() => setGoldFlakes(value => !value)}><span /> {goldFlakes ? "goldfall on" : "dark only"}</button></div><div className="setting-row"><div><b>Interaction sound</b><p>Click-only spark and rumble; no passive audio.</p></div><span className="integration-pill unverified">enabled</span></div></div><div className="history-card"><div className="section-kicker"><span className="kicker-dot blue" /> Agent history</div><h3>What the spirits have done</h3><div className="history-log">{activities.map(activity => <div className="history-row" key={activity.id}><span className="mono">{activity.time}</span><b>{agentById(activity.agent).name}</b><span>{activity.action} — {activity.detail}</span></div>)}</div></div></div>;
     }
     if (activeNav === "Agents") {
       return (
@@ -1101,6 +1085,10 @@ function OverviewStack({ agents, onSelect }: { agents: AgentRecord[]; onSelect: 
     const viewport = viewportRef.current;
     const cards = gsap.utils.toArray<HTMLElement>(".overview-stack-card", stackRef.current);
     if (!viewport || cards.length === 0) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      gsap.set(cards, { autoAlpha: 1, y: 0, scale: 1, filter: "none", pointerEvents: "auto", clearProps: "zIndex" });
+      return;
+    }
 
     gsap.set(cards, { autoAlpha: 0, y: 72, scale: 0.96, filter: "blur(4px)", zIndex: (index) => index + 1, pointerEvents: "none", transformOrigin: "center center" });
     gsap.set(cards[0], { autoAlpha: 1, y: 0, scale: 1, filter: "blur(0px)", pointerEvents: "auto", zIndex: cards.length + 1 });
