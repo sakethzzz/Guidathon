@@ -512,7 +512,7 @@ export default function Home() {
   const durableSnapshot = useMemo(() => ({
     schemaVersion: 1,
     onboardingComplete, challenge, event, team, uncertainty, activeNav, activeAgent,
-    sources, hermesMessages, activities, tasks, ideaRun, stackRun, ideaInput, ideaResponse,
+    sources: sources.map(source => source.kind !== "fixture" && source.detail.toLowerCase().includes("persisted") ? { ...source, chunks: [] } : source), hermesMessages, activities, tasks, ideaRun, stackRun, ideaInput, ideaResponse,
     submissionInput, submissionResult, manualNote, uploadedName, themeMode,
   }), [onboardingComplete, challenge, event, team, uncertainty, activeNav, activeAgent, sources, hermesMessages, activities, tasks, ideaRun, stackRun, ideaInput, ideaResponse, submissionInput, submissionResult, manualNote, uploadedName, themeMode]);
 
@@ -762,7 +762,7 @@ export default function Home() {
       detail = `Content unverified · ${error instanceof Error ? error.message : "document extraction failed"}`;
     }
     const chunks = detail.includes("unverified") ? [] : splitIntoChunks(text, file.name, `upload-${Date.now()}`);
-    const truncated = chunks.length === 50 && text.length > chunks.reduce((total, chunk) => total + chunk.passage.length, 0);
+    const truncated = chunks.length === 50 && text.length > 79200;
     const record: SourceRecord = {
       id: `src-${Date.now()}`,
       name: file.name,
