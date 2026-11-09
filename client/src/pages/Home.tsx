@@ -1133,7 +1133,84 @@ function OverviewStack({ agents, onSelect }: { agents: AgentRecord[]; onSelect: 
 }
 function ModelViewer({ agent }: { agent: AgentRecord }) {
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
-  return <div className={`model-viewer accent-${agent.accent}`} onPointerMove={event => { const rect = event.currentTarget.getBoundingClientRect(); setTilt({ x: ((event.clientY - rect.top) / rect.height - .5) * -14, y: ((event.clientX - rect.left) / rect.width - .5) * 18 }); }} onPointerLeave={() => setTilt({ x: 0, y: 0 })} aria-label={`${agent.name} interactive model viewer`}><div className="model-viewer-grid" /><div className="model-viewer-ring ring-a" /><div className="model-viewer-ring ring-b" /><div className="model-viewer-shadow" /><img src={agent.art} alt={`${agent.name} chibi model`} style={{ transform: `translateY(-8px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) rotateZ(${tilt.y * -.08}deg) scale(1.08)` }} /><span className="model-viewer-label">drag gaze · hover to rotate</span></div>;
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    } catch {
+      return;
+    }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setClearColor(0x000000, 0);
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 30);
+    camera.position.set(0, 0, 5.2);
+    const orbit = new THREE.Group();
+    scene.add(orbit);
+    const colors: Record<string, number> = { blue: 0x78bfff, violet: 0xb7a0ff, rose: 0xffa2c4, orange: 0xffbd75, teal: 0x8ce9dc };
+    const glow = colors[agent.accent] ?? 0xe8c878;
+    const ringA = new THREE.Mesh(new THREE.TorusGeometry(1.28, 0.014, 8, 120), new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.9 }));
+    ringA.rotation.set(0.95, 0.25, 0.15);
+    orbit.add(ringA);
+    const ringB = new THREE.Mesh(new THREE.TorusGeometry(1.48, 0.008, 8, 120), new THREE.MeshBasicMaterial({ color: 0xe8c878, transparent: true, opacity: 0.58 }));
+    ringB.rotation.set(1.25, -0.55, 0.45);
+    orbit.add(ringB);
+    const halo = new THREE.Mesh(new THREE.SphereGeometry(1.03, 32, 32), new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.055, wireframe: true }));
+    orbit.add(halo);
+    let avatar: THREE.Mesh | null = null;
+    const loader = new THREE.TextureLoader();
+    loader.load(agent.art, texture => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide, depthWrite: false });
+      avatar = new THREE.Mesh(new THREE.PlaneGeometry(1.85, 2.15), material);
+      avatar.position.set(0, 0.03, 0.18);
+      orbit.add(avatar);
+    });
+    const resize = () => {
+      const width = Math.max(1, canvas.clientWidth);
+      const height = Math.max(1, canvas.clientHeight);
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    };
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(canvas);
+    let frame = 0;
+    const animate = () => {
+      frame = requestAnimationFrame(animate);
+      ringA.rotation.z += 0.0018;
+      ringB.rotation.y += 0.0012;
+      if (avatar) avatar.rotation.y = Math.sin(performance.now() * 0.00045) * 0.035;
+      renderer.render(scene, camera);
+    };
+    animate();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      scene.traverse(object => {
+        if (object instanceof THREE.Mesh) {
+          object.geometry.dispose();
+          const material = object.material;
+          if (Array.isArray(material)) material.forEach(item => item.dispose());
+          else material.dispose();
+        }
+      });
+      renderer.dispose();
+    };
+  }, [agent.art, agent.accent]);
+  return <div className={`model-viewer accent-${agent.accent}`} onPointerMove={event => { const rect = event.currentTarget.getBoundingClientRect(); setTilt({ x: ((event.clientY - rect.top) / rect.height - .5) * -14, y: ((event.clientX - rect.left) / rect.width - .5) * 18 }); }} onPointerLeave={() => setTilt({ x: 0, y: 0 })} aria-label={`${agent.name} interactive 3D chibi model viewer`}>
+    <div className="model-viewer-grid" />
+    <div className="model-viewer-ring ring-a" />
+    <div className="model-viewer-ring ring-b" />
+    <div className="model-viewer-shadow" />
+    <img className="model-viewer-fallback" src={agent.art} alt={`${agent.name} chibi model`} style={{ transform: `translateY(-8px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) rotateZ(${tilt.y * -.08}deg) scale(1.08)` }} />
+    <canvas ref={canvasRef} className="model-viewer-canvas" aria-hidden="true" style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` }} />
+    <span className="model-viewer-label">3D orbit · drag gaze · hover to rotate</span>
+  </div>;
 }
 
 function SourceAgentRoom({ agents, selected, onSelect, onHandoff, context, sources, manualNote, setManualNote, addManualNote, onUpload, uploadedName }: { agents: AgentRecord[]; selected: AgentRecord; onSelect: (id: AgentId) => void; onHandoff: (id: AgentId) => void; context: Chunk[]; sources: SourceRecord[]; manualNote: string; setManualNote: (value: string) => void; addManualNote: () => void; onUpload: () => void; uploadedName: string }) {
