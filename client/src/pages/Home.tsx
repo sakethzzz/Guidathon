@@ -245,7 +245,7 @@ const initialTasks: Task[] = [
 ];
 
 function tokenize(value: string) {
-  return new Set(value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean));
+  return new Set(value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/u).filter(Boolean));
 }
 
 function scorePassage(query: string, passage: string) {
