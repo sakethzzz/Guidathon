@@ -87,6 +87,26 @@ async function callGroq(messages: ChatTurn[], maxTokens: number) {
   return { answer, provider: process.env.GROQ_MODEL || "groq-llama-3.3-70b" };
 }
 
+async function callPollinations(messages: ChatTurn[], maxTokens: number) {
+  const response = await fetch("https://text.pollinations.ai/openai", {
+    method: "POST",
+    headers: { "content-type": "application/json", "accept": "application/json" },
+    signal: AbortSignal.timeout(22000),
+    body: JSON.stringify({
+      model: "openai-fast",
+      messages,
+      max_tokens: maxTokens,
+      temperature: 0.38,
+      stream: false,
+    }),
+  });
+  if (!response.ok) throw new Error(`Community model fallback failed (${response.status})`);
+  const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+  const answer = data.choices?.[0]?.message?.content?.trim() ?? "";
+  if (!answer) throw new Error("Community model returned an empty answer");
+  return { answer, provider: "pollinations/openai-fast" };
+}
+
 async function callManaged(messages: ChatTurn[], maxTokens: number) {
   const result = await withTimeout(invokeLLM({ messages, maxTokens }), 25000, "Managed model");
   const raw = result.choices?.[0]?.message?.content;
@@ -97,7 +117,7 @@ async function callManaged(messages: ChatTurn[], maxTokens: number) {
 
 async function runModel(messages: ChatTurn[], maxTokens = 700, preferred?: z.infer<typeof providerSchema>) {
   let lastError: unknown;
-  const providers = preferred === "groq" ? [callGroq, callGemini, callManaged] : preferred === "managed" ? [callManaged, callGemini, callGroq] : [callGemini, callGroq, callManaged];
+  const providers = preferred === "groq" ? [callGroq, callGemini, callPollinations, callManaged] : preferred === "managed" ? [callManaged, callGemini, callGroq, callPollinations] : [callGemini, callGroq, callPollinations, callManaged];
   for (const provider of providers) {
     try {
       const result = await provider(messages, maxTokens);
@@ -319,8 +339,15 @@ export const appRouter = router({
           const result = await runModel(messages, tokenBudget[input.agent], input.provider ?? (input.agent === "hermes" || input.agent === "athena" ? "gemini" : "groq"));
           return { answer: result.answer, provider: result.provider, citations: [...(input.agent === "hermes" ? combinedContext.map(chunk => chunk.id) : []), ...research.citations], handoffTo: null };
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Agent model unavailable";
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message });
+          const q = input.question.trim();
+          const fallbackByRole: Record<AgentId, string> = {
+            hermes: `**Quick research brief**\\n\\nQuestion: ${q}\\n\\nI couldn't reach a hosted model right now. Use the linked Wikipedia material below as a starting point, not as a complete answer:\\n\\n${research.text.slice(0, 2600) || "No live reference material was returned. Try a shorter, specific query."}\\n\\n**Next step:** add your project documents in Sources so I can ground the answer in your own evidence.`,
+            zeus: `**Coordination brief**\\n\\nGoal: ${q}\\n\\n1. Athena: define the user problem and choose one defensible direction.\\n2. Hephaestus: choose the smallest reliable stack and build one vertical slice.\\n3. Hermes: verify important claims and keep source links.\\n4. Chronos: assign owners, checkpoints, code freeze, and a safe upload buffer.\\n\\n**Decision rule:** one shared priority, one owner per task, no parallel work without a clear interface.`,
+            athena: `**Verdict:** turn this into one testable outcome before adding features.\\n\\n**Target user + pain:** name the exact person and the costly or frustrating moment behind: ${q}\\n\\n**Stronger concept:** solve that moment with one obvious workflow and a measurable result.\\n\\n**Differentiator:** a specific advantage in workflow, data, trust, distribution, or execution—not simply "AI-powered".\\n\\n**MVP:** one user input, one core transformation, one visible output.\\n\\n**Validation:** show it to 5 target users; continue only if at least 3 understand the value and 2 ask to use it again.\\n\\n**Scale path:** prove repeat use in one niche, then expand to adjacent users.\\n\\n**Next 3 moves:** interview users; prototype the single core flow; measure completion and repeat intent.`,
+            hephaestus: `**Recommended build path**\\n\\n**Fast demo stack:** React + Vite, TypeScript, Express/tRPC, managed SQL, and a hosted model API.\\n**Open-source alternative:** React, FastAPI, PostgreSQL + pgvector, and an Ollama-hosted model when hardware permits.\\n**Scale path:** keep API boundaries stable, add queues and observability only after usage proves the need.\\n\\n**Workflow:** UI → validated API → role logic → retrieval/model/tool → persistence → response with citations.\\n\\n**For this task:** ${q}\\n\\nBuild one end-to-end happy path first; add auth, retries, logging, and tests around it. Keep credentials server-side.`,
+            chronos: `**36-hour plan:** 0–2h brief and team roles; 2–5h user validation and architecture; 5–8h UX/API skeleton; 8–20h parallel vertical-slice build; 20–26h integration; 26–30h QA and fixes; 30–33h demo and pitch; 33–34h freeze and final QA; 34–36h contingency and submission.\\n\\n**48-hour plan:** 0–3h brief; 3–7h validation and architecture; 7–12h prototype and skeleton; 12–28h build; 28–34h integration; 34–39h QA; 39–43h demo/pitch; 43–45h freeze; 45–48h contingency and submission.\\n\\n**Safe deadline:** target upload 90 minutes early; reserve the final 10–15% for QA, export, and submission.\\n\\nCurrent task: ${q}. Set owners and explicit done criteria at each checkpoint.`,
+          };
+          return { answer: fallbackByRole[input.agent], provider: "guidathon-local-safety-fallback", citations: [...(input.agent === "hermes" ? combinedContext.map(chunk => chunk.id) : []), ...research.citations], handoffTo: null, degraded: true, note: error instanceof Error ? error.message : "Hosted model unavailable" };
         }
       }),
   }),
