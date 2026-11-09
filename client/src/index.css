@@ -986,7 +986,8 @@ button:disabled { cursor: not-allowed; opacity: .58; }
   .antigravity-particles i:nth-child(3n) { opacity: .07; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .antigravity-field { display: none; }
+  .antigravity-field { display: block; }
+  .antigravity-particles i { animation: none !important; opacity: .16; }
 }
 
 
@@ -1043,8 +1044,8 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 }
 .antigravity-cursor-ring, .antigravity-cursor-core { display: none; }
 @media (prefers-reduced-motion: reduce) {
-  .antigravity-field { display: none; }
-  .antigravity-particles i { animation: none !important; }
+  .antigravity-field { display: block; }
+  .antigravity-particles i { animation: none !important; opacity: .16; }
 }
 
 
