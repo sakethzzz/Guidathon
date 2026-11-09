@@ -675,10 +675,7 @@ export default function Home() {
     pushActivity("hermes", "Handed the brief to Athena", "Idea pressure-testing is next; the original brief stays attached.", "live");
   };
 
-  const fallbackHermesAnswer = (question: string, ranked: Chunk[]) => {
-    if (!ranked.length) return `I could not ground “${question}” in the current source pack. Add a brief, judging rubric, or event guide in the intake panel and I will use it in the next answer.`;
-    return `Here is the grounded answer from the current source pack:\n\n${ranked.map(chunk => `• ${chunk.passage} [${chunk.id}]`).join("\n\n")}\n\nNext move: turn the relevant point into one decision your team can test this cycle.`;
-  };
+
 
   const askHermes = () => {
     const question = hermesInput.trim();
@@ -715,10 +712,9 @@ export default function Home() {
         }
         pushActivity("hermes", "Answered with model support", `${result.citations.length} source IDs were available to the response.`, "complete");
       },
-      onError: () => {
-        const answer = fallbackHermesAnswer(question, ranked);
-        setHermesMessages(current => [...current, { role: "assistant", content: answer, citations: ranked.map(chunk => chunk.id) }]);
-        pushActivity("hermes", "Returned a transparent fallback", "The server model route was unavailable; local evidence remains visible.", "complete");
+      onError: error => {
+        setHermesMessages(current => [...current, { role: "assistant", content: error.message, citations: [] }]);
+        pushActivity("hermes", "Model provider unavailable", "No answer was fabricated; configure a model provider and retry.", "queued");
       },
     });
   };
@@ -818,8 +814,8 @@ export default function Home() {
         setIdeaRun(true);
         pushActivity("athena", "Scaled the submitted idea", "Generated alternatives, selected a focused thesis, and attached a proof move.", "complete");
       },
-      onError: () => {
-        setIdeaResponse("Athena could not reach the model route. Keep the idea narrow: one user, one painful moment, one proof signal, one demo path.");
+      onError: error => {
+        setIdeaResponse(error.message);
       },
     });
   };
@@ -1318,9 +1314,9 @@ function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agen
         setMessages(nextTranscript);
         if (currentUser) saveConversation.mutate({ agent: agent.id, messages: nextTranscript });
       },
-      onError: () => {
+      onError: error => {
         setProvider("model unavailable");
-        const nextTranscript = [...pendingTranscript, { role: "agent" as const, text: "The live model route failed for this request. No AI answer was generated; check the model API key/provider configuration and retry." }];
+        const nextTranscript = [...pendingTranscript, { role: "agent" as const, text: error.message }];
         setMessages(nextTranscript);
         if (currentUser) saveConversation.mutate({ agent: agent.id, messages: nextTranscript });
       },
