@@ -1208,7 +1208,7 @@ function ModelViewer({ agent }: { agent: AgentRecord }) {
     <div className="model-viewer-ring ring-b" />
     <div className="model-viewer-shadow" />
     <img className="model-viewer-fallback" src={agent.art} alt={`${agent.name} chibi model`} style={{ transform: `translateY(-8px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) rotateZ(${tilt.y * -.08}deg) scale(1.08)` }} />
-    <canvas ref={canvasRef} className="model-viewer-canvas" aria-hidden="true" style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` }} />
+    <canvas ref={canvasRef} className="model-viewer-canvas" aria-hidden="true" style={{ width: "100%", height: "100%", position: "absolute", inset: 0, zIndex: 2, pointerEvents: "none", transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` }} />
     <span className="model-viewer-label">3D orbit · drag gaze · hover to rotate</span>
   </div>;
 }
