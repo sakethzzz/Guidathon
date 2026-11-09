@@ -59,32 +59,38 @@ export function cosine(a: number[], b: number[]) {
 export async function persistKnowledge(workspaceId: string, chunks: KnowledgeInput[]) {
   const db = await getDb();
   if (!db) return { persisted: false, count: 0, reason: "DATABASE_URL is not configured" };
+  const accepted = chunks.slice(0, 50);
   let count = 0;
   let vectorCount = 0;
-  for (const chunk of chunks.slice(0, 50)) {
-    const vector = await embed(`${chunk.heading}\n${chunk.content}`, "RETRIEVAL_DOCUMENT").catch(() => null);
-    if (vector) vectorCount += 1;
-    await db.insert(knowledgeChunks).values({
-      storageKey: `${workspaceId.slice(0, 48)}:${chunk.id.slice(0, 140)}`,
-      id: chunk.id,
-      workspaceId,
-      sourceName: chunk.sourceName.slice(0, 255),
-      heading: chunk.heading.slice(0, 255),
-      content: chunk.content.slice(0, 12000),
-      provenance: chunk.provenance.slice(0, 500),
-      embedding: vector ? JSON.stringify(vector) : null,
-      status: "unverified",
-    }).onDuplicateKeyUpdate({
-      set: {
+  // Bound concurrency so a 50-chunk upload does not serialize 50 embedding round-trips.
+  for (let offset = 0; offset < accepted.length; offset += 4) {
+    const batch = accepted.slice(offset, offset + 4);
+    const results = await Promise.all(batch.map(async chunk => {
+      const vector = await embed(`${chunk.heading}\n${chunk.content}`, "RETRIEVAL_DOCUMENT").catch(() => null);
+      await db.insert(knowledgeChunks).values({
+        storageKey: `${workspaceId.slice(0, 48)}:${chunk.id.slice(0, 140)}`,
+        id: chunk.id,
+        workspaceId,
         sourceName: chunk.sourceName.slice(0, 255),
         heading: chunk.heading.slice(0, 255),
         content: chunk.content.slice(0, 12000),
         provenance: chunk.provenance.slice(0, 500),
         embedding: vector ? JSON.stringify(vector) : null,
         status: "unverified",
-      },
-    });
-    count += 1;
+      }).onDuplicateKeyUpdate({
+        set: {
+          sourceName: chunk.sourceName.slice(0, 255),
+          heading: chunk.heading.slice(0, 255),
+          content: chunk.content.slice(0, 12000),
+          provenance: chunk.provenance.slice(0, 500),
+          embedding: vector ? JSON.stringify(vector) : null,
+          status: "unverified",
+        },
+      });
+      return Boolean(vector);
+    }));
+    count += batch.length;
+    vectorCount += results.filter(Boolean).length;
   }
   return { persisted: true, count, vectorized: vectorCount === count, vectorCount };
 }
