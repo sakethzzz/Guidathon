@@ -388,11 +388,14 @@ export default function Home() {
   const [hermesMessages, setHermesMessages] = useState<Array<{ role: "user" | "assistant"; content: string; citations?: string[] }>>([]);
   const [sources, setSources] = useState<SourceRecord[]>(initialSources);
   const [activities, setActivities] = useState<Activity[]>(initialActivity);
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskOwner, setNewTaskOwner] = useState("Team");
   const [newTaskDate, setNewTaskDate] = useState("Before submission");
   const [retrieval, setRetrieval] = useState<Chunk[]>([]);
+  const [ragStats, setRagStats] = useState({ persisted: 0, embedded: 0, mode: "browser lexical fallback", lastQuery: "", topScore: 0 });
+  const [deadlineAt, setDeadlineAt] = useState(() => { try { return localStorage.getItem("guidathon-deadline") || "2026-11-10T00:00"; } catch { return "2026-11-10T00:00"; } });
+  const [clockNow, setClockNow] = useState(() => Date.now());
   const [manualNote, setManualNote] = useState("");
   const [ideaRun, setIdeaRun] = useState(false);
   const [stackRun, setStackRun] = useState(false);
@@ -486,6 +489,9 @@ export default function Home() {
   }, [themeMode, goldFlakes]);
 
   // Thunder is intentionally user-triggered; no periodic or autoplay audio.
+  useEffect(() => { const timer = window.setInterval(() => setClockNow(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
+  useEffect(() => { try { localStorage.setItem("guidathon-deadline", deadlineAt); } catch { /* optional */ } }, [deadlineAt]);
+  useEffect(() => { const keys: Record<string, AgentId> = { a: "athena", z: "zeus", h: "hermes", p: "hephaestus", c: "chronos" }; const onKey = (event: KeyboardEvent) => { if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return; if (event.target instanceof HTMLElement && event.target.closest("input, textarea, select, [contenteditable=true]")) return; const agent = keys[event.key.toLowerCase()]; if (!agent) return; event.preventDefault(); enterAgentRoom(agent); }; window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey); }, []);
 
   useEffect(() => {
     if (!entered || activeNav !== "Agents" || !carouselAutoplay || carouselHover || carouselDragging) return;
@@ -513,9 +519,9 @@ export default function Home() {
   const durableSnapshot = useMemo(() => ({
     schemaVersion: 1,
     onboardingComplete, challenge, event, team, uncertainty, activeNav, activeAgent,
-    sources, hermesMessages, activities, tasks, ideaRun, stackRun, ideaInput, ideaResponse,
+    sources, hermesMessages, activities, tasks, deadlineAt, ragStats, ideaRun, stackRun, ideaInput, ideaResponse,
     submissionInput, submissionResult, manualNote, uploadedName, themeMode, goldFlakes,
-  }), [onboardingComplete, challenge, event, team, uncertainty, activeNav, activeAgent, sources, hermesMessages, activities, tasks, ideaRun, stackRun, ideaInput, ideaResponse, submissionInput, submissionResult, manualNote, uploadedName, themeMode]);
+  }), [onboardingComplete, challenge, event, team, uncertainty, activeNav, activeAgent, sources, hermesMessages, activities, tasks, ideaRun, stackRun, ideaInput, ideaResponse, submissionInput, submissionResult, manualNote, uploadedName, themeMode, deadlineAt, ragStats]);
 
   useEffect(() => {
     if (currentUser || localWorkspaceHydrated.current) return;
@@ -535,6 +541,8 @@ export default function Home() {
           if (Array.isArray(saved.hermesMessages)) setHermesMessages(saved.hermesMessages.slice(-60));
           if (Array.isArray(saved.activities)) setActivities(saved.activities.slice(0, 40));
           if (Array.isArray(saved.tasks)) setTasks(saved.tasks.slice(0, 60));
+          if (typeof saved.deadlineAt === "string") setDeadlineAt(saved.deadlineAt);
+          if (saved.ragStats && typeof saved.ragStats === "object") setRagStats(saved.ragStats);
           setIdeaRun(Boolean(saved.ideaRun));
           setStackRun(Boolean(saved.stackRun));
           setIdeaInput(typeof saved.ideaInput === "string" ? saved.ideaInput : "");
@@ -566,6 +574,11 @@ export default function Home() {
   }, [currentUser, workspaceReady, durableSnapshot]);
   const selected = agentById(activeAgent);
   const readyCount = sources.filter(source => source.status === "verified").length;
+  const deadlineMs = new Date(deadlineAt).getTime();
+  const remainingMs = Number.isFinite(deadlineMs) ? Math.max(0, deadlineMs - clockNow) : 0;
+  const remainingHours = Math.floor(remainingMs / 3600000);
+  const remainingMinutes = Math.floor((remainingMs % 3600000) / 60000);
+  const remainingSeconds = Math.floor((remainingMs % 60000) / 1000);
   const readinessScore = Math.min(96, 26 + (challenge.trim().length > 24 ? 14 : 0) + readyCount * 8 + (ideaRun ? 16 : 0) + (stackRun ? 14 : 0) + (submissionInput.trim() ? 14 : 0) + Math.min(12, tasks.filter(task => task.status === "done").length * 3));
   const activeNavAgent: Partial<Record<NavId, AgentId>> = {
     Sources: "hermes",
@@ -725,6 +738,7 @@ export default function Home() {
       onSuccess: result => {
         setHermesMessages(current => [...current, { role: "assistant", content: result.answer, citations: result.citations }]);
         if (result.retrieved?.length) setRetrieval(result.retrieved as Chunk[]);
+        setRagStats(current => ({ ...current, mode: result.retrieved?.some((chunk: any) => chunk.evidenceStatus === "server-ingested-not-fact-checked") ? "workspace retrieval active" : "client context / lexical ranking", lastQuery: question, topScore: Math.max(0, ...(result.retrieved ?? []).map((chunk: any) => Number(chunk.score) || 0)) }));
         if (result.handoffTo) {
           const target = agentById(result.handoffTo);
           setHandoff({ from: "Hermes", to: target.name });
@@ -777,7 +791,7 @@ export default function Home() {
       id: chunk.id, sourceName: record.name, heading: chunk.heading,
       content: chunk.passage, provenance: chunk.provenance,
     })) }, {
-      onSuccess: result => finishLocalProcessing(Boolean(result.persisted)),
+      onSuccess: result => { setRagStats(current => ({ persisted: current.persisted + (result.persisted ? result.count : 0), embedded: current.embedded + (result.vectorCount ?? 0), mode: result.vectorized ? "Gemini embeddings + cosine retrieval" : result.persisted ? "stored chunks · lexical fallback" : "browser lexical fallback", lastQuery: current.lastQuery, topScore: current.topScore })); finishLocalProcessing(Boolean(result.persisted)); },
       onError: () => finishLocalProcessing(false),
     });
   };
