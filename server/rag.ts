@@ -37,7 +37,7 @@ async function embed(text: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_Q
 const stopWords = new Set(["the","and","for","with","that","this","from","what","when","where","which","who","how","why","are","was","were","will","would","could","should","about","into","your","you","our","their","them","have","has","had","can","not","but","does","did","than","then","also","just","make","made"]);
 
 function termsOf(value: string) {
-  return value.toLowerCase().normalize("NFKD").replace(/[^a-z0-9\\s]/g, " ").split(/\\s+/).filter(term => term.length > 2 && !stopWords.has(term));
+  return value.toLowerCase().normalize("NFKD").replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(term => term.length > 2 && !stopWords.has(term));
 }
 
 export function lexicalScore(query: string, content: string) {
