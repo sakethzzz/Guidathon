@@ -917,7 +917,7 @@ export default function Home() {
               </div>
             </div>
             <div className="carousel-instruction">
-              <div className="carousel-instruction-copy"><span className="mono">ACTIVE ORBIT // {selected.name.toUpperCase()}</span><span>drag · scroll · arrows · click to focus</span></div>
+              <div className="carousel-instruction-copy"><span className="mono">ACTIVE ORBIT // {selected.name.toUpperCase()}</span><span>drag · arrows · Ctrl+A Athena · Ctrl+Z Zeus · H Hermes · P Hephaestus · C Chronos</span></div>
               <div className="carousel-controls" aria-label="Carousel controls">
                 <button type="button" onClick={() => moveCarousel(-1)} aria-label="Previous agent">PREV</button>
                 <button type="button" className={carouselAutoplay ? "is-playing" : ""} onClick={() => setCarouselAutoplay(value => !value)} aria-pressed={carouselAutoplay}>{carouselAutoplay ? "PAUSE" : "AUTO"}</button>
