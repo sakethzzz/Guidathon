@@ -9,6 +9,7 @@ import { callExternalMcpTool, listExternalMcpTools } from "./mcp";
 import { TRPCError } from "@trpc/server";
 import { loadWorkspace, saveWorkspace, loadAgentConversation, saveAgentConversation, saveJudgeEvaluation, loadJudgeEvaluations } from "./workspace";
 import { z } from "zod";
+import { localAgentReply } from "./localAgentPlaybook";
 
 const hermesContextSchema = z.object({
   id: z.string().max(160),
@@ -291,10 +292,8 @@ export const appRouter = router({
         } catch (error) {
           const detail = error instanceof Error ? error.message : "No hosted model provider is configured";
           console.error("Hermes hosted-model route unavailable:", detail);
-          throw new TRPCError({
-            code: "BAD_GATEWAY",
-            message: `Hermes is unavailable. Check Vercel AI Gateway OIDC or configure GEMINI_API_KEY/GROQ_API_KEY. Details: ${detail.slice(0, 280)}. No canned answer was substituted.`,
-          });
+          const fallback = localAgentReply("hermes", input.question);
+          return { ...fallback, provider: "local-review-playbook", retrieved: combinedContext.map(chunk => ({ ...chunk, evidenceStatus: serverContext.some(item => item.id === chunk.id) ? "server-ingested-not-fact-checked" : "client-supplied-unverified" })) };
         }
       }),
   }),
@@ -434,10 +433,8 @@ export const appRouter = router({
         } catch (error) {
           const detail = error instanceof Error ? error.message : "No hosted model provider is configured";
           console.error(`${input.agent} hosted-model route unavailable:`, detail);
-          throw new TRPCError({
-            code: "BAD_GATEWAY",
-            message: `The ${input.agent} model is unavailable. Check Vercel AI Gateway OIDC or configure GEMINI_API_KEY/GROQ_API_KEY. Details: ${detail.slice(0, 280)}. No canned answer was substituted.`,
-          });
+          const fallback = localAgentReply(input.agent, input.question, input.agent === "athena" ? evidence : "");
+          return { ...fallback, provider: "local-review-playbook" };
         }
       }),
   }),
