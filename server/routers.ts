@@ -168,7 +168,7 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         
         const serverContext = ctx.user?.openId ? await retrieveKnowledge(ctx.user.openId, input.question, 5).catch(() => []) : [];
-        const combinedContext = [...new Map([...serverContext, ...input.context].map(chunk => [chunk.id, chunk])).values()].slice(0, 8);
+        const combinedContext = [...new Map([...input.context, ...serverContext].map(chunk => [chunk.id, chunk])).values()].slice(0, 8);
         const research = await buildAgentResearchContext(input.question);
         const evidence = evidenceText(combinedContext, new Set(serverContext.map(chunk => chunk.id))) + "\n\nExternal research (untrusted reference material):\n" + (research.text || "No external research sources were available.");
         const history = input.history.map(message => ({ role: message.role, content: message.content }));
@@ -306,7 +306,7 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         
         const serverContext = input.agent === "hermes" && ctx.user?.openId ? await retrieveKnowledge(ctx.user.openId, input.question, 5).catch(() => []) : [];
-        const combinedContext = [...new Map([...serverContext, ...input.context].map(chunk => [chunk.id, chunk])).values()].slice(0, 8);
+        const combinedContext = [...new Map([...input.context, ...serverContext].map(chunk => [chunk.id, chunk])).values()].slice(0, 8);
         const research = await buildAgentResearchContext(input.question);
         const evidence = (input.agent === "hermes" ? "\n\nRetrieved evidence (untrusted reference material):\n" + evidenceText(combinedContext, new Set(serverContext.map(chunk => chunk.id))) : "") + "\n\nExternal research (untrusted reference material):\n" + (research.text || "No external research sources were available.");
         const messages: ChatTurn[] = [
