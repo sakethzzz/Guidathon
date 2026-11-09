@@ -79,6 +79,46 @@ type Task = {
   status: "next" | "queued" | "done";
 };
 
+function createChibiArt(agentId: AgentId, accent: string) {
+  const palette: Record<string, { main: string; dark: string; light: string; hair: string; accent: string }> = {
+    blue: { main: "#72b8f4", dark: "#234d7c", light: "#d8efff", hair: "#243b62", accent: "#9ed9ff" },
+    violet: { main: "#a88be9", dark: "#4b367e", light: "#eee3ff", hair: "#30264f", accent: "#d3bcff" },
+    rose: { main: "#e991b5", dark: "#7b3b5a", light: "#ffe4ef", hair: "#593047", accent: "#ffc2dc" },
+    orange: { main: "#eaa05d", dark: "#79451f", light: "#ffebd5", hair: "#56321f", accent: "#ffd09c" },
+    teal: { main: "#68cbbb", dark: "#245d56", light: "#d9fff7", hair: "#244b4b", accent: "#a7f3e5" },
+  };
+  const p = palette[accent] ?? palette.blue;
+  const accessory = agentId === "hermes"
+    ? '<path d="M83 83 Q45 45 30 72 Q59 78 76 103 M237 83 Q275 45 290 72 Q261 78 244 103" fill="' + p.accent + '" stroke="' + p.dark + '" stroke-width="6"/>'
+    : agentId === "zeus"
+    ? '<path d="M111 52 L135 17 L157 49 L184 12 L207 53" fill="none" stroke="' + p.accent + '" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/><circle cx="160" cy="19" r="8" fill="#fff2ad"/>'
+    : agentId === "athena"
+    ? '<path d="M93 72 Q65 35 81 22 Q105 42 111 65 M227 72 Q255 35 239 22 Q215 42 209 65" fill="none" stroke="' + p.accent + '" stroke-width="9" stroke-linecap="round"/><path d="M126 36 L160 10 L194 36" fill="none" stroke="' + p.main + '" stroke-width="9" stroke-linecap="round"/>'
+    : agentId === "hephaestus"
+    ? '<rect x="101" y="67" width="49" height="29" rx="12" fill="#18283a" stroke="' + p.accent + '" stroke-width="7"/><rect x="170" y="67" width="49" height="29" rx="12" fill="#18283a" stroke="' + p.accent + '" stroke-width="7"/><path d="M150 80 H170" stroke="' + p.accent + '" stroke-width="7"/>'
+    : '<circle cx="160" cy="42" r="38" fill="none" stroke="' + p.accent + '" stroke-width="7"/><path d="M160 15 V42 L180 54" fill="none" stroke="' + p.accent + '" stroke-width="6" stroke-linecap="round"/>';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="360" viewBox="0 0 320 360">
+    <defs><radialGradient id="halo"><stop stop-color="${p.accent}" stop-opacity=".48"/><stop offset="1" stop-color="${p.dark}" stop-opacity="0"/></radialGradient><linearGradient id="coat" x2="1" y2="1"><stop stop-color="${p.light}"/><stop offset="1" stop-color="${p.main}"/></linearGradient></defs>
+    <ellipse cx="160" cy="181" rx="145" ry="158" fill="url(#halo)"/>
+    <ellipse cx="160" cy="331" rx="83" ry="15" fill="#000" opacity=".28"/>
+    <path d="M94 218 Q68 233 70 305 Q160 348 250 305 Q252 233 226 218 Q196 196 160 198 Q124 196 94 218" fill="url(#coat)" stroke="${p.dark}" stroke-width="7"/>
+    <path d="M123 214 L160 270 L197 214" fill="none" stroke="${p.dark}" stroke-width="7" stroke-linecap="round"/>
+    <path d="M139 270 L160 296 L181 270" fill="${p.dark}" opacity=".85"/>
+    <path d="M88 123 Q70 65 112 49 Q160 8 208 49 Q250 68 232 139 L222 192 Q204 225 160 226 Q116 225 98 192 Z" fill="${p.hair}" stroke="${p.dark}" stroke-width="7"/>
+    <ellipse cx="160" cy="137" rx="78" ry="91" fill="${p.light}" stroke="${p.dark}" stroke-width="7"/>
+    <path d="M84 120 Q88 48 151 46 Q215 38 238 105 Q207 84 187 82 Q143 111 94 100 Z" fill="${p.hair}" stroke="${p.dark}" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M93 129 Q66 111 77 158 Q82 179 103 166 M227 129 Q254 111 243 158 Q238 179 217 166" fill="${p.light}" stroke="${p.dark}" stroke-width="7"/>
+    <ellipse cx="130" cy="145" rx="9" ry="15" fill="#24364e"/><ellipse cx="190" cy="145" rx="9" ry="15" fill="#24364e"/>
+    <circle cx="127" cy="139" r="4" fill="#fff"/><circle cx="187" cy="139" r="4" fill="#fff"/>
+    <path d="M148 174 Q160 185 172 174" fill="none" stroke="#bb7188" stroke-width="6" stroke-linecap="round"/>
+    <ellipse cx="111" cy="169" rx="13" ry="7" fill="#f5a5b9" opacity=".72"/><ellipse cx="209" cy="169" rx="13" ry="7" fill="#f5a5b9" opacity=".72"/>
+    ${accessory}
+    <path d="M160 248 L169 266 L189 269 L174 283 L178 303 L160 293 L142 303 L146 283 L131 269 L151 266 Z" fill="${p.accent}" stroke="${p.dark}" stroke-width="4"/>
+    <circle cx="61" cy="224" r="7" fill="${p.accent}"/><circle cx="258" cy="205" r="6" fill="${p.accent}"/><path d="M56 91 l7 -14 l7 14 l14 7 l-14 7 l-7 14 l-7 -14 l-14 -7 Z" fill="#f7d98b"/>
+  </svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
 const agents: Array<{
   id: AgentId;
   name: string;
@@ -90,11 +130,11 @@ const agents: Array<{
   theme: string;
   quote: string;
 }> = [
-  { id: "hermes", name: "Hermes", role: "Guide + knowledge", short: "Answers, frames, routes", glyph: "✦", accent: "blue", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-1.webp", theme: "skyline blue", quote: "Ask the fog a better question." },
-  { id: "zeus", name: "Zeus", role: "Orchestrator", short: "Routes the next move", glyph: "ϟ", accent: "violet", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-2.webp", theme: "storm violet", quote: "Every handoff needs a keeper." },
-  { id: "athena", name: "Athena", role: "Idea analysis", short: "Tests the thesis", glyph: "Δ", accent: "rose", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-3.webp", theme: "rose strategy", quote: "A sharp idea survives contact." },
-  { id: "hephaestus", name: "Hephaestus", role: "Stack + workflow", short: "Turns plans buildable", glyph: "⌘", accent: "orange", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-4.webp", theme: "forge orange", quote: "Make the next build smaller." },
-  { id: "chronos", name: "Chronos", role: "Time + submission", short: "Makes time visible", glyph: "◷", accent: "teal", art: "/manus-storage/async-images/kSGueaCMecbhnaJmethJGf/image-5.webp", theme: "tide teal", quote: "A deadline is a shape, not a threat." },
+  { id: "hermes", name: "Hermes", role: "Guide + knowledge", short: "Answers, frames, routes", glyph: "✦", accent: "blue", art: "createChibiArt("hermes", "blue")", theme: "skyline blue", quote: "Ask the fog a better question." },
+  { id: "zeus", name: "Zeus", role: "Orchestrator", short: "Routes the next move", glyph: "ϟ", accent: "violet", art: "createChibiArt("zeus", "violet")", theme: "storm violet", quote: "Every handoff needs a keeper." },
+  { id: "athena", name: "Athena", role: "Idea analysis", short: "Tests the thesis", glyph: "Δ", accent: "rose", art: "createChibiArt("athena", "rose")", theme: "rose strategy", quote: "A sharp idea survives contact." },
+  { id: "hephaestus", name: "Hephaestus", role: "Stack + workflow", short: "Turns plans buildable", glyph: "⌘", accent: "orange", art: "createChibiArt("hephaestus", "orange")", theme: "forge orange", quote: "Make the next build smaller." },
+  { id: "chronos", name: "Chronos", role: "Time + submission", short: "Makes time visible", glyph: "◷", accent: "teal", art: "createChibiArt("chronos", "teal")", theme: "tide teal", quote: "A deadline is a shape, not a threat." },
 ];
 
 const antigravityParticles = Array.from({ length: 64 }, (_, index) => ({
@@ -1073,38 +1113,43 @@ function OverviewStack({ agents, onSelect }: { agents: AgentRecord[]; onSelect: 
     const viewport = viewportRef.current;
     const cards = gsap.utils.toArray<HTMLElement>(".overview-stack-card", stackRef.current);
     if (!viewport || cards.length === 0) return;
-
-    gsap.set(cards, { autoAlpha: 0, y: 72, scale: 0.96, filter: "blur(4px)", zIndex: (index) => index + 1, pointerEvents: "none", transformOrigin: "center center" });
-    gsap.set(cards[0], { autoAlpha: 1, y: 0, scale: 1, filter: "blur(0px)", pointerEvents: "auto", zIndex: cards.length + 1 });
-
-    const timeline = gsap.timeline({
-      scrollTrigger: {
-        trigger: viewport,
-        start: "top top+=84",
-        end: () => `+=${Math.max(window.innerHeight, 520) * 1.15 * Math.max(1, cards.length - 1)}`,
-        pin: viewport,
-        scrub: 0.55,
-        anticipatePin: 1,
-        invalidateOnRefresh: true,
-      },
+    const mm = gsap.matchMedia();
+    mm.add("(min-width: 761px) and (prefers-reduced-motion: no-preference)", () => {
+      gsap.set(cards, { autoAlpha: 0, y: 72, scale: 0.96, filter: "blur(4px)", zIndex: (index) => index + 1, pointerEvents: "none", transformOrigin: "center center" });
+      gsap.set(cards[0], { autoAlpha: 1, y: 0, scale: 1, filter: "blur(0px)", pointerEvents: "auto", zIndex: cards.length + 1 });
+      const timeline = gsap.timeline({
+        scrollTrigger: {
+          trigger: viewport,
+          start: "top top+=84",
+          end: () => `+=${Math.max(window.innerHeight, 560) * 0.9 * Math.max(1, cards.length - 1)}`,
+          pin: viewport,
+          pinSpacing: true,
+          scrub: 0.65,
+          anticipatePin: 1,
+          invalidateOnRefresh: true,
+        },
+      });
+      cards.slice(0, -1).forEach((card, index) => {
+        const next = cards[index + 1];
+        timeline.to(card, { y: -42, scale: 0.93, autoAlpha: 0.22, filter: "blur(2px)", pointerEvents: "none", duration: 1 }, index);
+        timeline.fromTo(next,
+          { y: 70, scale: 0.96, autoAlpha: 0, filter: "blur(4px)", pointerEvents: "none" },
+          { y: 0, scale: 1, autoAlpha: 1, filter: "blur(0px)", pointerEvents: "auto", duration: 1 },
+          index
+        );
+      });
+      const refreshFrame = window.requestAnimationFrame(() => ScrollTrigger.refresh());
+      return () => {
+        window.cancelAnimationFrame(refreshFrame);
+        timeline.scrollTrigger?.kill();
+        timeline.kill();
+        gsap.set(cards, { clearProps: "all" });
+      };
     });
-
-    cards.slice(0, -1).forEach((card, index) => {
-      const next = cards[index + 1];
-      timeline.to(card, { y: -48, scale: 0.92, autoAlpha: 0.34, filter: "blur(2px)", pointerEvents: "none", duration: 1 }, index);
-      timeline.fromTo(next,
-        { y: 72, scale: 0.96, autoAlpha: 0, filter: "blur(4px)", pointerEvents: "none" },
-        { y: 0, scale: 1, autoAlpha: 1, filter: "blur(0px)", pointerEvents: "auto", duration: 1 },
-        index
-      );
+    mm.add("(max-width: 760px), (prefers-reduced-motion: reduce)", () => {
+      gsap.set(cards, { clearProps: "all" });
     });
-
-    const refreshFrame = window.requestAnimationFrame(() => ScrollTrigger.refresh());
-    return () => {
-      window.cancelAnimationFrame(refreshFrame);
-      timeline.scrollTrigger?.kill();
-      timeline.kill();
-    };
+    return () => mm.revert();
   }, { scope: stackRef });
 
   return (
