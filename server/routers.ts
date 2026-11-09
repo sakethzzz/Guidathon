@@ -315,7 +315,8 @@ export const appRouter = router({
           { role: "user", content: `${input.question}${evidence}` },
         ];
         try {
-          const tokenBudget: Record<AgentId, number> = { hermes: 850, zeus: 750, athena: 1200, hephaestus: 1000, chronos: 850 };\n          const result = await runModel(messages, tokenBudget[input.agent], input.provider ?? (input.agent === "hermes" || input.agent === "athena" ? "gemini" : "groq"));
+          const tokenBudget: Record<AgentId, number> = { hermes: 850, zeus: 750, athena: 1200, hephaestus: 1000, chronos: 850 };
+          const result = await runModel(messages, tokenBudget[input.agent], input.provider ?? (input.agent === "hermes" || input.agent === "athena" ? "gemini" : "groq"));
           return { answer: result.answer, provider: result.provider, citations: [...(input.agent === "hermes" ? combinedContext.map(chunk => chunk.id) : []), ...research.citations], handoffTo: null };
         } catch (error) {
           const message = error instanceof Error ? error.message : "Agent model unavailable";
