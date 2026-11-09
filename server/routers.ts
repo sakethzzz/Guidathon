@@ -22,7 +22,7 @@ const hermesContextSchema = z.object({
 const agentIds = ["hermes", "zeus", "athena", "hephaestus", "chronos"] as const;
 type AgentId = (typeof agentIds)[number];
 type ChatTurn = { role: "system" | "user" | "assistant"; content: string };
-const providerSchema = z.enum(["gemini", "groq", "gateway", "managed"]).optional();
+const providerSchema = z.enum(["gemini", "groq", "gateway", "openrouter", "managed"]).optional();
 
 const rolePrompts: Record<AgentId, string> = {
   hermes: "You are Hermes, GUIDATHON's research and knowledge agent. First answer the user's exact question in the form requested; do not default to a generic hackathon checklist. For research questions, search and synthesize the supplied corpus, compare evidence, cite exact chunk IDs inline, and distinguish source-backed facts from inference and general knowledge. For ordinary questions, answer normally without forcing citations. If the corpus does not support a claim, say so plainly and offer clearly labeled general guidance. Never invent sources, dates, quotations, or facts. Handle follow-ups using conversation history and preserve the user's actual constraints.",
@@ -86,6 +86,32 @@ async function callGroq(messages: ChatTurn[], maxTokens: number) {
   return { answer, provider: process.env.GROQ_MODEL || "groq-llama-3.3-70b" };
 }
 
+async function callOpenRouter(messages: ChatTurn[], maxTokens: number) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error("OpenRouter free-model route is not configured: add OPENROUTER_API_KEY in Vercel Environment Variables.");
+  const model = process.env.OPENROUTER_MODEL || "openrouter/free";
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${apiKey}`,
+      "http-referer": process.env.APP_URL || "https://guidathon.app",
+      "x-title": "GUIDATHON",
+    },
+    signal: AbortSignal.timeout(15000),
+    body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.42 }),
+  });
+  if (!response.ok) {
+    const detail = (await response.text()).slice(0, 360);
+    throw new Error(`OpenRouter request failed (${response.status}): ${detail}`);
+  }
+  const data = await response.json();
+  const answer = data?.choices?.[0]?.message?.content?.trim?.() ?? "";
+  if (!answer) throw new Error("OpenRouter returned an empty answer");
+  const actualModel = data?.model || model;
+  return { answer, provider: "openrouter/" + actualModel };
+}
+
 async function callManaged(messages: ChatTurn[], maxTokens: number) {
   const result = await withTimeout(invokeLLM({ messages, maxTokens }), 10000, "Managed model");
   const raw = result.choices?.[0]?.message?.content;
@@ -119,11 +145,12 @@ function requestGatewayToken(req: { headers?: Record<string, string | string[] |
 }
 async function runModel(messages: ChatTurn[], maxTokens = 700, preferred?: z.infer<typeof providerSchema>, requestToken?: string) {
   const gateway = (turns: ChatTurn[], tokens: number) => callVercelGateway(turns, tokens, requestToken);
-  const providers = preferred === "groq" ? [callGroq, gateway, callGemini, callManaged]
-    : preferred === "managed" ? [callManaged, gateway, callGemini, callGroq]
-    : preferred === "gateway" ? [gateway, callGemini, callGroq, callManaged]
-    : preferred === "gemini" ? [callGemini, gateway, callGroq, callManaged]
-    : [callGemini, callGroq, gateway, callManaged];
+  const providers = preferred === "groq" ? [callGroq, callOpenRouter, gateway, callGemini, callManaged]
+    : preferred === "openrouter" ? [callOpenRouter, gateway, callGemini, callGroq, callManaged]
+    : preferred === "managed" ? [callManaged, gateway, callOpenRouter, callGemini, callGroq]
+    : preferred === "gateway" ? [gateway, callOpenRouter, callGemini, callGroq, callManaged]
+    : preferred === "gemini" ? [callGemini, callOpenRouter, gateway, callGroq, callManaged]
+    : [callGemini, callGroq, gateway, callOpenRouter, callManaged];
   const failures: string[] = [];
   for (const provider of providers) {
     try {
