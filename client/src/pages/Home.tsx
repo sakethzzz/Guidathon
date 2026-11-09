@@ -98,11 +98,11 @@ const agents: Array<{
   theme: string;
   quote: string;
 }> = [
-  { id: "hermes", name: "Hermes", role: "Guide + knowledge", short: "Answers, frames, routes", glyph: "✦", accent: "blue", art: createAgentArt("✦", "#10233a", "#83c5ff"), theme: "skyline blue", quote: "Ask the fog a better question." },
-  { id: "zeus", name: "Zeus", role: "Orchestrator", short: "Routes the next move", glyph: "ϟ", accent: "violet", art: createAgentArt("ϟ", "#1b1738", "#b7a1ff"), theme: "storm violet", quote: "Every handoff needs a keeper." },
-  { id: "athena", name: "Athena", role: "Lead strategist", short: "Shapes winning ideas", glyph: "Δ", accent: "rose", art: createAgentArt("Δ", "#351a2b", "#f4a6c6"), theme: "rose strategy", quote: "A sharp idea survives contact." },
-  { id: "hephaestus", name: "Hephaestus", role: "Stack + workflow", short: "Turns plans buildable", glyph: "⌘", accent: "orange", art: createAgentArt("⌘", "#392014", "#ffb36c"), theme: "forge orange", quote: "Make the next build smaller." },
-  { id: "chronos", name: "Chronos", role: "Time + submission", short: "Makes time visible", glyph: "◷", accent: "teal", art: createAgentArt("◷", "#102d29", "#74e5c1"), theme: "tide teal", quote: "A deadline is a shape, not a threat." },
+  { id: "hermes", name: "Hermes", role: "Guide + knowledge", short: "Answers, frames, routes", glyph: "✦", accent: "blue", art: "/agents/hermes.svg", theme: "skyline blue", quote: "Ask the fog a better question." },
+  { id: "zeus", name: "Zeus", role: "Orchestrator", short: "Routes the next move", glyph: "ϟ", accent: "violet", art: "/agents/zeus.svg", theme: "storm violet", quote: "Every handoff needs a keeper." },
+  { id: "athena", name: "Athena", role: "Lead strategist", short: "Shapes winning ideas", glyph: "Δ", accent: "rose", art: "/agents/athena.svg", theme: "rose strategy", quote: "A sharp idea survives contact." },
+  { id: "hephaestus", name: "Hephaestus", role: "Stack + workflow", short: "Turns plans buildable", glyph: "⌘", accent: "orange", art: "/agents/hephaestus.svg", theme: "forge orange", quote: "Make the next build smaller." },
+  { id: "chronos", name: "Chronos", role: "Time + submission", short: "Makes time visible", glyph: "◷", accent: "teal", art: "/agents/chronos.svg", theme: "tide teal", quote: "A deadline is a shape, not a threat." },
 ];
 
 const antigravityParticles = Array.from({ length: 64 }, (_, index) => ({
