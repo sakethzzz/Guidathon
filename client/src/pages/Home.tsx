@@ -260,18 +260,62 @@ function scorePassage(query: string, passage: string) {
 }
 
 function splitIntoChunks(text: string, source: string, prefix: string): Chunk[] {
-  const sentences = text.replace(/\s+/g, " ").trim().split(/(?<=[.!?])\s+/).filter(Boolean);
-  const groups: string[] = [];
-  for (let index = 0; index < sentences.length; index += 2) {
-    groups.push(sentences.slice(index, index + 2).join(" "));
+  const normalized = text.replace(/\u0000/g, "").replace(/\r\n?/g, "\n").trim();
+  if (!normalized) return [];
+  const maxChars = 1800;
+  const overlap = 220;
+  const maxChunks = 50;
+  const passages: string[] = [];
+  let start = 0;
+  while (start < normalized.length && passages.length < maxChunks) {
+    let end = Math.min(start + maxChars, normalized.length);
+    if (end < normalized.length) {
+      const paragraph = normalized.lastIndexOf("\n", end);
+      const sentence = normalized.lastIndexOf(". ", end);
+      const boundary = Math.max(paragraph, sentence);
+      if (boundary > start + 700) end = boundary + (boundary === sentence ? 1 : 0);
+    }
+    const passage = normalized.slice(start, end).trim();
+    if (passage) passages.push(passage);
+    if (end >= normalized.length) break;
+    const next = Math.max(start + 1, end - overlap);
+    start = next;
   }
-  return (groups.length ? groups : [text.trim()]).filter(Boolean).map((passage, index) => ({
+  return passages.map((passage, index) => ({
     id: `chunk://${prefix}/${String(index + 1).padStart(3, "0")}`,
     source,
-    heading: index === 0 ? "User-provided context" : `Context fragment ${index + 1}`,
+    heading: index === 0 ? "Document content" : `Document passage ${index + 1}`,
     passage,
-    provenance: "user intake · local parse · unverified provenance",
+    provenance: "user intake · locally extracted text · source document",
   }));
+}
+
+async function extractPdfText(file: File): Promise<string> {
+  const pdfJsUrl = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs";
+  const pdfjs = await import(/* @vite-ignore */ pdfJsUrl) as any;
+  pdfjs.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
+  const document = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const pages: string[] = [];
+  const pageLimit = Math.min(document.numPages, 100);
+  for (let pageNumber = 1; pageNumber <= pageLimit; pageNumber += 1) {
+    const page = await document.getPage(pageNumber);
+    const content = await page.getTextContent();
+    const text = content.items.map((item: any) => typeof item.str === "string" ? item.str : "").filter(Boolean).join(" ");
+    if (text.trim()) pages.push(`[Page ${pageNumber}]\n${text}`);
+  }
+  const extracted = pages.join("\n\n").trim();
+  if (!extracted) throw new Error("No selectable text was found. This PDF may be scanned; OCR is not available in this intake path yet.");
+  return extracted;
+}
+
+async function extractDocxText(file: File): Promise<string> {
+  const mammothUrl = "https://cdn.jsdelivr.net/npm/mammoth@1.9.1/+esm";
+  const mammothModule = await import(/* @vite-ignore */ mammothUrl) as any;
+  const mammoth = mammothModule.default ?? mammothModule;
+  const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+  const extracted = String(result.value ?? "").trim();
+  if (!extracted) throw new Error("No readable text was found in this DOCX file.");
+  return extracted;
 }
 
 function agentById(id: AgentId) {
@@ -693,25 +737,39 @@ export default function Home() {
     const file = event.target.files?.[0];
     if (!file) return;
     setUploadedName(file.name);
-    const isText = file.type.startsWith("text/") || /\.(md|txt|csv|json|html|css|js|jsx|ts|tsx|py|java|go|rs|yaml|yml)$/i.test(file.name);
-    let text = `File ${file.name} was added to the intake queue. This file type is visible, but the local demo could not parse its contents yet.`;
-    if (isText) {
-      try {
+    const extension = file.name.toLowerCase().split(".").pop() ?? "";
+    const isText = file.type.startsWith("text/") || /^(md|txt|csv|json|html|css|js|jsx|ts|tsx|py|java|go|rs|yaml|yml|xml|sql)$/i.test(extension);
+    let text = "";
+    let detail = "Metadata captured · content unverified";
+    try {
+      if (isText) {
         text = await file.text();
-      } catch {
-        text = `File ${file.name} was added, but its contents could not be read in this browser.`;
+        detail = "Text extracted locally · intake in progress";
+      } else if (extension === "pdf" || file.type === "application/pdf") {
+        text = await extractPdfText(file);
+        detail = "PDF text extracted locally · intake in progress";
+      } else if (extension === "docx" || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+        text = await extractDocxText(file);
+        detail = "DOCX text extracted locally · intake in progress";
+      } else {
+        throw new Error("Unsupported document format. Use PDF, DOCX, or a text-based file.");
       }
+      if (!text.trim()) throw new Error("The document contains no readable text.");
+    } catch (error) {
+      detail = `Content unverified · ${error instanceof Error ? error.message : "document extraction failed"}`;
     }
+    const chunks = detail.includes("unverified") ? [] : splitIntoChunks(text, file.name, `upload-${Date.now()}`);
+    const truncated = chunks.length === 50 && text.length > chunks.reduce((total, chunk) => total + chunk.passage.length, 0);
     const record: SourceRecord = {
       id: `src-${Date.now()}`,
       name: file.name,
       kind: "upload",
       status: "processing",
-      chunks: splitIntoChunks(text, file.name, `upload-${Date.now()}`),
-      detail: isText ? "Reading locally · intake in progress" : "Metadata captured · content unverified",
+      chunks,
+      detail: truncated ? `${detail} · first 50 passages only; document exceeds current intake limit` : detail,
     };
     addSource(record);
-    pushActivity("hermes", "Accepted an upload", `${file.name} entered intake as unverified.`, "live");
+    pushActivity("hermes", chunks.length ? "Extracted and chunked a document" : "Kept an upload unverified", chunks.length ? `${file.name}: ${chunks.length} passages prepared for retrieval.` : `${file.name}: ${detail}`, "live");
     event.target.value = "";
   };
 
@@ -943,7 +1001,7 @@ export default function Home() {
           {activeNav === "Overview" || activeNav === "Agents" ? renderRoom() : <section className="room-panel"><div className="room-panel-top"><div className="room-title"><div className={`room-avatar accent-${selected.accent}`}>{selected.glyph}</div><div><div className="eyebrow small">current room / {selected.role.toLowerCase()}</div><h2>{selected.name}<span> · {selected.short}</span></h2></div></div><div className="room-state"><span className="status-dot live" /> working context <span className="mono">HND-{onboardingComplete ? "042" : "001"}</span></div></div><div className="handoff-banner"><ArrowUpRight size={14} /><span><b>Latest handoff</b> {onboardingComplete ? `${event} · ${team} · ${uncertainty}` : "No handoff yet. Hermes is waiting for your first brief."}</span><button onClick={() => { setActiveAgent("zeus"); setActiveNav("Agents"); }} disabled={!onboardingComplete} aria-label={onboardingComplete ? "Inspect the latest Zeus handoff" : "No handoff exists yet"}>inspect thread <ChevronRight size={13} /></button></div>{activeNavAgent[activeNav] && <AgentRoomHero agent={selected} />} {renderRoom()}</section>}
         </main>
       </div>
-      <input ref={fileInputRef} type="file" className="hidden-file-input" onChange={handleFile} accept=".txt,.md,.csv,.json,.html,.css,.js,.jsx,.ts,.tsx,.py,.java,.go,.rs,.yaml,.yml,text/*,.pdf" />
+      <input ref={fileInputRef} type="file" className="hidden-file-input" onChange={handleFile} accept=".txt,.md,.csv,.json,.html,.css,.js,.jsx,.ts,.tsx,.py,.java,.go,.rs,.yaml,.yml,.xml,.sql,.pdf,.docx,text/*" />
       {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
     </div>
   );
