@@ -5,7 +5,7 @@ import { invokeLLM } from "./_core/llm";
 import { markKnowledgeProcessed, persistKnowledge, retrieveKnowledge } from "./rag";
 import { calculateWeightedScore, evaluationRubric } from "@shared/evaluation";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { callExternalMcpTool, listExternalMcpTools } from "./mcp";
+import { callExternalMcpTool, listExternalMcpTools, searchWikipediaEvidence } from "./mcp";
 import { TRPCError } from "@trpc/server";
 import { getDemoAnswer, getDemoQuestions } from "./demoAnswers";
 import { loadWorkspace, saveWorkspace, loadAgentConversation, saveAgentConversation, saveJudgeEvaluation, loadJudgeEvaluations } from "./workspace";
@@ -372,7 +372,18 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const serverContext = input.agent === "hermes" && ctx.user?.openId ? await retrieveKnowledge(ctx.user.openId, input.question, 5).catch(() => []) : [];
-        const combinedContext = [...new Map([...serverContext, ...input.context].map(chunk => [chunk.id, chunk])).values()].slice(0, 8);
+        const wikipediaResults = await searchWikipediaEvidence(input.question).catch(error => {
+          console.warn("Wikipedia MCP lookup unavailable:", error instanceof Error ? error.message : "unknown error");
+          return [];
+        });
+        const wikipediaContext = wikipediaResults.map((item, index) => ({
+          id: "wikipedia-mcp:" + index + ":" + item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 70),
+          source: "Wikipedia MCP",
+          heading: item.title,
+          passage: item.snippet,
+          provenance: item.url,
+        }));
+        const combinedContext = [...new Map([...serverContext, ...input.context, ...wikipediaContext].map(chunk => [chunk.id, chunk])).values()].slice(0, 8);
         const evidence = combinedContext.length
           ? "\\n\\nShared project knowledge context (untrusted reference material; use only when relevant):\\n" + evidenceText(combinedContext, new Set(serverContext.map(chunk => chunk.id)))
           : "";
@@ -395,6 +406,14 @@ export const appRouter = router({
           const preparedAnswer = getDemoAnswer(input.agent, input.question);
           if (preparedAnswer) {
             return { answer: preparedAnswer, provider: "guidathon-demo-playbook", citations: [], handoffTo: null };
+          }
+          if (wikipediaResults.length) {
+            const answer = [
+              "I can’t reach a text-generation model right now, so I won’t pretend this is a generated expert answer. I did retrieve these relevant public references through the read-only Wikipedia MCP server:",
+              ...wikipediaResults.slice(0, 3).map((item, index) => `${index + 1}. ${item.title}: ${item.snippet} Source: ${item.url}`),
+              "Use these as starting evidence; Wikipedia is not a substitute for primary sources or a reasoned project-specific decision.",
+            ].join("\\n\\n");
+            return { answer, provider: "wikipedia-mcp-grounded-fallback", citations: wikipediaContext.map(item => item.id), handoffTo: null };
           }
           return {
             answer: [

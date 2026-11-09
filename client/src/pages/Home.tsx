@@ -1198,10 +1198,10 @@ function ModelViewer({ agent }: { agent: AgentRecord }) {
     const mount = mountRef.current;
     if (!mount) return;
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 50);
-    camera.position.set(0, 0, 4.6);
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const camera = new THREE.PerspectiveCamera(31, 1, 0.1, 50);
+    camera.position.set(0, 0.1, 4.35);
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "low-power" });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
     renderer.setClearColor(0x000000, 0);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     mount.appendChild(renderer.domElement);
@@ -1209,37 +1209,81 @@ function ModelViewer({ agent }: { agent: AgentRecord }) {
     controls.enablePan = false;
     controls.enableZoom = false;
     controls.enableDamping = true;
-    controls.dampingFactor = 0.06;
+    controls.dampingFactor = 0.055;
+    controls.minPolarAngle = Math.PI * 0.28;
+    controls.maxPolarAngle = Math.PI * 0.72;
     controls.autoRotate = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    controls.autoRotateSpeed = 1.15;
-    const group = new THREE.Group();
-    scene.add(group);
-    const halo = new THREE.Mesh(new THREE.TorusGeometry(1.12, 0.012, 8, 120), new THREE.MeshBasicMaterial({ color: 0xe8c56b, transparent: true, opacity: 0.56 }));
-    halo.rotation.x = Math.PI * 0.18;
-    group.add(halo);
-    const haloBack = new THREE.Mesh(new THREE.TorusGeometry(0.86, 0.008, 8, 100), new THREE.MeshBasicMaterial({ color: 0x7bc9ff, transparent: true, opacity: 0.38 }));
-    haloBack.rotation.y = Math.PI * 0.42;
-    group.add(haloBack);
+    controls.autoRotateSpeed = 0.85;
+
+    const rig = new THREE.Group();
+    scene.add(rig);
+    const gold = new THREE.MeshStandardMaterial({ color: 0xe8c56b, metalness: 0.82, roughness: 0.25, emissive: 0x6b4a13, emissiveIntensity: 0.16 });
+    const blue = new THREE.MeshStandardMaterial({ color: 0x73c9f2, metalness: 0.45, roughness: 0.3, emissive: 0x174b79, emissiveIntensity: 0.38 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x101b2d, metalness: 0.72, roughness: 0.32 });
+    const ringA = new THREE.Mesh(new THREE.TorusGeometry(1.12, 0.014, 10, 144), gold);
+    ringA.rotation.set(Math.PI * 0.32, 0.08, 0.12);
+    rig.add(ringA);
+    const ringB = new THREE.Mesh(new THREE.TorusGeometry(0.94, 0.009, 8, 128), blue);
+    ringB.rotation.set(Math.PI * 0.63, -0.34, 0.08);
+    rig.add(ringB);
+    const ringC = new THREE.Mesh(new THREE.TorusGeometry(1.28, 0.006, 8, 128), gold);
+    ringC.rotation.set(Math.PI * 0.5, 0.2, Math.PI * 0.15);
+    rig.add(ringC);
+
+    // A beveled, dimensional reliquary surrounds the supplied transparent chibi artwork.
+    // The artwork remains crisp while the frame, orbital rings, lights and stage are true 3D meshes.
+    const frameShape = new THREE.Shape();
+    const fw = 0.76, fh = 1.05, radius = 0.18;
+    frameShape.moveTo(-fw + radius, -fh);
+    frameShape.lineTo(fw - radius, -fh); frameShape.quadraticCurveTo(fw, -fh, fw, -fh + radius);
+    frameShape.lineTo(fw, fh - radius); frameShape.quadraticCurveTo(fw, fh, fw - radius, fh);
+    frameShape.lineTo(-fw + radius, fh); frameShape.quadraticCurveTo(-fw, fh, -fw, fh - radius);
+    frameShape.lineTo(-fw, -fh + radius); frameShape.quadraticCurveTo(-fw, -fh, -fw + radius, -fh);
+    const frame = new THREE.Mesh(new THREE.ExtrudeGeometry(frameShape, { depth: 0.1, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.035, bevelThickness: 0.025, curveSegments: 12 }), gold);
+    frame.position.z = -0.12;
+    rig.add(frame);
+    const backing = new THREE.Mesh(new THREE.PlaneGeometry(1.48, 2.06), dark);
+    backing.position.z = -0.045;
+    rig.add(backing);
     const texture = new THREE.TextureLoader().load(agent.art, loaded => {
       loaded.colorSpace = THREE.SRGBColorSpace;
       loaded.anisotropy = renderer.capabilities.getMaxAnisotropy();
       renderer.render(scene, camera);
     });
-    const avatar = new THREE.Mesh(new THREE.PlaneGeometry(1.82, 2.16), new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide, depthWrite: false }));
-    avatar.position.z = 0.08;
-    group.add(avatar);
-    const ambient = new THREE.AmbientLight(0xffffff, 1.1);
-    scene.add(ambient);
-    const keyLight = new THREE.PointLight(0xffd98b, 2.2, 8);
-    keyLight.position.set(2, 2, 3);
+    const avatarMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide, depthWrite: false });
+    const avatar = new THREE.Mesh(new THREE.PlaneGeometry(1.52, 2.12), avatarMaterial);
+    avatar.position.z = 0.035;
+    rig.add(avatar);
+
+    const plinth = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.8, 0.12, 64), dark);
+    plinth.position.set(0, -1.26, 0.02);
+    rig.add(plinth);
+    const plinthRim = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.018, 8, 80), gold);
+    plinthRim.rotation.x = Math.PI / 2;
+    plinthRim.position.y = -1.2;
+    rig.add(plinthRim);
+    const orbitDots = new THREE.Group();
+    for (let index = 0; index < 8; index += 1) {
+      const bead = new THREE.Mesh(new THREE.SphereGeometry(index % 2 ? 0.027 : 0.018, 12, 10), index % 2 ? blue : gold);
+      const angle = index / 8 * Math.PI * 2;
+      bead.position.set(Math.cos(angle) * 1.16, Math.sin(angle) * 0.76, Math.sin(angle * 2) * 0.18);
+      orbitDots.add(bead);
+    }
+    rig.add(orbitDots);
+
+    scene.add(new THREE.HemisphereLight(0xb9ddff, 0x172338, 1.8));
+    const keyLight = new THREE.PointLight(0xffd98b, 3.2, 8);
+    keyLight.position.set(2.4, 2.8, 3.5);
     scene.add(keyLight);
-    let frame = 0;
-    let width = 1;
-    let height = 1;
+    const rimLight = new THREE.PointLight(0x59cfff, 2.1, 7);
+    rimLight.position.set(-2.2, -0.6, -1.2);
+    scene.add(rimLight);
+
+    let frameId = 0;
     const resize = () => {
       const rect = mount.getBoundingClientRect();
-      width = Math.max(1, rect.width);
-      height = Math.max(1, rect.height);
+      const width = Math.max(1, rect.width);
+      const height = Math.max(1, rect.height);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
@@ -1247,26 +1291,34 @@ function ModelViewer({ agent }: { agent: AgentRecord }) {
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(mount);
+    const clock = new THREE.Clock();
     const animate = () => {
-      frame = window.requestAnimationFrame(animate);
+      frameId = window.requestAnimationFrame(animate);
+      const elapsed = clock.getElapsedTime();
+      rig.position.y = Math.sin(elapsed * 1.1) * 0.035;
+      ringC.rotation.z = elapsed * 0.075;
+      orbitDots.rotation.y = elapsed * 0.22;
       controls.update();
       renderer.render(scene, camera);
     };
     animate();
     return () => {
-      window.cancelAnimationFrame(frame);
+      window.cancelAnimationFrame(frameId);
       observer.disconnect();
       controls.dispose();
       texture.dispose();
-      avatar.geometry.dispose();
-      (avatar.material as THREE.Material).dispose();
-      halo.geometry.dispose(); (halo.material as THREE.Material).dispose();
-      haloBack.geometry.dispose(); (haloBack.material as THREE.Material).dispose();
+      [frame, backing, avatar, plinth, plinthRim, ringA, ringB, ringC, ...orbitDots.children].forEach(mesh => {
+        mesh.geometry.dispose();
+        const material = mesh.material;
+        if (Array.isArray(material)) material.forEach(item => item.dispose());
+        else material.dispose();
+      });
+      gold.dispose(); blue.dispose(); dark.dispose(); avatarMaterial.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
   }, [agent.art]);
-  return <div ref={mountRef} className={`model-viewer accent-${agent.accent}`} aria-label={`${agent.name} interactive 3D chibi model overview`}><div className="model-viewer-grid" /><div className="model-viewer-shadow" /><span className="model-viewer-label">drag to orbit · auto turntable</span></div>;
+  return <div ref={mountRef} className={`model-viewer accent-${agent.accent}`} aria-label={`${agent.name} interactive 3D chibi model preview`}><div className="model-viewer-grid" /><div className="model-viewer-shadow" /><span className="model-viewer-label">3D reliquary · drag to orbit · auto turntable</span></div>;
 }
 
 function SourceAgentRoom({ agents, selected, onSelect, onHandoff, context, sources, manualNote, setManualNote, addManualNote, onUpload, uploadedName }: { agents: AgentRecord[]; selected: AgentRecord; onSelect: (id: AgentId) => void; onHandoff: (id: AgentId) => void; context: Chunk[]; sources: SourceRecord[]; manualNote: string; setManualNote: (value: string) => void; addManualNote: () => void; onUpload: () => void; uploadedName: string }) {
@@ -1344,8 +1396,8 @@ function McpToolsPanel() {
   };
   return (
     <section className="mcp-tools-panel">
-      <div className="mcp-tools-head"><div><span className="section-kicker">Hephaestus // external tool bridge</span><h3>MCP tool bench</h3><p>Discover tools from one server-side MCP endpoint. Secrets stay on the server; write-like tools require an explicit confirmation.</p></div><button className="small-action" onClick={() => void refetch()}>refresh tools</button></div>
-      {isLoading ? <p className="mcp-state">Discovering configured MCP tools…</p> : isError ? <div className="mcp-unconfigured"><b>Sign in to inspect MCP tools</b><span>Tool schemas and execution are restricted to an authenticated workspace.</span></div> : !data?.configured ? <div className="mcp-unconfigured"><b>No MCP server connected</b><span>Set MCP_SERVER_URL and optionally MCP_SERVER_TOKEN in the server environment, then restart the backend. No tool calls are being simulated.</span></div> : data.reason ? <div className="mcp-unconfigured"><b>MCP server unavailable</b><span>{data.reason}</span></div> : tools.length === 0 ? <div className="mcp-unconfigured"><b>Connected, but no tools were advertised</b><span>Check the server's tools/list response and transport compatibility.</span></div> : (
+      <div className="mcp-tools-head"><div><span className="section-kicker">Hephaestus // external tool bridge</span><h3>MCP tool bench</h3><p>Connected by default to a public, read-only Wikipedia MCP endpoint. You can override the endpoint; secrets stay server-side and write-like tools require explicit confirmation.</p></div><button className="small-action" onClick={() => void refetch()}>refresh tools</button></div>
+      {isLoading ? <p className="mcp-state">Discovering configured MCP tools…</p> : isError ? <div className="mcp-unconfigured"><b>Sign in to inspect MCP tools</b><span>Tool schemas and execution are restricted to an authenticated workspace.</span></div> : !data?.configured ? <div className="mcp-unconfigured"><b>No MCP server connected</b><span>A read-only public Wikipedia MCP server is connected by default. Set MCP_SERVER_URL only when you want to override it; MCP_SERVER_TOKEN is optional for authenticated servers.</span></div> : data.reason ? <div className="mcp-unconfigured"><b>MCP server unavailable</b><span>{data.reason}</span></div> : tools.length === 0 ? <div className="mcp-unconfigured"><b>Connected, but no tools were advertised</b><span>Check the server's tools/list response and transport compatibility.</span></div> : (
         <>
           <div className="mcp-tool-list">{tools.map(tool => <button key={tool.name} className={tool.name === toolName ? "active" : ""} onClick={() => { setToolName(tool.name); setResultText(""); setConfirmed(false); }}><b>{tool.name}</b><span>{tool.description || "No description supplied"}</span></button>)}</div>
           {selectedTool && <div className="mcp-tool-run"><b>Run {selectedTool.name}</b><textarea value={argumentsText} onChange={event => setArgumentsText(event.target.value)} rows={3} aria-label="MCP tool JSON arguments" /><label><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} /> I explicitly approve this call unless the server marks it read-only.</label><button className="primary-button" onClick={invoke} disabled={call.isPending || (requiresConfirmation && !confirmed)}>{call.isPending ? "Calling tool…" : "Run MCP tool"} <ArrowUpRight size={14} /></button></div>}
