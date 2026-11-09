@@ -1282,3 +1282,14 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .quantum-proof small{margin-top:4px;color:var(--muted);font-size:8px}
 .quantum-disclaimer{margin-top:10px;color:var(--faint);font-size:8px;line-height:1.5}
 @media(max-width:760px){.quantum-branches{grid-template-columns:repeat(2,minmax(0,1fr))}.quantum-proof{grid-template-columns:1fr}.quantum-lab-head{flex-direction:column}.deadline-control{max-width:none}}
+
+/* Chibi-first agent card and 3D model overview polish */
+.overview-reactbits-stack .overview-stack-card{background-image:radial-gradient(circle at 78% 22%,rgba(232,197,107,.12),transparent 35%),linear-gradient(120deg,rgba(5,15,29,.97),rgba(12,28,48,.94));}
+.overview-reactbits-stack .stack-card-art-bg{opacity:.42;filter:blur(0) saturate(1.15);mix-blend-mode:screen}
+.overview-reactbits-stack .stack-card-art-bg img{object-fit:cover;opacity:.22;transform:scale(1.35);filter:blur(1px)}
+.overview-reactbits-stack .stack-card-aura img{filter:drop-shadow(0 14px 18px rgba(0,0,0,.38)) drop-shadow(0 0 20px rgba(120,186,255,.2))}
+.model-viewer{perspective:1000px;transform-style:preserve-3d;isolation:isolate}
+.model-viewer img{filter:drop-shadow(0 16px 22px rgba(0,0,0,.44)) drop-shadow(0 0 22px var(--agent-glow,rgba(120,186,255,.2)))}
+.model-viewer-ring{border-color:rgba(232,197,107,.28);box-shadow:0 0 26px rgba(232,197,107,.08)}
+.agent-room-hero-art{filter:drop-shadow(0 16px 25px rgba(0,0,0,.38))}
+@media(prefers-reduced-motion:reduce){.model-viewer img,.overview-reactbits-stack .stack-card-aura img{transition:none!important;animation:none!important}}
