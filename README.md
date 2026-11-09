@@ -83,3 +83,17 @@ When a user is authenticated and `DATABASE_URL` is configured, GUIDATHON now res
 Specialist agent conversations are stored independently per owner and agent, so switching rooms does not merge transcripts. Judge Arena results are saved as append-only history (latest ten shown in the UI). These features require the authenticated MySQL deployment and migration `0002_workspace_persistence.sql`; anonymous preview sessions remain local-only.
 
 The current product intentionally supports one default workspace per account. Named projects and database-backed integration tests remain follow-up work. Chronos tasks can now be added, assigned an owner/checkpoint, completed or reopened, and are included in the durable workspace snapshot.
+
+
+## Release configuration and honest model evaluation
+
+Authentication is implemented with the Manus OAuth callback, signed HS256 session cookies, database-backed user records, and protected tRPC procedures. It is **not active in a deployment until** `DATABASE_URL`, `MANUS_PROJECT_ID`, `MANUS_JWT_SECRET`, and `MANUS_OAUTH_API_URL` are configured. Without a database, the context deliberately leaves requests anonymous and protected persistence endpoints unavailable. Check `/api/health` and its `authenticationConfigured` capability before demonstrating sign-in.
+
+The current agent knowledge is prompt + retrieval based, not fine-tuned model weights. The starter corpus is a small, curated, source-attributed set of eight chunks. Gemini Embedding 001 creates 768-dimensional retrieval vectors when the key is available. Retrieval uses cosine similarity for vectorized records and normalized lexical term coverage when embeddings are unavailable. Do not describe this as training a foundation model.
+
+Agent quality is guarded by deterministic regression tests:
+- `shared/agentRouting.test.ts`: seven cases covering Hermes, Zeus, Athena, Hephaestus, Chronos, and no-forced-handoff behavior.
+- `shared/evaluation.test.ts`: eight-dimension, 100-point weighted judge rubric and score-boundary handling.
+- `server/rag.test.ts`: vector cosine and lexical retrieval scoring, including case-insensitive fallback and empty queries.
+
+These tests measure routing, retrieval mechanics, and scoring contracts; they do not prove that every live model response is factually correct. Live model evaluation requires configured provider credentials and a separate judged prompt set.
