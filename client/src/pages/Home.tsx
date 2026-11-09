@@ -400,6 +400,7 @@ export default function Home() {
   const [manualNote, setManualNote] = useState("");
   const [ideaRun, setIdeaRun] = useState(false);
   const [stackRun, setStackRun] = useState(false);
+  const [stackResponse, setStackResponse] = useState("");
   const [uploadedName, setUploadedName] = useState("");
   const [themeMode, setThemeMode] = useState<"dark" | "light">(() => { try { const saved = localStorage.getItem("guidathon-theme"); return saved === "dark" || saved === "light" ? saved : "dark"; } catch { return "dark"; } });
   const [goldFlakes, setGoldFlakes] = useState<boolean>(() => { try { return localStorage.getItem("guidathon-gold-flakes") !== "off"; } catch { return true; } });
@@ -460,6 +461,7 @@ export default function Home() {
       if (Array.isArray(saved.tasks)) setTasks(saved.tasks.filter((task: any) => task && typeof task.title === "string" && typeof task.owner === "string" && typeof task.date === "string" && ["next", "queued", "done"].includes(task.status)).slice(0, 100));
       setIdeaRun(Boolean(saved.ideaRun));
       setStackRun(Boolean(saved.stackRun));
+          setStackResponse(typeof saved.stackResponse === "string" ? saved.stackResponse : "");
       setIdeaInput(typeof saved.ideaInput === "string" ? saved.ideaInput : "");
       setIdeaResponse(typeof saved.ideaResponse === "string" ? saved.ideaResponse : "");
       setSubmissionInput(typeof saved.submissionInput === "string" ? saved.submissionInput : "");
@@ -521,9 +523,9 @@ export default function Home() {
   const durableSnapshot = useMemo(() => ({
     schemaVersion: 1,
     onboardingComplete, challenge, event, team, uncertainty, activeNav, activeAgent,
-    sources, hermesMessages, activities, tasks, deadlineAt, ragStats, ideaRun, stackRun, ideaInput, ideaResponse,
+    sources, hermesMessages, activities, tasks, deadlineAt, ragStats, ideaRun, stackRun, stackResponse, ideaInput, ideaResponse,
     submissionInput, submissionResult, manualNote, uploadedName, themeMode, goldFlakes,
-  }), [onboardingComplete, challenge, event, team, uncertainty, activeNav, activeAgent, sources, hermesMessages, activities, tasks, ideaRun, stackRun, ideaInput, ideaResponse, submissionInput, submissionResult, manualNote, uploadedName, themeMode, deadlineAt, ragStats]);
+  }), [onboardingComplete, challenge, event, team, uncertainty, activeNav, activeAgent, sources, hermesMessages, activities, tasks, ideaRun, stackRun, stackResponse, ideaInput, ideaResponse, submissionInput, submissionResult, manualNote, uploadedName, themeMode, deadlineAt, ragStats]);
 
   useEffect(() => {
     if (currentUser || localWorkspaceHydrated.current) return;
@@ -873,6 +875,11 @@ export default function Home() {
     });
   };
 
+  const runHephaestusPlan = () => {
+    if (ideaAsk.isPending) return;
+    ideaAsk.mutate({ agent: "hephaestus", provider: "groq", question: "Choose the best production-minded technical stack for GUIDATHON based on this existing codebase and the short submission deadline. Current known stack: React + Vite + TypeScript, Express/tRPC, Drizzle ORM, MySQL-compatible database, Gemini/Groq model routing, Hermes RAG with persisted chunks and vector embeddings when configured, Vercel deployment, optional MCP tools. Recommend what to keep, what to configure, what to cut before submission, auth and secret handling, test strategy, deploy plan, and a scalable next phase. Do not suggest replacing working infrastructure without a clear reason. Explicitly separate confirmed existing integrations from proposed ones.", context: allChunks, history: [] }, { onSuccess: result => { setStackResponse(result.answer); setStackRun(true); pushActivity("hephaestus", "Produced a stack decision", "Architecture recommendation generated from the existing application stack.", "complete"); }, onError: () => setStackResponse("Hephaestus could not reach the live model route. The existing stack remains React/Vite + TypeScript, tRPC/Express, Drizzle/MySQL, Gemini/Groq and Vercel; confirm each integration before claiming it is active.") });
+  };
+
   const runSubmissionCheck = () => {
     const value = submissionInput.trim();
     if (!value) return;
@@ -959,14 +966,14 @@ export default function Home() {
             <h3>Three paths from the same uncertainty.</h3>
             <p className="room-intro">Athena keeps the strongest idea small enough to prove, while naming the trade-off you are accepting.</p>
             <div className="hypothesis-list">
-              <div className="hypothesis recommended"><div className="hypothesis-top"><span className="hypothesis-index">01</span><span className="recommended-tag">recommended</span></div><h4>Evidence-first mentor</h4><p>Turn a team&apos;s messy brief into one cited decision and one buildable next move.</p><div className="hypothesis-foot"><span>Impact <b>high</b></span><span>Scope <b>focused</b></span><span>Proof <b>visible</b></span></div></div>
-              <div className="hypothesis"><div className="hypothesis-top"><span className="hypothesis-index">02</span><span className="muted-label">wider bet</span></div><h4>Autonomous team planner</h4><p>Route the entire team from brief to tasks, but risk hiding where judgment enters.</p><div className="hypothesis-foot"><span>Impact <b>high</b></span><span>Scope <b>wide</b></span><span>Proof <b>mixed</b></span></div></div>
-              <div className="hypothesis"><div className="hypothesis-top"><span className="hypothesis-index">03</span><span className="muted-label">safe bet</span></div><h4>Hermes answer desk</h4><p>Answer event questions with citations, but underplays the agent handoff story.</p><div className="hypothesis-foot"><span>Impact <b>medium</b></span><span>Scope <b>focused</b></span><span>Proof <b>clear</b></span></div></div>
+              <div className="hypothesis recommended"><div className="hypothesis-top"><span className="hypothesis-index">01</span><span className="muted-label">candidate A · unscored</span></div><h4>Evidence-first mentor</h4><p>Turn a team&apos;s messy brief into one cited decision and one buildable next move.</p><div className="hypothesis-foot"><span>Impact <b>high</b></span><span>Scope <b>focused</b></span><span>Proof <b>visible</b></span></div></div>
+              <div className="hypothesis"><div className="hypothesis-top"><span className="hypothesis-index">02</span><span className="muted-label">candidate B · unscored</span></div><h4>Autonomous team planner</h4><p>Route the entire team from brief to tasks, but risk hiding where judgment enters.</p><div className="hypothesis-foot"><span>Impact <b>high</b></span><span>Scope <b>wide</b></span><span>Proof <b>mixed</b></span></div></div>
+              <div className="hypothesis"><div className="hypothesis-top"><span className="hypothesis-index">03</span><span className="muted-label">candidate C · unscored</span></div><h4>Hermes answer desk</h4><p>Answer event questions with citations, but underplays the agent handoff story.</p><div className="hypothesis-foot"><span>Impact <b>medium</b></span><span>Scope <b>focused</b></span><span>Proof <b>clear</b></span></div></div>
             </div>
             <div className="idea-lab-input"><textarea value={ideaInput} onChange={event => setIdeaInput(event.target.value)} placeholder="Add your idea or problem statement for Athena to scale…" rows={3} /><button className="primary-button" onClick={runAthenaScale} disabled={ideaAsk.isPending}><WandSparkles size={16} /> {ideaAsk.isPending ? "Athena is comparing" : ideaRun ? "Scale again" : "Scale this idea"}</button></div>
             {ideaResponse && <div className="idea-response"><span className="mono">ATHENA / MODEL OUTPUT</span><p>{ideaResponse}</p></div>}
           </div>
-          <div><div className="decision-card"><div className="decision-icon"><Sparkles size={18} /></div><div><span className="section-kicker">Athena&apos;s read</span><h3>Make the evidence loop the product.</h3><p>Your uncertainty is scope, not novelty. The defensible move is to prove that a team can move from ambiguity to a cited, buildable decision in minutes.</p><div className="decision-line"><Check size={14} /> Handoff ready for Hephaestus</div></div></div><AgentRoleChat agent={agentById("athena")} context={allChunks} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
+          <div><div className="decision-card"><div className="decision-icon"><Sparkles size={18} /></div><div><span className="section-kicker">Athena&apos;s read</span><h3>{ideaRun ? "Athena has returned a live decision." : "Awaiting Athena’s evidence-backed verdict."}</h3><p>{ideaRun ? "Read the model output to see the winning direction, rejected alternatives, trade-offs and validation plan." : "The three cards are starting hypotheses, not a preselected winner. Submit the problem statement and let Athena compare and choose."}</p><div className="decision-line"><Check size={14} /> Handoff ready for Hephaestus</div></div></div><AgentRoleChat agent={agentById("athena")} context={allChunks} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
         </div>
       );
     }
@@ -979,9 +986,9 @@ export default function Home() {
             <h3>A stack that keeps the demo honest.</h3>
             <p className="room-intro">Hephaestus chooses the smallest architecture that can expose retrieval, handoffs, and a credible path to production.</p>
             <div className="stack-list">
-              {[['React + Vite', 'Fast local workspace with transparent state.'], ['TypeScript', 'Keeps agent contracts and chunk metadata explicit.'], ['Local retrieval → vector store', 'Start with visible chunk scoring; swap in embeddings when the corpus grows.'], ['MCP adapter', 'One boundary for tools, source ingestion, and future model calls.']].map(([name, detail], index) => <div className="stack-row" key={name}><span className="stack-number">0{index + 1}</span><div><b>{name}</b><p>{detail}</p></div><span className="stack-state">{index === 2 ? "NEXT" : "READY"}</span></div>)}
+              {[['React + Vite', 'Fast local workspace with transparent state.'], ['TypeScript', 'Keeps agent contracts and chunk metadata explicit.'], ['Hermes RAG · embeddings + cosine', 'Persist source chunks and query vectors; surface lexical fallback when embedding credentials are absent.'], ['MCP adapter', 'One boundary for tools, source ingestion, and future model calls.']].map(([name, detail], index) => <div className="stack-row" key={name}><span className="stack-number">0{index + 1}</span><div><b>{name}</b><p>{detail}</p></div><span className="stack-state">{index === 2 ? "NEXT" : "READY"}</span></div>)}
             </div>
-            <button className="primary-button" onClick={() => { setStackRun(true); pushActivity("hephaestus", "Proposed the build stack", "React + TypeScript + Hermes retrieval now; MCP + vector store next.", "complete"); }}><Zap size={16} /> {stackRun ? "Stack staged" : "Stage technical plan"}</button>
+            <button className="primary-button" onClick={runHephaestusPlan} disabled={ideaAsk.isPending}><Zap size={16} /> {ideaAsk.isPending ? "Hephaestus is designing" : stackRun ? "Re-evaluate stack" : "Decide the technical stack"}</button>{stackResponse && <div className="idea-response"><span className="mono">HEPHAESTUS / ARCHITECTURE DECISION</span><p>{stackResponse}</p></div>}
           </div>
           <div><div className="architecture-card"><div className="architecture-top"><span className="section-kicker">Architecture signal</span><span className="integration-pill mocked">model route</span></div><div className="architecture-flow"><span>source intake</span><ChevronRight size={14} /><span>chunk store</span><ChevronRight size={14} /><span>agent router</span><ChevronRight size={14} /><span>output</span></div><p>No hidden calls. Every boundary is inspectable now; the live Hephaestus channel can explain what to cut before the demo.</p><div className="architecture-note"><CircleHelp size={14} /> MCP tool bench above · provider confirmed after each reply</div></div><McpToolsPanel /><AgentRoleChat agent={agentById("hephaestus")} context={allChunks} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
         </div>
