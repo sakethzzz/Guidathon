@@ -21,6 +21,7 @@ app.get("/api/health", (_req, res) => {
       groqConfigured: Boolean(process.env.GROQ_API_KEY),
       managedModelConfigured: Boolean(process.env.MANUS_API_URL && process.env.MANUS_API_KEY),
       persistentDatabaseConfigured: Boolean(process.env.DATABASE_URL),
+      authenticationConfigured: Boolean(process.env.DATABASE_URL && process.env.MANUS_PROJECT_ID && process.env.MANUS_JWT_SECRET && process.env.MANUS_OAUTH_API_URL),
       externalMcpConfigured: Boolean(process.env.MCP_SERVER_URL),
     },
   });
