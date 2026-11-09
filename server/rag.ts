@@ -42,20 +42,11 @@ function termsOf(value: string) {
 
 export function lexicalScore(query: string, content: string) {
   const terms = [...new Set(termsOf(query))];
-  const words = termsOf(content);
-  if (!terms.length || !words.length) return 0;
-  const frequencies = new Map<string, number>();
-  words.forEach(word => frequencies.set(word, (frequencies.get(word) ?? 0) + 1));
-  const lengthNorm = Math.sqrt(Math.max(1, words.length) / 180);
-  let score = 0;
-  for (const term of terms) {
-    const tf = frequencies.get(term) ?? 0;
-    if (!tf) continue;
-    score += (tf * 2.2) / (tf + 1.2 * (0.25 + 0.75 * lengthNorm));
-  }
-  const coverage = terms.filter(term => frequencies.has(term)).length / terms.length;
+  const words = new Set(termsOf(content));
+  if (!terms.length || !words.size) return 0;
+  const coverage = terms.filter(term => words.has(term)).length / terms.length;
   const phraseBoost = content.toLowerCase().includes(query.toLowerCase()) ? 0.12 : 0;
-  return Math.min(1, (score / terms.length) * 0.7 + coverage * 0.3 + phraseBoost);
+  return Math.min(1, coverage + phraseBoost);
 }
 
 export function cosine(a: number[], b: number[]) {
