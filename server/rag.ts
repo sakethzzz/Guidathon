@@ -11,6 +11,9 @@ export type KnowledgeInput = {
 };
 
 type StoredChunk = typeof knowledgeChunks.$inferSelect;
+const EMBEDDING_DIMENSIONS = 768;
+const MAX_INGEST_CHUNKS = 50;
+const STOP_WORDS = new Set(["the", "and", "for", "with", "from", "that", "this", "what", "when", "where", "which", "who", "how", "why", "are", "was", "were", "will", "can", "could", "should", "would", "have", "has", "had", "does", "did", "not", "but", "into", "about", "your", "their", "there", "then", "than"]);
 
 async function embed(text: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY"): Promise<number[] | null> {
   const key = process.env.GEMINI_API_KEY;
@@ -25,20 +28,28 @@ async function embed(text: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_Q
         model: "models/gemini-embedding-001",
         content: { parts: [{ text: text.slice(0, 8000) }] },
         taskType,
-        outputDimensionality: 768,
+        outputDimensionality: EMBEDDING_DIMENSIONS,
       }),
     }
   );
   if (!response.ok) throw new Error(`Embedding request failed (${response.status})`);
   const data = await response.json() as { embedding?: { values?: number[] } };
-  return Array.isArray(data.embedding?.values) ? data.embedding.values : null;
+  const values = data.embedding?.values;
+  if (!Array.isArray(values) || values.length !== EMBEDDING_DIMENSIONS || values.some(value => !Number.isFinite(value))) {
+    throw new Error("Embedding provider returned an invalid vector");
+  }
+  return values;
+}
+
+function tokenize(value: string) {
+  return value.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(term => term.length > 2 && !STOP_WORDS.has(term));
 }
 
 export function lexicalScore(query: string, content: string) {
-  const terms = [...new Set(query.toLowerCase().split(/[^a-z0-9]+/).filter(term => term.length > 2))];
+  const terms = [...new Set(tokenize(query))];
   if (!terms.length) return 0;
-  const text = content.toLowerCase();
-  const matches = terms.filter(term => text.includes(term)).length;
+  const words = new Set(tokenize(content));
+  const matches = terms.filter(term => words.has(term)).length;
   return matches / terms.length;
 }
 
@@ -51,11 +62,25 @@ export function cosine(a: number[], b: number[]) {
 
 export async function persistKnowledge(workspaceId: string, chunks: KnowledgeInput[]) {
   const db = await getDb();
-  if (!db) return { persisted: false, count: 0, reason: "DATABASE_URL is not configured" };
+  if (!db) return { persisted: false, count: 0, vectorized: false, vectorCount: 0, reason: "DATABASE_URL is not configured" };
+  if (chunks.length > MAX_INGEST_CHUNKS) {
+    throw new Error(`A single ingestion batch may contain at most ${MAX_INGEST_CHUNKS} chunks; split the document into smaller batches.`);
+  }
+
+  const embeddings: Array<number[] | null> = [];
+  for (let index = 0; index < chunks.length; index += 4) {
+    const batch = chunks.slice(index, index + 4);
+    const vectors = await Promise.all(batch.map(chunk =>
+      embed(`${chunk.heading}\n${chunk.content}`, "RETRIEVAL_DOCUMENT").catch(() => null)
+    ));
+    embeddings.push(...vectors);
+  }
+
   let count = 0;
   let vectorCount = 0;
-  for (const chunk of chunks.slice(0, 50)) {
-    const vector = await embed(`${chunk.heading}\n${chunk.content}`, "RETRIEVAL_DOCUMENT").catch(() => null);
+  for (let index = 0; index < chunks.length; index += 1) {
+    const chunk = chunks[index];
+    const vector = embeddings[index];
     if (vector) vectorCount += 1;
     await db.insert(knowledgeChunks).values({
       storageKey: `${workspaceId.slice(0, 48)}:${chunk.id.slice(0, 140)}`,
@@ -79,7 +104,14 @@ export async function persistKnowledge(workspaceId: string, chunks: KnowledgeInp
     });
     count += 1;
   }
-  return { persisted: true, count, vectorized: vectorCount === count, vectorCount };
+  return {
+    persisted: true,
+    count,
+    vectorized: vectorCount === count,
+    vectorCount,
+    embeddingDimensions: EMBEDDING_DIMENSIONS,
+    retrievalMode: vectorCount === count ? "vector" : vectorCount > 0 ? "hybrid" : "lexical",
+  };
 }
 
 export async function retrieveKnowledge(workspaceId: string, query: string, limit = 5) {
@@ -92,23 +124,29 @@ export async function retrieveKnowledge(workspaceId: string, query: string, limi
   const queryVector = await embed(query, "RETRIEVAL_QUERY").catch(() => null);
   const ranked = rows.map(row => {
     let vector: number[] | null = null;
-    if (row.embedding) { try { vector = JSON.parse(row.embedding) as number[]; } catch { vector = null; } }
-    const score = queryVector && vector ? cosine(queryVector, vector) : lexicalScore(query, `${row.heading}\n${row.content}`);
+    if (row.embedding) {
+      try {
+        const parsed = JSON.parse(row.embedding) as unknown;
+        if (Array.isArray(parsed) && parsed.length === EMBEDDING_DIMENSIONS && parsed.every(Number.isFinite)) vector = parsed as number[];
+      } catch { vector = null; }
+    }
+    const lexical = lexicalScore(query, `${row.heading}\n${row.content}`);
+    const vectorScore = queryVector && vector ? cosine(queryVector, vector) : null;
+    const score = vectorScore === null ? lexical : Math.max(0, vectorScore * 0.82 + lexical * 0.18);
     return { id: row.id, source: row.sourceName, heading: row.heading, passage: row.content, provenance: row.provenance, score };
-  }).filter(row => row.score > (queryVector ? 0.18 : 0.05))
-    .sort((a, b) => b.score - a.score).slice(0, limit);
+  }).filter(row => row.score > 0.12)
+    .sort((a, b) => b.score - a.score).slice(0, Math.max(1, Math.min(limit, 10)));
   return ranked;
 }
 
-
 /**
  * Promote only chunks belonging to the authenticated user's workspace after
- * the client has completed its supported text parsing step. This means
- * "verified" = successfully ingested/parsed, not independently fact-checked.
+ * the client has completed its supported text parsing step. "Verified" means
+ * parsed and ingested, not independently fact-checked.
  */
 export async function markKnowledgeProcessed(workspaceId: string, ids: string[]) {
   const db = await getDb();
-  const uniqueIds = [...new Set(ids)].slice(0, 50);
+  const uniqueIds = [...new Set(ids)].slice(0, MAX_INGEST_CHUNKS);
   if (!db) return { processed: false, count: 0, reason: "DATABASE_URL is not configured" };
   if (!uniqueIds.length) return { processed: false, count: 0, reason: "No chunk IDs supplied" };
   await db.update(knowledgeChunks)
