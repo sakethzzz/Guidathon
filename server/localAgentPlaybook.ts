@@ -35,9 +35,9 @@ export function localAgentReply(agent: ReviewAgentId, question: string, context 
   } else if (has(q, /what is mcp|model context protocol|connect.*mcp/)) {
     answer = commonAnswers.mcp;
   } else if (agent === "athena" && has(q, /suggest|three ways|improve|ideas|brainstorm|better|innovate|differentiat/)) {
-    answer = "Here are three high-impact ways to improve the project:\\n\\n1. **Narrow the user problem:** choose one clearly defined user group and one painful task. Make the before/after outcome obvious.\\n\\n2. **Prove one differentiator:** identify what existing alternatives fail to do, then demonstrate one feature that closes that gap. Avoid adding features that do not strengthen this advantage.\\n\\n3. **Make the demo evidence-led:** show the complete user journey, measure one outcome (time saved, errors reduced, or task completion), and include a real test or user observation.\\n\\n**My recommendation:** prioritize the smallest end-to-end workflow that proves a meaningful user benefit. Share the challenge statement and I can tailor these three improvements.";
+    answer = "Here are three high-impact ways to improve the project:\n\n1. **Narrow the user problem:** choose one clearly defined user group and one painful task. Make the before/after outcome obvious.\n\n2. **Prove one differentiator:** identify what existing alternatives fail to do, then demonstrate one feature that closes that gap. Avoid adding features that do not strengthen this advantage.\n\n3. **Make the demo evidence-led:** show the complete user journey, measure one outcome (time saved, errors reduced, or task completion), and include a real test or user observation.\n\n**My recommendation:** prioritize the smallest end-to-end workflow that proves a meaningful user benefit. Share the challenge statement and I can tailor these three improvements.";
   } else if (agent === "chronos" && has(q, /plan|schedule|steps|finish|deadline|time|timeline|milestone/)) {
-    answer = "Here is a practical 3-step finish plan:\\n\\n1. **Scope and lock (first 20%):** confirm the challenge, target user, judging criteria, and one MVP workflow. Freeze new feature requests.\\n\\n2. **Build and verify (middle 60%):** complete the main workflow end to end, test the happy path and one failure case, and fix blockers before polishing.\\n\\n3. **Submit and rehearse (final 20%):** verify submission fields, prepare screenshots/video, rehearse a 3–5 minute pitch, and keep a buffer for deployment issues.\\n\\n**Done means:** the core flow works on the demo device, the submission is complete, and the pitch has been rehearsed.";
+    answer = "Here is a practical 3-step finish plan:\n\n1. **Scope and lock (first 20%):** confirm the challenge, target user, judging criteria, and one MVP workflow. Freeze new feature requests.\n\n2. **Build and verify (middle 60%):** complete the main workflow end to end, test the happy path and one failure case, and fix blockers before polishing.\n\n3. **Submit and rehearse (final 20%):** verify submission fields, prepare screenshots/video, rehearse a 3–5 minute pitch, and keep a buffer for deployment issues.\n\n**Done means:** the core flow works on the demo device, the submission is complete, and the pitch has been rehearsed.";
   } else if (has(q, /pitch|present|presentation|demo script/)) {
     answer = commonAnswers.pitch;
   } else if (has(q, /judge|judging|evaluation|rubric|score/)) {
@@ -62,9 +62,6 @@ export function localAgentReply(agent: ReviewAgentId, question: string, context 
     answer = "I'll coordinate this around a clear outcome. Identify the decision to make, the information needed, and the next owner: Hermes for evidence, Athena for product direction, Hephaestus for implementation, and Chronos for deadlines. For now, make the smallest next decision and keep the team aligned on one shared MVP.";
   }
 
-  if (context.trim() && agent === "athena") {
-    answer += "\n\nProject context to consider: " + context.trim().slice(0, 500);
-  }
   return {
     answer,
     provider: "local-review-playbook",
