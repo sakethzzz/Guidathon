@@ -26,7 +26,7 @@ export function localAgentReply(agent: ReviewAgentId, question: string, context 
   const q = question.toLowerCase();
   let answer = "";
 
-  if (has(q, /\\b(hi|hello|hey|good morning|good afternoon)\\b/)) {
+  if (has(q, /\b(hi|hello|hey|good morning|good afternoon)\b/)) {
     answer = `Hello! I'm ${names[agent]}. ${agent === "athena" ? "I can help shape the idea, test its value, and choose what to build next." : agent === "hermes" ? "I can help research the challenge, explain concepts, and organize evidence." : agent === "hephaestus" ? "I can help with architecture, code, debugging, and integrations." : agent === "chronos" ? "I can turn the goal into milestones and a realistic schedule." : "I can coordinate the specialists and keep the project moving."} What are you working on?`;
   } else if (has(q, /what is guidathon|about guidathon|what does guidathon do/)) {
     answer = commonAnswers.guidathon;
@@ -59,7 +59,7 @@ export function localAgentReply(agent: ReviewAgentId, question: string, context 
   }
 
   if (context.trim() && agent === "athena") {
-    answer += "\\n\\nProject context to consider: " + context.trim().slice(0, 500);
+    answer += "\n\nProject context to consider: " + context.trim().slice(0, 500);
   }
   return {
     answer,
