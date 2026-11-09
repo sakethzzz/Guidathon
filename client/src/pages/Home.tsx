@@ -130,11 +130,11 @@ const agents: Array<{
   theme: string;
   quote: string;
 }> = [
-  { id: "hermes", name: "Hermes", role: "Guide + knowledge", short: "Answers, frames, routes", glyph: "✦", accent: "blue", art: "createChibiArt("hermes", "blue")", theme: "skyline blue", quote: "Ask the fog a better question." },
-  { id: "zeus", name: "Zeus", role: "Orchestrator", short: "Routes the next move", glyph: "ϟ", accent: "violet", art: "createChibiArt("zeus", "violet")", theme: "storm violet", quote: "Every handoff needs a keeper." },
-  { id: "athena", name: "Athena", role: "Idea analysis", short: "Tests the thesis", glyph: "Δ", accent: "rose", art: "createChibiArt("athena", "rose")", theme: "rose strategy", quote: "A sharp idea survives contact." },
-  { id: "hephaestus", name: "Hephaestus", role: "Stack + workflow", short: "Turns plans buildable", glyph: "⌘", accent: "orange", art: "createChibiArt("hephaestus", "orange")", theme: "forge orange", quote: "Make the next build smaller." },
-  { id: "chronos", name: "Chronos", role: "Time + submission", short: "Makes time visible", glyph: "◷", accent: "teal", art: "createChibiArt("chronos", "teal")", theme: "tide teal", quote: "A deadline is a shape, not a threat." },
+  { id: "hermes", name: "Hermes", role: "Guide + knowledge", short: "Answers, frames, routes", glyph: "✦", accent: "blue", art: createChibiArt("hermes", "blue"), theme: "skyline blue", quote: "Ask the fog a better question." },
+  { id: "zeus", name: "Zeus", role: "Orchestrator", short: "Routes the next move", glyph: "ϟ", accent: "violet", art: createChibiArt("zeus", "violet"), theme: "storm violet", quote: "Every handoff needs a keeper." },
+  { id: "athena", name: "Athena", role: "Idea analysis", short: "Tests the thesis", glyph: "Δ", accent: "rose", art: createChibiArt("athena", "rose"), theme: "rose strategy", quote: "A sharp idea survives contact." },
+  { id: "hephaestus", name: "Hephaestus", role: "Stack + workflow", short: "Turns plans buildable", glyph: "⌘", accent: "orange", art: createChibiArt("hephaestus", "orange"), theme: "forge orange", quote: "Make the next build smaller." },
+  { id: "chronos", name: "Chronos", role: "Time + submission", short: "Makes time visible", glyph: "◷", accent: "teal", art: createChibiArt("chronos", "teal"), theme: "tide teal", quote: "A deadline is a shape, not a threat." },
 ];
 
 const antigravityParticles = Array.from({ length: 64 }, (_, index) => ({
