@@ -52,7 +52,7 @@ async function withTimeout<T>(promise: Promise<T>, milliseconds: number, label: 
 
 async function callGemini(messages: ChatTurn[], maxTokens: number) {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) throw new Error("Vercel AI Gateway has no credential: the request did not contain an OIDC token and AI_GATEWAY_API_KEY is not set.");
   const system = messages.find(message => message.role === "system")?.content ?? "";
   const contents = messages.filter(message => message.role !== "system").map(message => ({
     role: message.role === "assistant" ? "model" : "user",
@@ -407,7 +407,7 @@ export const appRouter = router({
           console.error(`${input.agent} hosted-model route unavailable:`, detail);
           throw new TRPCError({
             code: "BAD_GATEWAY",
-            message: `The ${input.agent} model is unavailable. Configure GEMINI_API_KEY or GROQ_API_KEY in the deployment environment, then retry. No canned answer was substituted.`,
+            message: `The ${input.agent} model is unavailable. Check Vercel AI Gateway OIDC or configure GEMINI_API_KEY/GROQ_API_KEY. Details: ${detail.slice(0, 280)}. No canned answer was substituted.`,
           });
         }
       }),
