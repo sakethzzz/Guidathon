@@ -27,8 +27,8 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider
-        defaultTheme="light"
-        // switchable
+        defaultTheme="dark"
+        // Home manages the four theme/particle combinations
       >
         <TooltipProvider>
           <Toaster />
