@@ -397,6 +397,7 @@ export default function Home() {
   const [stackRun, setStackRun] = useState(false);
   const [uploadedName, setUploadedName] = useState("");
   const [themeMode, setThemeMode] = useState<"dark" | "light">(() => { try { const saved = localStorage.getItem("guidathon-theme"); return saved === "dark" || saved === "light" ? saved : "dark"; } catch { return "dark"; } });
+  const [goldFlakes, setGoldFlakes] = useState<boolean>(() => { try { return localStorage.getItem("guidathon-gold-flakes") !== "off"; } catch { return true; } });
   const [aboutOpen, setAboutOpen] = useState(false);
   const [ideaInput, setIdeaInput] = useState("");
   const [ideaResponse, setIdeaResponse] = useState("");
@@ -460,6 +461,7 @@ export default function Home() {
       setManualNote(typeof saved.manualNote === "string" ? saved.manualNote : "");
       setUploadedName(typeof saved.uploadedName === "string" ? saved.uploadedName : "");
       if (saved.themeMode === "dark" || saved.themeMode === "light") setThemeMode(saved.themeMode);
+      if (typeof saved.goldFlakes === "boolean") setGoldFlakes(saved.goldFlakes);
     }
     workspaceHydrated.current = true;
     setWorkspaceReady(true);
@@ -479,8 +481,8 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    try { localStorage.setItem("guidathon-theme", themeMode); } catch { /* storage may be unavailable */ }
-  }, [themeMode]);
+    try { localStorage.setItem("guidathon-theme", themeMode); localStorage.setItem("guidathon-gold-flakes", goldFlakes ? "on" : "off"); } catch { /* storage may be unavailable */ }
+  }, [themeMode, goldFlakes]);
 
   // Thunder is intentionally user-triggered; no periodic or autoplay audio.
 
@@ -511,7 +513,7 @@ export default function Home() {
     schemaVersion: 1,
     onboardingComplete, challenge, event, team, uncertainty, activeNav, activeAgent,
     sources, hermesMessages, activities, tasks, ideaRun, stackRun, ideaInput, ideaResponse,
-    submissionInput, submissionResult, manualNote, uploadedName, themeMode,
+    submissionInput, submissionResult, manualNote, uploadedName, themeMode, goldFlakes,
   }), [onboardingComplete, challenge, event, team, uncertainty, activeNav, activeAgent, sources, hermesMessages, activities, tasks, ideaRun, stackRun, ideaInput, ideaResponse, submissionInput, submissionResult, manualNote, uploadedName, themeMode]);
 
   useEffect(() => {
@@ -865,7 +867,7 @@ export default function Home() {
       return <SourceAgentRoom agents={agents} selected={selected} onSelect={selectAgent} onHandoff={enterAgentRoom} context={allChunks} sources={sources} manualNote={manualNote} setManualNote={setManualNote} addManualNote={addManualNote} onUpload={() => fileInputRef.current?.click()} uploadedName={uploadedName} />;
     }
     if (activeNav === "Settings") {
-      return <div className="room-body settings-room"><div className="settings-card"><div className="section-kicker"><span className="kicker-dot gold" /> Workspace controls</div><h3>Shape the constellation to your working style.</h3><div className="setting-row"><div><b>Theme field</b><p>Switch between the storm console and a clear light workspace.</p></div><button className={`theme-switch ${themeMode}`} onClick={() => setThemeMode(mode => mode === "dark" ? "light" : "dark")}><span /> {themeMode === "dark" ? "dark storm" : "light field"}</button></div><div className="setting-row"><div><b>Interaction sound</b><p>Click-only spark and rumble; no passive audio.</p></div><span className="integration-pill unverified">enabled</span></div></div><div className="history-card"><div className="section-kicker"><span className="kicker-dot blue" /> Agent history</div><h3>What the spirits have done</h3><div className="history-log">{activities.map(activity => <div className="history-row" key={activity.id}><span className="mono">{activity.time}</span><b>{agentById(activity.agent).name}</b><span>{activity.action} — {activity.detail}</span></div>)}</div></div></div>;
+      return <div className="room-body settings-room"><div className="settings-card"><div className="section-kicker"><span className="kicker-dot gold" /> Workspace controls</div><h3>Shape the constellation to your working style.</h3><div className="setting-row"><div><b>Theme field</b><p>Switch between the storm console and a clear light workspace.</p></div><button className={`theme-switch ${themeMode}`} onClick={() => setThemeMode(mode => mode === "dark" ? "light" : "dark")}><span /> {themeMode === "dark" ? "dark storm" : "light field"}</button></div><div className="setting-row"><div><b>Gold flake field</b><p>Ambient gold particles and cursor sparks; independently switchable in either theme.</p></div><button className={`theme-switch ${goldFlakes ? "dark" : "light"}`} aria-pressed={goldFlakes} onClick={() => setGoldFlakes(value => !value)}><span /> {goldFlakes ? "gold flakes on" : "normal field"}</button></div><div className="setting-row"><div><b>Interaction sound</b><p>Click-only spark and rumble; no passive audio.</p></div><span className="integration-pill unverified">enabled</span></div></div><div className="history-card"><div className="section-kicker"><span className="kicker-dot blue" /> Agent history</div><h3>What the spirits have done</h3><div className="history-log">{activities.map(activity => <div className="history-row" key={activity.id}><span className="mono">{activity.time}</span><b>{agentById(activity.agent).name}</b><span>{activity.action} — {activity.detail}</span></div>)}</div></div></div>;
     }
     if (activeNav === "Agents") {
       return (
@@ -1009,7 +1011,7 @@ export default function Home() {
     <div className={`app-shell theme-${themeMode} ${entered ? "has-entered" : "is-landing"}`} onPointerDown={triggerClickSpark}>
       <video ref={stormVideoRef} className="storm-video" autoPlay muted loop playsInline preload="auto" aria-hidden="true"><source src="/media/guidathon-storm-loop.mp4" type="video/mp4" /></video>
       <div className="storm-noise" />
-      {themeMode === "light" && <AntigravityField cursor={cursor} spark={clickSpark} />}
+      {goldFlakes && <AntigravityField cursor={cursor} spark={clickSpark} />}
       {handoff && <div className="handoff-transition" aria-live="polite"><div className="cloud-curtain cloud-left" /><div className="cloud-curtain cloud-right" /><div className="cloud-mist cloud-mist-one" /><div className="cloud-mist cloud-mist-two" /><div className="handoff-transition-copy"><span className="mono">CONTEXT IN MOTION</span><strong>{handoff.from} <i>→</i> {handoff.to}</strong><small>carrying the latest brief forward</small></div></div>}
       <section className={`landing-screen ${entered ? "landing-exit" : ""}`} onClick={enterWorkspace}>
         <div className="landing-veil" />
@@ -1019,7 +1021,7 @@ export default function Home() {
       <header className="topbar">
         <div className="brand-lockup"><div className="brand-sigil">✦</div><div><div className="brand-wordmark">GUIDA<span>THON</span></div><div className="brand-subtitle">evidence / action / outcome</div></div></div>
         <div className="topbar-status" aria-live="polite"><span className="status-dot live" /> workspace ready <span className="status-divider" /> <span className="mono">{currentUser ? (workspaceSave.isPending ? "SAVING..." : workspaceSave.isError || workspaceQuery.isError ? "CLOUD SAVE ISSUE" : workspaceReady ? "CLOUD WORKSPACE" : "LOADING WORKSPACE") : "LOCAL SESSION"}</span></div>
-        <div className="topbar-actions"><button className="icon-button theme-toggle" aria-label={`Switch to ${themeMode === "dark" ? "light" : "dark"} theme`} title={`Switch to ${themeMode === "dark" ? "light" : "dark"} theme`} onClick={() => setThemeMode(mode => mode === "dark" ? "light" : "dark")}>{themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}</button><button className="help-button" aria-label="What is GUIDATHON?" onClick={() => setAboutOpen(true)}><CircleHelp size={17} /></button></div>
+        <div className="topbar-actions"><button className="icon-button theme-toggle" aria-label={`Switch to ${themeMode === "dark" ? "light" : "dark"} theme`} title={`Switch to ${themeMode === "dark" ? "light" : "dark"} theme`} onClick={() => setThemeMode(mode => mode === "dark" ? "light" : "dark")}>{themeMode === "dark" ? <Sun size={16} /> : <Moon size={16} />}</button><button className={`icon-button flakes-toggle ${goldFlakes ? "active" : ""}`} aria-pressed={goldFlakes} aria-label={goldFlakes ? "Turn gold flakes off" : "Turn gold flakes on"} title={goldFlakes ? "Gold flakes on" : "Gold flakes off"} onClick={() => setGoldFlakes(value => !value)}><Sparkles size={16} /></button><button className="help-button" aria-label="What is GUIDATHON?" onClick={() => setAboutOpen(true)}><CircleHelp size={17} /></button></div>
       </header>
       <div className="workspace-shell">
         <aside className="line-sidebar">
