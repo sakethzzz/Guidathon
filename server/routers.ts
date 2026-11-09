@@ -9,6 +9,7 @@ import { callExternalMcpTool, listExternalMcpTools } from "./mcp";
 import { TRPCError } from "@trpc/server";
 import { loadWorkspace, saveWorkspace, loadAgentConversation, saveAgentConversation, saveJudgeEvaluation, loadJudgeEvaluations } from "./workspace";
 import { z } from "zod";
+import { getDemoAnswer, getDemoQuestions } from "./demoAnswers";
 
 const hermesContextSchema = z.object({
   id: z.string().max(160),
@@ -433,11 +434,15 @@ export const appRouter = router({
           return { answer: result.answer, provider: result.provider, citations: citedIds, handoffTo: null };
         } catch (error) {
           const detail = error instanceof Error ? error.message : "No hosted model provider is configured";
-          console.error(`${input.agent} hosted-model route unavailable:`, detail);
-          throw new TRPCError({
-            code: "BAD_GATEWAY",
-            message: `The ${input.agent} model is unavailable. Check Vercel AI Gateway OIDC or configure GEMINI_API_KEY/GROQ_API_KEY. Details: ${detail.slice(0, 280)}. No canned answer was substituted.`,
-          });
+          console.warn(`${input.agent} hosted-model route unavailable; checking the verified demo playbook:`, detail);
+          const preparedAnswer = getDemoAnswer(input.agent, input.question);
+          const answer = preparedAnswer ?? [
+            "Demo mode is active: no live model answered this question, and I will not guess.",
+            "Please use one of these prepared questions for this agent:",
+            ...getDemoQuestions(input.agent).map(question => `• ${question}`),
+            "Configure a model provider to enable open-ended answers.",
+          ].join("\\n");
+          return { answer, provider: "guidathon-demo-playbook", citations: [], handoffTo: null };
         }
       }),
   }),
