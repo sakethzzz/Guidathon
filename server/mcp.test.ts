@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { mcpToolRequiresConfirmation } from "./mcp";
 
-describe("MCP external action confirmation", () => {
-  it("allows bypass only when the server explicitly marks a tool read-only", () => {
+describe("GUIDATHON MCP read-only policy", () => {
+  it("allows only tools explicitly marked read-only", () => {
     expect(mcpToolRequiresConfirmation({ readOnlyHint: true })).toBe(false);
   });
-
-  it("requires confirmation when read-only is false or missing", () => {
+  it("blocks write-capable or unclassified tools by default", () => {
     expect(mcpToolRequiresConfirmation({ readOnlyHint: false })).toBe(true);
     expect(mcpToolRequiresConfirmation(undefined)).toBe(true);
     expect(mcpToolRequiresConfirmation({})).toBe(true);
