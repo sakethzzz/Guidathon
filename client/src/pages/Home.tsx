@@ -1128,37 +1128,73 @@ function OverviewStack({ agents, onSelect }: { agents: AgentRecord[]; onSelect: 
       return;
     }
 
-    gsap.set(cards, { autoAlpha: 0, y: 72, scale: 0.96, filter: "blur(4px)", zIndex: (index) => index + 1, pointerEvents: "none", transformOrigin: "center center" });
-    gsap.set(cards[0], { autoAlpha: 1, y: 0, scale: 1, filter: "blur(0px)", pointerEvents: "auto", zIndex: cards.length + 1 });
+    const lastIndex = cards.length - 1;
+    const paintStack = (progress: number) => {
+      const position = Math.max(0, Math.min(lastIndex, progress * lastIndex));
+      cards.forEach((card, index) => {
+        const offset = index - position;
+        if (offset < 0) {
+          gsap.set(card, {
+            autoAlpha: 0.34,
+            y: -48,
+            scale: 0.92,
+            filter: "blur(2px)",
+            zIndex: index + 1,
+            pointerEvents: "none",
+            transformOrigin: "center center",
+          });
+          return;
+        }
+        if (offset <= 1) {
+          const reveal = 1 - offset;
+          gsap.set(card, {
+            autoAlpha: reveal,
+            y: 72 * offset,
+            scale: 0.96 + 0.04 * reveal,
+            filter: "blur(" + (4 * offset) + "px)",
+            zIndex: cards.length + index + 1,
+            pointerEvents: reveal > 0.78 ? "auto" : "none",
+            transformOrigin: "center center",
+          });
+          return;
+        }
+        gsap.set(card, {
+          autoAlpha: 0,
+          y: 72,
+          scale: 0.96,
+          filter: "blur(4px)",
+          zIndex: index + 1,
+          pointerEvents: "none",
+          transformOrigin: "center center",
+        });
+      });
+    };
 
-    const timeline = gsap.timeline({
+    const driver = { progress: 0 };
+    const tween = gsap.to(driver, {
+      progress: 1,
+      ease: "none",
+      onUpdate: () => paintStack(driver.progress),
       scrollTrigger: {
         trigger: viewport,
         start: "top top+=84",
-        end: () => `+=${Math.max(window.innerHeight, 520) * 1.15 * Math.max(1, cards.length - 1)}`,
+        end: () => "+=" + Math.max(window.innerHeight * 0.95, 540) * lastIndex,
         pin: viewport,
-        scrub: 0.55,
+        pinSpacing: true,
+        scrub: 0.4,
         anticipatePin: 1,
         invalidateOnRefresh: true,
+        onUpdate: self => paintStack(self.progress),
+        onRefresh: self => paintStack(self.progress),
       },
     });
 
-    cards.slice(0, -1).forEach((card, index) => {
-      const next = cards[index + 1];
-      timeline.to(card, { y: -48, scale: 0.92, autoAlpha: 0.34, filter: "blur(2px)", pointerEvents: "none", zIndex: index + 1, duration: 1 }, index);
-      timeline.set(next, { zIndex: cards.length + index + 2 }, index);
-      timeline.fromTo(next,
-        { y: 72, scale: 0.96, autoAlpha: 0, filter: "blur(4px)", pointerEvents: "none" },
-        { y: 0, scale: 1, autoAlpha: 1, filter: "blur(0px)", pointerEvents: "auto", duration: 1 },
-        index
-      );
-    });
-
     const refreshFrame = window.requestAnimationFrame(() => ScrollTrigger.refresh());
+    if (tween.scrollTrigger) paintStack(tween.scrollTrigger.progress);
     return () => {
       window.cancelAnimationFrame(refreshFrame);
-      timeline.scrollTrigger?.kill();
-      timeline.kill();
+      tween.scrollTrigger?.kill();
+      tween.kill();
     };
   }, { scope: stackRef });
 
