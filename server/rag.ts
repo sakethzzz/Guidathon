@@ -20,7 +20,7 @@ async function embed(text: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_Q
     {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": key },
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(6000),
       body: JSON.stringify({
         model: "models/gemini-embedding-001",
         content: { parts: [{ text: text.slice(0, 8000) }] },
