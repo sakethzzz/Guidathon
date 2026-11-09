@@ -7,7 +7,7 @@ describe("local agent review playbook", () => {
     expect(localAgentReply("athena", "How do I validate my idea?").answer).toMatch(/Validate the idea/i);
     expect(localAgentReply("hephaestus", "What is MCP?").answer).toMatch(/Model Context Protocol/i);
   });
-  it("keeps Athena strategic and Chronos time-focused", () => {
+  it("explains MCP directly when Hermes is asked in plain language", () => {\n    const answer = localAgentReply("hermes", "Explain MCP simply").answer;\n    expect(answer).toMatch(/Model Context Protocol/i);\n    expect(answer).toMatch(/external tools and data/i);\n    expect(answer).not.toMatch(/review mode/i);\n  });\n  it("keeps Athena strategic and Chronos time-focused", () => {
     expect(localAgentReply("athena", "Suggest something").answer).toMatch(/user backwards/i);
     expect(localAgentReply("chronos", "Suggest something").answer).toMatch(/three checkpoints/i);
   });
