@@ -72,7 +72,7 @@ async function callGemini(messages: ChatTurn[], maxTokens: number) {
 
 async function callGroq(messages: ChatTurn[], maxTokens: number) {
   const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) throw new Error("Vercel AI Gateway credential missing: no request OIDC token or AI_GATEWAY_API_KEY was available.");
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
@@ -124,14 +124,16 @@ async function runModel(messages: ChatTurn[], maxTokens = 700, preferred?: z.inf
     : preferred === "gateway" ? [gateway, callGemini, callGroq, callManaged]
     : preferred === "gemini" ? [callGemini, gateway, callGroq, callManaged]
     : [callGemini, callGroq, gateway, callManaged];
-  let lastError: unknown;
+  const failures: string[] = [];
   for (const provider of providers) {
     try {
       const result = await provider(messages, maxTokens);
       if (result) return result;
-    } catch (error) { lastError = error; }
+    } catch (error) {
+      failures.push(error instanceof Error ? error.message : String(error));
+    }
   }
-  throw lastError instanceof Error ? lastError : new Error("No model provider is configured");
+  throw new Error(failures.length ? failures.join(" | ").slice(0, 900) : "No model provider is configured");
 }
 
 function evidenceText(context: z.infer<typeof hermesContextSchema>[], verifiedIds = new Set<string>()) {
@@ -264,7 +266,7 @@ export const appRouter = router({
           console.error("Hermes hosted-model route unavailable:", detail);
           throw new TRPCError({
             code: "BAD_GATEWAY",
-            message: "Hermes is unavailable because no model provider responded. Configure GEMINI_API_KEY or GROQ_API_KEY in the deployment environment, then retry. No canned answer was substituted.",
+            message: `Hermes is unavailable. Check Vercel AI Gateway OIDC or configure GEMINI_API_KEY/GROQ_API_KEY. Details: ${detail.slice(0, 280)}. No canned answer was substituted.`,
           });
         }
       }),
