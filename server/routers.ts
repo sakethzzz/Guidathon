@@ -160,7 +160,7 @@ export const appRouter = router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.(ctx.res as any).clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      (ctx.res as any).clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
   }),
@@ -206,8 +206,18 @@ export const appRouter = router({
             ], 1100, input.provider);
           return { answer: result.answer, provider: result.provider, citations: [...combinedContext.map(chunk => chunk.id), ...research.citations], handoffTo: null, retrieved: combinedContext.map(chunk => ({ ...chunk, evidenceStatus: serverContext.some(item => item.id === chunk.id) ? "server-verified" : "client-supplied-unverified" })) };
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Hermes could not answer";
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message });
+          const answer = research.text
+            ? `**Hermes quick research**\\n\\nI couldn't reach the hosted model, so here's the retrieved reference context to work from:\\n\\n${research.text.slice(0, 4200)}\\n\\nTreat this as source material, not a complete synthesis. Open the linked articles and compare them with your uploaded documents.`
+            : `I couldn't reach the hosted model or retrieve live references for: ${input.question}. Try a shorter question, or add a project document in Sources. Your local chunks are still available for retrieval.`;
+          return {
+            answer,
+            provider: "guidathon-local-safety-fallback",
+            citations: [...combinedContext.map(chunk => chunk.id), ...research.citations],
+            handoffTo: null,
+            degraded: true,
+            note: error instanceof Error ? error.message : "Hosted model unavailable",
+            retrieved: combinedContext.map(chunk => ({ ...chunk, evidenceStatus: serverContext.some(item => item.id === chunk.id) ? "server-verified" : "client-supplied-unverified" })),
+          };
         }
       }),
   }),
