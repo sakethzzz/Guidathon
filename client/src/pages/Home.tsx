@@ -328,17 +328,31 @@ function playThunderRumble() {
     if (context.state === "suspended") void context.resume();
     const now = context.currentTime;
     const oscillator = context.createOscillator();
-    const gain = context.createGain();
+    const subGain = context.createGain();
     oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(58, now);
-    oscillator.frequency.exponentialRampToValueAtTime(34, now + 1.05);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.075, now + 0.06);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.15);
-    oscillator.connect(gain).connect(context.destination);
-    oscillator.start(now);
-    oscillator.stop(now + 1.2);
-    oscillator.addEventListener("ended", () => void context.close());
+    oscillator.frequency.setValueAtTime(56, now);
+    oscillator.frequency.exponentialRampToValueAtTime(28, now + 1.35);
+    subGain.gain.setValueAtTime(0.0001, now);
+    subGain.gain.exponentialRampToValueAtTime(0.055, now + 0.07);
+    subGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.4);
+    oscillator.connect(subGain).connect(context.destination);
+    const noiseBuffer = context.createBuffer(1, Math.floor(context.sampleRate * 1.35), context.sampleRate);
+    const channel = noiseBuffer.getChannelData(0);
+    for (let index = 0; index < channel.length; index += 1) channel[index] = (Math.random() * 2 - 1) * (1 - index / channel.length) ** 1.4;
+    const noise = context.createBufferSource();
+    noise.buffer = noiseBuffer;
+    const lowPass = context.createBiquadFilter();
+    lowPass.type = "lowpass";
+    lowPass.frequency.setValueAtTime(190, now);
+    lowPass.frequency.exponentialRampToValueAtTime(72, now + 1.3);
+    const noiseGain = context.createGain();
+    noiseGain.gain.setValueAtTime(0.0001, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.038, now + 0.045);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.35);
+    noise.connect(lowPass).connect(noiseGain).connect(context.destination);
+    oscillator.start(now); noise.start(now);
+    oscillator.stop(now + 1.42); noise.stop(now + 1.4);
+    noise.addEventListener("ended", () => void context.close(), { once: true });
   } catch {
     // Audio may be blocked until a user gesture; the visual storm remains usable.
   }
