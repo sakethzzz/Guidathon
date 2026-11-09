@@ -912,53 +912,6 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .task-row .task-check { cursor:pointer; }
 .task-row .task-check:focus-visible { outline:1px solid var(--gold); outline-offset:3px; }
 @media (max-width:700px) { .task-add-form { grid-template-columns:1fr 1fr; } .task-add-form input:first-child { grid-column:1/-1; } .task-add-form button { grid-column:1/-1; } }
-
-
-
-/* Stable light field: the same component system, with readable light surfaces. */
-.theme-light .workspace-heading h1,
-.theme-light .section-title-row h2,
-.theme-light .panel-heading h3,
-.theme-light .room-title h2,
-.theme-light .workspace-heading p,
-.theme-light .room-panel,
-.theme-light .activity-panel,
-.theme-light .mission-card,
-.theme-light .decision-card,
-.theme-light .architecture-card,
-.theme-light .countdown-card,
-.theme-light .orchestration-card,
-.theme-light .chunk-card,
-.theme-light .mcp-tools-panel,
-.theme-light .settings-card,
-.theme-light .mission-card h3,
-.theme-light .decision-card h3,
-.theme-light .architecture-card h3,
-.theme-light .settings-card h3,
-.theme-light .mission-card p,
-.theme-light .decision-card p,
-.theme-light .architecture-card p,
-.theme-light .countdown-card p,
-.theme-light .orchestration-card p,
-.theme-light .query-box,
-.theme-light .field-grid input,
-.theme-light .field-grid textarea,
-.theme-light .manual-note textarea,
-.theme-light .role-chat-input input,
-.theme-light .hermes-composer textarea,
-.theme-light .query-box input::placeholder,
-.theme-light input::placeholder,
-.theme-light .chunk-card h4,
-.theme-light .role-chat,
-.theme-light .role-chat-thread,
-.theme-light .role-chat-line.user,
-.theme-light .role-chat-line.agent,
-.theme-light .role-chat-line span,
-.theme-light .source-row b,
-.theme-light .task-row b,
-.theme-light .source-row span,
-.theme-light .task-row span,
-.topbar-actions { display:flex; align-items:center; gap:10px; }
 .theme-toggle { color:var(--gold); }
 @media (max-width:760px) {
   .topbar-actions { gap:7px; }
@@ -1026,15 +979,6 @@ button:disabled { cursor: not-allowed; opacity: .58; }
   .chat-companion-floating img { width:29px; height:29px; }
   .hermes-transcript, .role-chat-thread { padding-top:43px; }
 }
-
-
-/* GUIDATHON release sprint: accessible light palette + optional gold particle layer */
-.theme-light .workspace-heading h1, .theme-light .room-panel h2, .theme-light .room-panel h3,
-.theme-light .room-panel, .theme-light .settings-card, .theme-light .history-card,
-.theme-light .judge-results, .theme-light .judge-input-grid > label,
-.theme-light .role-chat, .theme-light .mcp-tools-panel, .theme-light .source-card,
-.theme-light .role-chat-line, .theme-light .history-row, .theme-light .judge-criterion,
-.antigravity-field { contain: strict; }
 .antigravity-particles i { will-change: transform, opacity; }
 .flakes-toggle.active { color: var(--gold); border-color: rgba(232,197,107,.55); }
 @media (max-width: 760px) {
@@ -1101,4 +1045,14 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 @media (prefers-reduced-motion: reduce) {
   .antigravity-field { display: none; }
   .antigravity-particles i { animation: none !important; }
+}
+
+
+/* Scroll stack: each incoming card rises above the previous card while the viewport is pinned. */
+.overview-stack-viewport { overflow: visible; }
+.overview-stack-cards { overflow: visible; }
+.overview-stack-viewport .mythic-stack-card {
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  will-change: transform, opacity, filter;
 }
