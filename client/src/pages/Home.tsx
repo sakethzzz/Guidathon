@@ -656,7 +656,7 @@ export default function Home() {
   const remainingHours = Math.floor(remainingMs / 3600000);
   const remainingMinutes = Math.floor((remainingMs % 3600000) / 60000);
   const remainingSeconds = Math.floor((remainingMs % 60000) / 1000);
-  const agentContext: Chunk[] = [...allChunks.slice(0, 7), { id: "guidathon-live-state", source: "Current workspace", heading: "Live mission state and actual deadline", passage: JSON.stringify({ challenge, event, team, uncertainty, submissionDeadline: deadlineAt || null, remainingMilliseconds: remainingMs, tasks, ideaDecision: ideaResponse.slice(0, 1200), architectureDecision: stackResponse.slice(0, 1200) }).slice(0, 3500), provenance: "Current user-configured workspace state; task checkpoints are estimates until approved" }];
+  const agentContext: Chunk[] = [...sources.filter(source => source.chunks.length > 0).flatMap(source => source.chunks).slice(0, 7), { id: "guidathon-live-state", source: "Current workspace", heading: "Live mission state and actual deadline", passage: JSON.stringify({ challenge, event, team, uncertainty, submissionDeadline: deadlineAt || null, remainingMilliseconds: remainingMs, tasks, ideaDecision: ideaResponse.slice(0, 1200), architectureDecision: stackResponse.slice(0, 1200) }).slice(0, 3500), provenance: "Current user-configured workspace state; task checkpoints are estimates until approved" }];
   const readinessScore = Math.min(100, (challenge.trim().length > 24 && challenge.trim() !== "Build a trustworthy AI mentor for hackathon teams" ? 10 : 0) + Math.min(20, readyCount * 5) + (ideaRun && ideaResponse.length > 100 ? 20 : 0) + (stackRun && stackResponse.length > 100 ? 20 : 0) + Math.min(15, tasks.length * 3) + Math.min(15, tasks.filter(task => task.status === "done").length * 5));
   const activeNavAgent: Partial<Record<NavId, AgentId>> = {
     Sources: "hermes",
@@ -936,7 +936,7 @@ export default function Home() {
 
   const runAthenaScale = () => {
     const uploadedBriefChunks = sources
-      .filter(source => (source.kind === "upload" || source.kind === "note") && source.status === "verified")
+      .filter(source => (source.kind === "upload" || source.kind === "note") && source.chunks.length > 0)
       .flatMap(source => source.chunks)
       .slice(0, 8);
     const uploadedBrief = uploadedBriefChunks.map(chunk => `[${chunk.source} · ${chunk.heading}]\n${chunk.passage}`).join("\n\n");
