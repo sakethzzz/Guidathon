@@ -1024,11 +1024,11 @@ export default function Home() {
     const value = submissionInput.trim();
     if (!value) return;
     const looksLikeRepo = /github\.com|gitlab\.com|bitbucket\.org/i.test(value);
-    const checks = looksLikeRepo
-      ? "Repo link detected. Zeus will inspect the submission path, README, deploy signal, and demo proof next. Add a live URL if the repo is already deployed."
-      : "Submission files detected. Zeus will look for a clear README, runnable entrypoint, environment notes, and a short demo path."
-    setSubmissionResult(checks);
-    pushActivity("zeus", "Re-ran submission readiness", `${looksLikeRepo ? "Repository" : "Files"} received; live correction list updated.`, "complete");
+    const message = looksLikeRepo
+      ? "Repository reference recorded. Open Project Readiness and run Zeus's repository audit to inspect public files and the latest CI run. This reference alone does not verify a live deployment."
+      : "Submission reference recorded. Upload the actual files in Sources or run Zeus's Project Readiness audit. This quick intake does not parse files, execute tests, or verify a deployment.";
+    setSubmissionResult(message);
+    pushActivity("zeus", "Recorded a submission reference", "No readiness checks were run by this quick intake; use the dedicated Zeus audit for repository, CI and runtime evidence.", "live");
   };
 
 
