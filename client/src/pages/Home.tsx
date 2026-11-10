@@ -670,7 +670,7 @@ export default function Home() {
   const remainingHours = Math.floor(remainingMs / 3600000);
   const remainingMinutes = Math.floor((remainingMs % 3600000) / 60000);
   const remainingSeconds = Math.floor((remainingMs % 60000) / 1000);
-  const agentContext: Chunk[] = [...sources.filter(source => source.chunks.length > 0).flatMap(source => source.chunks).slice(0, 7), { id: "guidathon-live-state", source: "Current workspace", heading: "Live mission state and actual deadline", passage: JSON.stringify({ challenge, event, team, uncertainty, submissionDeadline: deadlineAt || null, remainingMilliseconds: remainingMs, tasks, ideaDecision: ideaResponse.slice(0, 1200), architectureDecision: stackResponse.slice(0, 1200) }).slice(0, 3500), provenance: "Current user-configured workspace state; task checkpoints are estimates until approved" }];
+  const agentContext: Chunk[] = [...sources.filter(source => source.chunks.length > 0).flatMap(source => source.chunks).slice(0, 7).map(({ embedding, ...chunk }) => chunk), { id: "guidathon-live-state", source: "Current workspace", heading: "Live mission state and actual deadline", passage: JSON.stringify({ challenge, event, team, uncertainty, submissionDeadline: deadlineAt || null, remainingMilliseconds: remainingMs, tasks, ideaDecision: ideaResponse.slice(0, 1200), architectureDecision: stackResponse.slice(0, 1200) }).slice(0, 3500), provenance: "Current user-configured workspace state; task checkpoints are estimates until approved" }];
   const readinessScore = Math.min(100, (challenge.trim().length > 24 && challenge.trim() !== "Build a trustworthy AI mentor for hackathon teams" ? 10 : 0) + Math.min(20, readyCount * 5) + (ideaRun && ideaResponse.length > 100 ? 20 : 0) + (stackRun && stackResponse.length > 100 ? 20 : 0) + Math.min(15, tasks.length * 3) + Math.min(15, tasks.filter(task => task.status === "done").length * 5));
   const activeNavAgent: Partial<Record<NavId, AgentId>> = {
     Sources: "hermes",
@@ -805,33 +805,53 @@ export default function Home() {
     return `Here is the grounded answer from the current source pack:\n\n${ranked.map(chunk => `• ${chunk.passage} [${chunk.id}]`).join("\n\n")}\n\nNext move: turn the relevant point into one decision your team can test this cycle.`;
   };
 
-  const askHermes = () => {
+  const askHermes = async () => {
     const question = hermesInput.trim();
-    if (!question || hermesAsk.isPending) return;
+    if (!question || hermesAsk.isPending || hermesEmbed.isPending) return;
     const corpusTerms = allChunks.map(chunk => new Set(tokenize(`${chunk.heading} ${chunk.passage}`)));
     const documentFrequency: Record<string, number> = {};
     for (const term of new Set(tokenize(question))) {
       documentFrequency[term] = corpusTerms.filter(terms => terms.has(term)).length;
     }
+    let queryEmbedding: number[] | null = null;
+    if (allChunks.some(chunk => Boolean(chunk.embedding?.length))) {
+      try {
+        const embeddedQuery = await hermesEmbed.mutateAsync({
+          taskType: "RETRIEVAL_QUERY",
+          chunks: [{ id: "hermes-query", text: question.slice(0, 8000) }],
+        });
+        queryEmbedding = embeddedQuery.embeddings[0]?.embedding ?? null;
+      } catch {
+        queryEmbedding = null;
+      }
+    }
     const ranked = allChunks
-      .map(chunk => ({ ...chunk, score: scorePassage(question, `${chunk.heading} ${chunk.passage}`, allChunks.length, documentFrequency) }))
-      .filter(chunk => (chunk.score ?? 0) >= 0.16)
+      .map(chunk => {
+        const vectorScore = queryEmbedding && chunk.embedding && queryEmbedding.length === chunk.embedding.length
+          ? Math.max(0, cosineSimilarity(queryEmbedding, chunk.embedding))
+          : null;
+        const score = vectorScore ?? scorePassage(question, `${chunk.heading} ${chunk.passage}`, allChunks.length, documentFrequency);
+        return { ...chunk, score };
+      })
+      .filter(chunk => (chunk.score ?? 0) >= (queryEmbedding ? 0.12 : 0.16))
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
       .slice(0, 5);
     setRetrieval(ranked);
     setHermesMessages(current => [...current, { role: "user", content: question }]);
     setHermesInput("");
-    pushActivity("hermes", "Retrieved source chunks", ranked.length ? `${ranked.length} chunks attached to the model request.` : "No matching chunk; Hermes will label the answer as general guidance.", "live");
+    const retrievalMode = queryEmbedding ? "local semantic embeddings + cosine retrieval" : "client context / lexical ranking";
+    pushActivity("hermes", queryEmbedding ? "Ran semantic retrieval" : "Ran lexical retrieval", ranked.length ? `${ranked.length} chunks attached to the model request.` : "No matching chunk; Hermes will label the answer as general guidance.", "live");
+    const safeContext = ranked.map(({ embedding, score, ...chunk }) => chunk);
     hermesAsk.mutate({
       question,
       provider: "openrouter",
-      context: ranked,
+      context: safeContext,
       history: hermesMessages.slice(-6).map(message => ({ role: message.role, content: message.content })),
     }, {
       onSuccess: result => {
         setHermesMessages(current => [...current, { role: "assistant", content: result.answer, citations: result.citations }]);
         if (result.retrieved?.length) setRetrieval(result.retrieved as Chunk[]);
-        setRagStats(current => ({ ...current, mode: result.retrieved?.some((chunk: any) => chunk.evidenceStatus === "server-ingested-not-fact-checked") ? "workspace retrieval active" : "client context / lexical ranking", lastQuery: question, topScore: Math.max(0, ...(result.retrieved ?? []).map((chunk: any) => Number(chunk.score) || 0)) }));
+        setRagStats(current => ({ ...current, mode: result.retrieved?.some((chunk: any) => chunk.evidenceStatus === "server-ingested-not-fact-checked") ? "workspace retrieval active" : retrievalMode, lastQuery: question, topScore: Math.max(0, ...(result.retrieved ?? []).map((chunk: any) => Number(chunk.score) || 0)) }));
         if (result.handoffTo) {
           const target = agentById(result.handoffTo);
           setHandoff({ from: "Hermes", to: target.name });
