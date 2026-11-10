@@ -13,6 +13,32 @@ export type KnowledgeInput = {
 type StoredChunk = typeof knowledgeChunks.$inferSelect;
 
 async function embed(text: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY"): Promise<number[] | null> {
+  const openRouterKey = process.env.OPENROUTER_API_KEY || process.env.Open_Router_Key;
+  if (openRouterKey) {
+    try {
+      const response = await fetch("https://openrouter.ai/api/v1/embeddings", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${openRouterKey}`,
+          "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "https://guidathon-int7xx335-saketh3313-8054.vercel.app",
+          "X-OpenRouter-Title": "GUIDATHON",
+        },
+        signal: AbortSignal.timeout(10000),
+        body: JSON.stringify({
+          model: process.env.OPENROUTER_EMBEDDING_MODEL || "nvidia/nemotron-3.5-embed-1b:free",
+          input: text.slice(0, 8000),
+        }),
+      });
+      if (!response.ok) throw new Error(`OpenRouter embedding request failed (${response.status})`);
+      const data = await response.json() as { data?: Array<{ embedding?: number[] }> };
+      const vector = data.data?.[0]?.embedding;
+      if (Array.isArray(vector) && vector.length > 0) return vector;
+      throw new Error("OpenRouter returned no embedding vector");
+    } catch (error) {
+      console.warn("OpenRouter embeddings unavailable; trying Gemini or lexical retrieval:", error instanceof Error ? error.message : "unknown error");
+    }
+  }
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
   const response = await fetch(
@@ -106,7 +132,7 @@ export async function retrieveKnowledge(workspaceId: string, query: string, limi
   const ranked = rows.map(row => {
     let vector: number[] | null = null;
     if (row.embedding) { try { vector = JSON.parse(row.embedding) as number[]; } catch { vector = null; } }
-    const score = queryVector && vector ? cosine(queryVector, vector) : lexicalScore(query, `${row.heading}\n${row.content}`);
+    const score = queryVector && vector && queryVector.length === vector.length ? cosine(queryVector, vector) : lexicalScore(query, `${row.heading}\n${row.content}`);
     return { id: row.id, source: row.sourceName, heading: row.heading, passage: row.content, provenance: row.provenance, score };
   }).filter(row => row.score > (queryVector ? 0.18 : 0.05))
     .sort((a, b) => b.score - a.score).slice(0, limit);
