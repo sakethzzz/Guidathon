@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Activity, AlertTriangle, CheckCircle2, Circle, FileArchive, FolderGit2, Gauge, Github, Loader2, ShieldCheck, UploadCloud } from "lucide-react";
+import { useState } from "react";
+import { Activity, AlertTriangle, CheckCircle2, Circle, FolderGit2, Gauge, Github, Loader2, ShieldCheck, UploadCloud } from "lucide-react";
 
 type Finding = { label: string; detail: string; points: number; ok: boolean; critical?: boolean };
 type Audit = { name: string; score: number; verdict: string; findings: Finding[]; summary: string; source: string };
