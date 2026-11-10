@@ -30,6 +30,7 @@ import {
 import { ChangeEvent, type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import ScrollStack, { ScrollStackItem } from "@/components/ScrollStack/ScrollStack";
+import ProjectReadinessAuditor from "@/components/ProjectReadinessAuditor";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -1043,7 +1044,7 @@ export default function Home() {
             <div className="route-map"><div className="route-node done"><span>01</span><b>Hermes</b><small>context captured</small></div><div className="route-connector active" /><div className="route-node active"><span>02</span><b>Hermes model</b><small>answer + evidence</small></div><div className="route-connector" /><div className="route-node"><span>03</span><b>Athena</b><small>pressure-test idea</small></div><div className="route-connector" /><div className="route-node"><span>04</span><b>Hephaestus</b><small>make it buildable</small></div></div>
             <div className="handoff-strip"><Inbox size={14} /><span><b>Carrying forward:</b> {uncertainty}</span></div>
           </div>
-          <div><div className="orchestration-card"><Network size={20} /><span className="section-kicker">Signal integrity</span><strong>3 handoffs visible</strong><p>Each room can inspect the prior room&apos;s context. Zeus coordinates the live model route and makes missing inputs explicit.</p><div className="integration-pill mocked">Gemini / Groq fallback route</div></div><AgentRoleChat agent={agentById("zeus")} context={allChunks} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
+          <div><ProjectReadinessAuditor /><div className="orchestration-card"><Network size={20} /><span className="section-kicker">Signal integrity</span><strong>3 handoffs visible</strong><p>Each room can inspect the prior room&apos;s context. Zeus coordinates the live model route and makes missing inputs explicit.</p><div className="integration-pill mocked">Gemini / Groq fallback route</div></div><AgentRoleChat agent={agentById("zeus")} context={allChunks} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
         </div>
       );
     }
