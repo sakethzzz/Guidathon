@@ -1432,9 +1432,10 @@ function ModelViewer({ agent }: { agent: AgentRecord }) {
       observer.disconnect();
       controls.dispose();
       texture.dispose();
-      [frame, backing, avatar, plinth, plinthRim, ringA, ringB, ringC, ...orbitDots.children].forEach(mesh => {
-        mesh.geometry.dispose();
-        const material = mesh.material;
+      [frame, backing, avatar, plinth, plinthRim, ringA, ringB, ringC, ...orbitDots.children].forEach(object => {
+        if (!(object instanceof THREE.Mesh)) return;
+        object.geometry.dispose();
+        const material = object.material;
         if (Array.isArray(material)) material.forEach(item => item.dispose());
         else material.dispose();
       });
