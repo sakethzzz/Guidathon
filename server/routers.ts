@@ -410,6 +410,16 @@ export const appRouter = router({
         try { return await callExternalMcpTool(input.name, input.arguments, input.confirm); }
         catch (error) { throw new TRPCError({ code: "BAD_GATEWAY", message: error instanceof Error ? error.message : "MCP tool call failed" }); }
       }),
+    testProvider: publicProcedure
+      .mutation(async () => {
+        try {
+          const result = await callOpenRouter([{ role: "user", content: "Reply with exactly GUIDATHON_CONNECTION_OK." }], 32);
+          if (!result) return { connected: false, provider: "not-configured", message: "OpenRouter credential was not detected by this deployment." };
+          return { connected: Boolean(result.answer), provider: result.provider, message: result.answer.slice(0, 160) };
+        } catch (error) {
+          return { connected: false, provider: "openrouter", message: error instanceof Error ? error.message.slice(0, 180) : "OpenRouter request failed." };
+        }
+      }),
     extractPdf: publicProcedure
       .input(z.object({
         filename: z.string().min(1).max(180).regex(/\.pdf$/i),
