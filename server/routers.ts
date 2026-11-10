@@ -393,6 +393,64 @@ export const appRouter = router({
         try { return await callExternalMcpTool(input.name, input.arguments, input.confirm); }
         catch (error) { throw new TRPCError({ code: "BAD_GATEWAY", message: error instanceof Error ? error.message : "MCP tool call failed" }); }
       }),
+    extractPdf: publicProcedure
+      .input(z.object({
+        filename: z.string().min(1).max(180).regex(/\.pdf$/i),
+        base64: z.string().min(100).max(11_200_000),
+      }))
+      .mutation(async ({ input }) => {
+        const apiKey = process.env.OPENROUTER_API_KEY || process.env.Open_Router_Key;
+        if (!apiKey) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "OpenRouter is not configured for PDF extraction." });
+        const bytes = Buffer.from(input.base64, "base64");
+        if (bytes.length > 8 * 1024 * 1024) throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "PDFs must be 8 MB or smaller for browser intake." });
+        if (bytes.subarray(0, 5).toString("ascii") !== "%PDF-") throw new TRPCError({ code: "BAD_REQUEST", message: "The selected file does not have a valid PDF signature." });
+        const model = process.env.OPENROUTER_MODEL || "openrouter/free";
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: \`Bearer \${apiKey}\`,
+            "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "https://guidathon-int7xx335-saketh3313-8054.vercel.app",
+            "X-OpenRouter-Title": "GUIDATHON",
+          },
+          signal: AbortSignal.timeout(45000),
+          body: JSON.stringify({
+            model,
+            max_tokens: 7000,
+            temperature: 0.1,
+            messages: [{
+              role: "user",
+              content: [
+                { type: "text", text: "Extract the document's text faithfully for a retrieval knowledge base. Preserve headings, numbered requirements, constraints, tables where possible, dates, judging criteria and technical details. Do not summarize, infer missing content, or add advice. Return the extracted text only." },
+                { type: "file", file: { filename: input.filename, file_data: \`data:application/pdf;base64,\${input.base64}\` } },
+              ],
+            }],
+            plugins: [{ id: "file-parser", pdf: { engine: "cloudflare-ai" } }],
+          }),
+        });
+        if (!response.ok) {
+          const detail = (await response.text()).slice(0, 600);
+          throw new TRPCError({ code: "BAD_GATEWAY", message: \`OpenRouter PDF extraction failed (\${response.status}): \${detail}\` });
+        }
+        const data = await response.json() as any;
+        const message = data?.choices?.[0]?.message;
+        const annotationText = (message?.annotations ?? [])
+          .filter((annotation: any) => annotation?.type === "file" && Array.isArray(annotation?.file?.content))
+          .flatMap((annotation: any) => annotation.file.content)
+          .filter((part: any) => part?.type === "text" && typeof part.text === "string")
+          .map((part: any) => part.text)
+          .join("\n\n")
+          .trim();
+        const modelText = typeof message?.content === "string" ? message.content.trim() : "";
+        const extractedText = annotationText || modelText;
+        if (extractedText.length < 80) throw new TRPCError({ code: "BAD_GATEWAY", message: "OpenRouter did not return enough extractable text. Keep the PDF unverified and paste its text manually." });
+        return {
+          text: extractedText.slice(0, 120_000),
+          method: annotationText ? "openrouter-cloudflare-pdf-parser" : "openrouter-model-extraction",
+          characters: extractedText.length,
+          provider: data?.model || model,
+        };
+      }),
     chat: publicProcedure
       .input(z.object({
         agent: z.enum(agentIds),
