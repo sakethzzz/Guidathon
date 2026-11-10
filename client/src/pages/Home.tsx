@@ -1429,6 +1429,7 @@ function JudgeArena({ challenge, evidence }: { challenge: string; evidence: stri
     <div className="section-kicker"><span className="kicker-dot gold" /> Independent scoring / 8 dimensions</div>
     <h3>Judge Arena</h3>
     <p className="room-intro">A skeptical AI judge scores the evidence you provide. Missing proof lowers the score; planned features do not count as shipped work.</p>
+    <div className="judge-arena-explainer"><div><b>What is Judge Arena?</b><p>A private mock judging room for rehearsing how a hackathon evaluator may assess your project. It is not the event organiser's official judging portal and does not submit your project anywhere.</p></div><ol><li>Describe the product and its core user journey.</li><li>Add what is actually implemented and tested.</li><li>Include UX, accessibility and source evidence.</li><li>Run the review, then work through the highest-priority gaps.</li></ol><small>Scores are model-assisted feedback, not a guaranteed competition result. If the model is unavailable, the workspace labels its offline completeness heuristic.</small></div>
     <div className="judge-input-grid">
       <label>Product / core loop<textarea value={product} onChange={event => setProduct(event.target.value)} rows={5} /></label>
       <label>Implementation / test evidence<textarea value={implementation} onChange={event => setImplementation(event.target.value)} rows={5} /></label>
@@ -1436,7 +1437,7 @@ function JudgeArena({ challenge, evidence }: { challenge: string; evidence: stri
       <label>Retrieved source evidence<textarea value={evidence} readOnly rows={4} placeholder="Add sources in Hermes' room to include evidence here." /></label>
     </div>
     <button className="primary-button" disabled={!currentUser || evaluation.isPending || !product.trim()} onClick={() => evaluation.mutate({ challenge, product, implementation, experience, evidence }, { onSuccess: () => void history.refetch() })}>
-      {evaluation.isPending ? "Judges are reviewing evidence…" : "Run evidence-based evaluation"} <ArrowUpRight size={15} />
+      {evaluation.isPending ? "Judges are reviewing evidence…" : "Run mock judge review"} <ArrowUpRight size={15} />
     </button>
     {history.data?.length ? <div className="judge-history"><div className="section-kicker">Saved evaluations // latest 10</div><div className="judge-history-list">{history.data.map(run => <div className="judge-history-row" key={run.id}><strong>{run.score}<small>/100</small></strong><span>{String(run.result.summary ?? "Evaluation saved")}</span><time>{new Date(run.createdAt).toLocaleString()}</time></div>)}</div></div> : null}
     {!currentUser && <p className="judge-error">Sign in to run and save evidence-based evaluations.</p>}
