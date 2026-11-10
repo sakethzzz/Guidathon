@@ -1060,3 +1060,20 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 
 
 .room-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; border-radius: inherit; }
+
+
+/* Keep ScrollTrigger's pinned overview stack attached to the document scroll.
+   Horizontal clipping remains in place so responsive cards never create page-wide overflow. */
+.app-shell { overflow-x: clip; overflow-y: visible; }
+
+/* A compact 2D glyph card remains visible if a chibi portrait cannot be decoded. */
+.agent-portrait-frame { position: relative; display: grid; place-items: center; border-radius: 9px 9px 0 0; background: radial-gradient(circle at 50% 45%, rgba(120,186,255,.16), transparent 68%); }
+.agent-art-fallback { position: absolute; inset: 0; display: grid; place-items: center; color: var(--gold-soft); font: 400 72px 'DM Serif Display', serif; text-shadow: 0 0 22px rgba(232,197,107,.35); opacity: .82; pointer-events: none; }
+.agent-portrait-frame img { position: relative; z-index: 1; }
+.carousel-focus { isolation: isolate; }
+.focus-art-fallback { position: absolute; z-index: 1; inset: 22px 0 38px; display: grid; place-items: center; color: var(--gold-soft); font: 400 112px 'DM Serif Display', serif; text-shadow: 0 0 32px rgba(232,197,107,.4); opacity: .7; }
+.carousel-focus img { z-index: 2; }
+@media (max-width: 760px) {
+  .agent-art-fallback { font-size: 58px; }
+  .focus-art-fallback { font-size: 88px; }
+}
