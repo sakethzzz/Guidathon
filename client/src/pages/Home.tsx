@@ -879,8 +879,10 @@ export default function Home() {
     }, {
       onSuccess: result => {
         setHermesMessages(current => [...current, { role: "assistant", content: result.answer, citations: result.citations }]);
-        if (result.retrieved?.length) setRetrieval(result.retrieved as Chunk[]);
-        setRagStats(current => ({ ...current, mode: result.retrieved?.some((chunk: any) => chunk.evidenceStatus === "server-ingested-not-fact-checked") ? "workspace retrieval active" : retrievalMode, lastQuery: question, topScore: Math.max(0, ...(result.retrieved?.length ? result.retrieved : ranked).map((chunk: any) => Number(chunk.score) || 0)) }));
+        const serverHasScores = result.retrieved?.some((chunk: any) => typeof chunk.score === "number");
+        const visibleRetrieval = serverHasScores ? result.retrieved as Chunk[] : ranked;
+        setRetrieval(visibleRetrieval);
+        setRagStats(current => ({ ...current, mode: result.retrieved?.some((chunk: any) => chunk.evidenceStatus === "server-ingested-not-fact-checked") ? "workspace retrieval active" : retrievalMode, lastQuery: question, topScore: Math.max(0, ...visibleRetrieval.map((chunk: any) => Number(chunk.score) || 0)) }));
         if (result.handoffTo) {
           const target = agentById(result.handoffTo);
           setHandoff({ from: "Hermes", to: target.name });
