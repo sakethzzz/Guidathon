@@ -336,6 +336,14 @@ function agentById(id: AgentId) {
   return agents.find(agent => agent.id === id) ?? agents[0];
 }
 
+function AgentPresence({ agent, title, detail }: { agent: AgentId; title: string; detail: string }) {
+  const record = agentById(agent);
+  return <div className={`agent-presence accent-${record.accent}`}>
+    <img src={record.art} alt={`${record.name} masculine chibi portrait`} loading="lazy" />
+    <div><span className="mono">{record.name.toUpperCase()} // SPECIALIST</span><b>{title}</b><small>{detail}</small></div>
+  </div>;
+}
+
 function playThunderRumble() {
   try {
     const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -998,7 +1006,7 @@ export default function Home() {
   const renderRoom = () => {
     if (activeNav === "Overview") return <OverviewStack agents={agents} onSelect={enterAgentRoom} />;
     if (activeNav === "Judge Arena") return <JudgeArena challenge={challenge} evidence={allChunks.map(chunk => `${chunk.heading}: ${chunk.passage}`).join("\n\n")} />;
-    if (activeNav === "Project Readiness") return <div className="room-body readiness-room"><div className="room-column"><div className="section-kicker"><span className="kicker-dot violet" /> Zeus // release guardian</div><h3>Know what is ready before you ship.</h3><p className="room-intro">Zeus inspects your repository or uploaded project files, scores concrete release signals, and explains what blocks deployment. Static checks are clearly separated from a real build or hosting verification.</p><ProjectReadinessAuditor /></div><div className="readiness-agent-side"><AgentRoleChat agent={agentById("zeus")} context={agentContext} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div></div>;
+    if (activeNav === "Project Readiness") return <div className="room-body readiness-room"><div className="room-column"><div className="section-kicker"><span className="kicker-dot violet" /> Zeus // release guardian</div><AgentPresence agent="zeus" title="Release guardian" detail="Checks repository evidence and distinguishes static signals from verified runtime status." /><h3>Know what is ready before you ship.</h3><p className="room-intro">Zeus inspects your repository or uploaded project files, scores concrete release signals, and explains what blocks deployment. Static checks are clearly separated from a real build or hosting verification.</p><ProjectReadinessAuditor /></div><div className="readiness-agent-side"><AgentRoleChat agent={agentById("zeus")} context={agentContext} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div></div>;
     if (activeNav === "Sources") {
       return <SourceAgentRoom agents={agents} selected={selected} onSelect={selectAgent} onHandoff={enterAgentRoom} context={agentContext} sources={sources} manualNote={manualNote} setManualNote={setManualNote} addManualNote={addManualNote} onUpload={() => fileInputRef.current?.click()} uploadedName={uploadedName} />;
     }
@@ -1038,7 +1046,7 @@ export default function Home() {
       return (
         <div className="room-body hermes-room">
           <div className="hermes-chat room-column">
-            <div className="section-kicker"><span className="kicker-dot blue" /> Hermes knowledge room</div>
+            <div className="section-kicker"><span className="kicker-dot blue" /> Hermes knowledge room</div><AgentPresence agent="hermes" title="Research and evidence guide" detail="Retrieves passages, traces provenance, and separates evidence from inference." />
             <h3>Ask the guide anything about hackathons.</h3>
             <p className="room-intro">Hermes retrieves relevant passages from your project knowledge and uses an available model when configured; offline mode shows the retrieved evidence without inventing citations. Ask about rules, judging, scope, teams, demos, or what to build next.</p>
             <div className="hermes-transcript">
@@ -1060,7 +1068,7 @@ export default function Home() {
       return (
         <div className="room-body split-room">
           <div className="room-column">
-            <div className="section-kicker"><span className="kicker-dot rose" /> Thesis pressure test</div>
+            <div className="section-kicker"><span className="kicker-dot rose" /> Thesis pressure test</div><AgentPresence agent="athena" title="Lead product strategist" detail="Turns the uploaded challenge into differentiated, testable solution directions." />
             <h3>Three paths from the same uncertainty.</h3>
             <p className="room-intro">Athena keeps the strongest idea small enough to prove, while naming the trade-off you are accepting.</p>
             <div className="hypothesis-list">
@@ -1080,7 +1088,7 @@ export default function Home() {
       return (
         <div className="room-body split-room">
           <div className="room-column">
-            <div className="section-kicker"><span className="kicker-dot orange" /> Buildable path</div>
+            <div className="section-kicker"><span className="kicker-dot orange" /> Buildable path</div><AgentPresence agent="hephaestus" title="Technical architect" detail="Turns the selected thesis into an implementation path and verifiable build plan." />
             <h3>A stack that keeps the demo honest.</h3>
             <p className="room-intro">Hephaestus chooses the smallest architecture that can expose retrieval, handoffs, and a credible path to production.</p>
             <div className="stack-list">
@@ -1097,7 +1105,7 @@ export default function Home() {
       return (
         <div className="room-body split-room">
           <div className="room-column">
-            <div className="section-kicker"><span className="kicker-dot teal" /> Deadline engine</div>
+            <div className="section-kicker"><span className="kicker-dot teal" /> Deadline engine</div><AgentPresence agent="chronos" title="Adaptive execution strategist" detail="Builds the critical path from the actual brief, chosen solution, team, and deadline." />
             <h3>Time becomes another handoff.</h3>
             <p className="room-intro">Chronos anchors suggested milestones to the actual submission timestamp you set. Checkpoints are estimates derived from that time, not fabricated event dates.</p><label className="deadline-control"><span>ACTUAL SUBMISSION DEADLINE</span><input type="datetime-local" value={deadlineAt} onChange={event => setDeadlineAt(event.target.value)} /></label>
             <div className="task-list">{tasks.map(task => <div className="task-row" key={task.title}><button type="button" className={`task-check ${task.status === "done" ? "checked" : ""}`} aria-label={task.status === "done" ? `Reopen ${task.title}` : `Complete ${task.title}`} onClick={() => setTasks(current => current.map(item => item.title === task.title ? { ...item, status: item.status === "done" ? "next" : "done" } : item))}>{task.status === "done" && <Check size={12} />}</button><div className="task-main"><b>{task.title}</b><span>{task.owner} · {task.date}</span>{task.dependency && <small>Depends on: {task.dependency}</small>}{task.acceptance && <small>Done when: {task.acceptance}</small>}</div><span className={`task-status ${task.status}`}>{task.status}</span></div>)}</div>
@@ -1119,7 +1127,7 @@ export default function Home() {
       return (
         <div className="room-body split-room">
           <div className="room-column">
-            <div className="section-kicker"><span className="kicker-dot violet" /> Orchestration map</div>
+            <div className="section-kicker"><span className="kicker-dot violet" /> Orchestration map</div><AgentPresence agent="zeus" title="Chief orchestrator" detail="Keeps decisions, specialist handoffs, and release evidence connected." />
             <h3>The constellation has a next move.</h3>
             <p className="room-intro">Zeus holds the thread between rooms. He does not answer for the specialists; he makes their context portable.</p>
             <div className="route-map"><div className="route-node done"><span>01</span><b>Hermes</b><small>context captured</small></div><div className="route-connector active" /><div className="route-node active"><span>02</span><b>Hermes model</b><small>answer + evidence</small></div><div className="route-connector" /><div className="route-node"><span>03</span><b>Athena</b><small>pressure-test idea</small></div><div className="route-connector" /><div className="route-node"><span>04</span><b>Hephaestus</b><small>make it buildable</small></div></div>
@@ -1418,7 +1426,7 @@ function HermesQuantumLab({ chunks, sources, embedded, persisted, mode, lastQuer
     { label: "EMBEDDING FIELD", value: embedded + " / " + persisted + " vectors", detail: "Gemini embedding-001 · 768 dimensions when configured" },
     { label: "RETRIEVAL", value: mode, detail: "Query vector → cosine ranking; lexical fallback is explicit" }
   ];
-  return <section className="hermes-quantum-lab"><div className="quantum-lab-head"><div><span className="mono">HERMES // QUANTUM KNOWLEDGE LAB</span><h4>From documents to grounded answers.</h4><p>Hermes searches passages first, then sends relevant evidence to the language model. The tree makes each retrieval stage visible.</p></div><span className="quantum-live"><i />{embedded > 0 ? "VECTOR PATH" : "FALLBACK PATH"}</span></div><div className="quantum-root"><Network size={14} /> KNOWLEDGE TREE</div><div className="quantum-branches">{stages.map((stage,index) => <div className="quantum-stage" key={stage.label}><span className="quantum-stage-index">0{index+1}</span><b>{stage.label}</b><strong>{stage.value}</strong><small>{stage.detail}</small></div>)}</div><div className="quantum-proof"><div><span className="mono">LAST QUERY</span><b>{lastQuery || "Waiting for a question…"}</b></div><div><span className="mono">TOP MATCH</span><b>{retrieval[0]?.heading || "No retrieval yet"}</b><small>{retrieval.length ? retrieval.length + " passages · score " + Math.round(topScore*100) + "%" : "Ask Hermes to populate the retrieval trace"}</small></div></div><div className="quantum-disclaimer">Embeddings are real only when the server confirms vector creation. Parsed sources are not independently fact-checked; citations link to source passages.</div></section>;
+  return <section className="hermes-quantum-lab"><div className="quantum-lab-head"><img className="quantum-hermes-chibi" src="/agents/hermes.svg" alt="Hermes chibi guide" loading="lazy" /><div><span className="mono">HERMES // QUANTUM KNOWLEDGE LAB</span><h4>From documents to grounded answers.</h4><p>Hermes searches passages first, then sends relevant evidence to the language model. The tree makes each retrieval stage visible.</p></div><span className="quantum-live"><i />{embedded > 0 ? "VECTOR PATH" : "FALLBACK PATH"}</span></div><div className="quantum-root"><Network size={14} /> KNOWLEDGE TREE</div><div className="quantum-branches">{stages.map((stage,index) => <div className="quantum-stage" key={stage.label}><span className="quantum-stage-index">0{index+1}</span><b>{stage.label}</b><strong>{stage.value}</strong><small>{stage.detail}</small></div>)}</div><div className="quantum-proof"><div><span className="mono">LAST QUERY</span><b>{lastQuery || "Waiting for a question…"}</b></div><div><span className="mono">TOP MATCH</span><b>{retrieval[0]?.heading || "No retrieval yet"}</b><small>{retrieval.length ? retrieval.length + " passages · score " + Math.round(topScore*100) + "%" : "Ask Hermes to populate the retrieval trace"}</small></div></div><div className="quantum-disclaimer">Embeddings are real only when the server confirms vector creation. Parsed sources are not independently fact-checked; citations link to source passages.</div></section>;
 }
 
 function AboutModal({ onClose }: { onClose: () => void }) {
@@ -1447,7 +1455,7 @@ function AnimatedSidebar({ activeNav, onSelect, sourceCount }: { activeNav: NavI
 
 function SourceIntake({ sources, manualNote, setManualNote, addManualNote, onUpload, uploadedName }: { sources: SourceRecord[]; manualNote: string; setManualNote: (value: string) => void; addManualNote: () => void; onUpload: () => void; uploadedName: string }) {
   return (
-    <aside className="source-intake"><div className="section-kicker"><span className="kicker-dot gold" /> Source intake</div><div className="upload-dropzone" onClick={onUpload}><UploadCloud size={19} /><b>{uploadedName || "Drop a brief or upload a file"}</b><span>Text files are parsed locally · other types remain unverified</span><button className="upload-button" onClick={event => { event.stopPropagation(); onUpload(); }}><Paperclip size={14} /> choose file</button></div><div className="manual-note"><div className="manual-heading"><span>or add a manual note</span><span className="mono">UNVERIFIED → PROCESSED</span></div><textarea value={manualNote} onChange={event => setManualNote(event.target.value)} placeholder="Paste a problem statement, judging rubric, or mentor note…" rows={4} /><button className="small-action" onClick={addManualNote} disabled={!manualNote.trim()}><Plus size={14} /> queue note</button></div><div className="source-list"><div className="source-list-heading"><span>Corpus status</span><span className="mono">{sources.length} records</span></div>{sources.slice(0, 4).map(source => <div className="source-row" key={source.id}><div className={`source-icon ${source.status}`}><FileText size={14} /></div><div><b>{source.name}</b><span>{source.detail}</span></div><span className={`source-status ${source.status}`}>{source.status === "verified" ? "READY" : source.status === "processing" ? "PARSE" : "NEW"}</span></div>)}</div><div className="intake-note"><CircleHelp size={13} /><span>Only <b>verified</b> sources enter retrieval. Nothing is silently promoted.</span></div></aside>
+    <aside className="source-intake"><div className="section-kicker source-intake-kicker"><img src="/agents/hermes.svg" alt="" loading="lazy" /> <span>Source intake</span></div><div className="upload-dropzone" onClick={onUpload}><UploadCloud size={19} /><b>{uploadedName || "Drop a brief or upload a file"}</b><span>Text files are parsed locally · other types remain unverified</span><button className="upload-button" onClick={event => { event.stopPropagation(); onUpload(); }}><Paperclip size={14} /> choose file</button></div><div className="manual-note"><div className="manual-heading"><span>or add a manual note</span><span className="mono">UNVERIFIED → PROCESSED</span></div><textarea value={manualNote} onChange={event => setManualNote(event.target.value)} placeholder="Paste a problem statement, judging rubric, or mentor note…" rows={4} /><button className="small-action" onClick={addManualNote} disabled={!manualNote.trim()}><Plus size={14} /> queue note</button></div><div className="source-list"><div className="source-list-heading"><span>Corpus status</span><span className="mono">{sources.length} records</span></div>{sources.slice(0, 4).map(source => <div className="source-row" key={source.id}><div className={`source-icon ${source.status}`}><FileText size={14} /></div><div><b>{source.name}</b><span>{source.detail}</span></div><span className={`source-status ${source.status}`}>{source.status === "verified" ? "READY" : source.status === "processing" ? "PARSE" : "NEW"}</span></div>)}</div><div className="intake-note"><CircleHelp size={13} /><span>Only <b>verified</b> sources enter retrieval. Nothing is silently promoted.</span></div></aside>
   );
 }
 
