@@ -28,6 +28,7 @@ async function embed(text: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_Q
         body: JSON.stringify({
           model: process.env.OPENROUTER_EMBEDDING_MODEL || "nvidia/nemotron-3.5-embed-1b:free",
           input: text.slice(0, 8000),
+          input_type: taskType === "RETRIEVAL_QUERY" ? "search_query" : "search_document",
         }),
       });
       if (!response.ok) throw new Error(`OpenRouter embedding request failed (${response.status})`);
