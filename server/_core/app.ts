@@ -18,7 +18,7 @@ app.get("/api/health", (_req, res) => {
     capabilities: {
       localAgentFallback: true,
       openrouterConfigured: Boolean(process.env.OPENROUTER_API_KEY || process.env.Open_Router_Key),
-      openrouterEmbeddingModelConfigured: Boolean(process.env.OPENROUTER_EMBEDDING_MODEL || process.env.Open_Router_Key || process.env.OPENROUTER_API_KEY),
+      openrouterEmbeddingsEnabled: Boolean(process.env.Open_Router_Key || process.env.OPENROUTER_API_KEY),
       geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
       groqConfigured: Boolean(process.env.GROQ_API_KEY),
       managedModelConfigured: Boolean(process.env.MANUS_API_URL && process.env.MANUS_API_KEY),
