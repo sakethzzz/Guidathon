@@ -69,7 +69,7 @@ function scoreFiles(names: string[], content = "", ciSuccessful = false, ciRunDe
   }));
 }
 
-async function auditGithub(value: string): Promise<Audit> {
+async function auditGithub(value: string, branchOverride: string): Promise<Audit> {
   const repo = githubRepo(value);
   if (!repo) throw new Error("Enter a public GitHub repository URL, such as https://github.com/owner/repo.");
   const headers = { Accept: "application/vnd.github+json" };
@@ -77,7 +77,7 @@ async function auditGithub(value: string): Promise<Audit> {
   const response = await fetch(base, { headers, signal: AbortSignal.timeout(12000) });
   if (!response.ok) throw new Error(response.status === 404 ? "Repository not found or private. Public repositories are supported without a token." : `GitHub returned HTTP ${response.status}. Try again or upload project files.`);
   const meta = await response.json();
-  const branch = meta.default_branch || "main";
+  const branch = branchOverride.trim() || meta.default_branch || "main";
   const treeResponse = await fetch(`${base}/git/trees/${encodeURIComponent(branch)}?recursive=1`, { headers, signal: AbortSignal.timeout(15000) });
   if (!treeResponse.ok) throw new Error("Could not inspect the repository file tree. Check GitHub API access or upload project files instead.");
   const tree = await treeResponse.json();
@@ -143,6 +143,7 @@ async function auditUploads(files: File[]): Promise<Audit> {
 
 export default function ProjectReadinessAuditor() {
   const [repoUrl, setRepoUrl] = useState("");
+  const [branchInput, setBranchInput] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [audit, setAudit] = useState<Audit | null>(null);
   const [loading, setLoading] = useState(false);
@@ -151,7 +152,7 @@ export default function ProjectReadinessAuditor() {
   const run = async () => {
     setLoading(true); setError(""); setAudit(null);
     try {
-      const result = repoUrl.trim() ? await auditGithub(repoUrl) : files.length ? await auditUploads(files) : null;
+      const result = repoUrl.trim() ? await auditGithub(repoUrl, branchInput) : files.length ? await auditUploads(files) : null;
       if (!result) throw new Error("Paste a GitHub repository URL or choose project files first.");
       setAudit(result);
     } catch (err) { setError(err instanceof Error ? err.message : "The project could not be inspected."); }
@@ -161,6 +162,7 @@ export default function ProjectReadinessAuditor() {
     <div className="readiness-heading"><div className="readiness-mark"><Gauge size={19}/></div><img className="readiness-agent-chibi" src="/agents/zeus.svg" alt="Zeus chibi release guardian" loading="lazy"/><div><span className="readiness-eyebrow">ZEUS · PROJECT INTELLIGENCE</span><h3>Project readiness audit</h3><p>Inspect repository evidence and the latest public CI result. Runtime verification is separate.</p></div><span className="readiness-live"><i/> REPO + CI</span></div>
     <div className="readiness-inputs">
       <label className="readiness-url"><span>GitHub repository URL</span><div><Github size={16}/><input value={repoUrl} onChange={event=>setRepoUrl(event.target.value)} placeholder="https://github.com/owner/repository" onKeyDown={event=>{if(event.key==="Enter") void run();}}/></div></label>
+      <label className="readiness-branch"><span>Branch (optional)</span><input value={branchInput} onChange={event=>setBranchInput(event.target.value)} placeholder="Default branch" onKeyDown={event=>{if(event.key==="Enter") void run();}}/></label>
       <div className="readiness-or">OR</div>
       <label className="readiness-upload"><UploadCloud size={18}/><span><b>{files.length ? `${files.length} files selected` : "Choose project files"}</b><small>Multi-select source, config, README and test files</small></span><input type="file" multiple onChange={event=>setFiles(Array.from(event.target.files||[]))}/></label>
       <button className="readiness-run" onClick={()=>void run()} disabled={loading}>{loading?<Loader2 className="spin" size={16}/>:<Activity size={16}/>} {loading?"Inspecting…":"Run readiness audit"}</button>
