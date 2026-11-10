@@ -3,7 +3,7 @@
 .readiness-heading{min-width:0}
 @media(max-width:760px){.readiness-agent-chibi{width:42px;height:52px}.readiness-heading{gap:8px}}
 
-.readiness-runtime{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(8,15,25,.28)}
+.readiness-runtime{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(8,15,25,.28)}
 .readiness-runtime>span{display:grid;gap:4px;min-width:0}
 .readiness-runtime b{font-size:10px;letter-spacing:.04em;color:var(--text)}
 .readiness-runtime small{font-size:10px;line-height:1.4;color:var(--muted)}
