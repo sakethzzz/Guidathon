@@ -59,7 +59,7 @@ async function callOpenRouter(messages: ChatTurn[], maxTokens: number) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: \`Bearer \${apiKey}\`,
+      authorization: "Bearer " + apiKey,
       "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "https://guidathon-int7xx335-saketh3313-8054.vercel.app",
       "X-OpenRouter-Title": "GUIDATHON",
     },
@@ -68,7 +68,7 @@ async function callOpenRouter(messages: ChatTurn[], maxTokens: number) {
   });
   if (!response.ok) {
     const detail = (await response.text()).slice(0, 500);
-    throw new Error(\`OpenRouter request failed (\${response.status}): \${detail}\`);
+    throw new Error("OpenRouter request failed (" + response.status + "): " + detail);
   }
   const data = await response.json();
   const raw = data?.choices?.[0]?.message?.content;
@@ -78,7 +78,7 @@ async function callOpenRouter(messages: ChatTurn[], maxTokens: number) {
       ? raw.map((part: any) => typeof part?.text === "string" ? part.text : "").join("\n").trim()
       : "";
   if (!answer) throw new Error("OpenRouter returned an empty answer");
-  return { answer, provider: \`openrouter:\${data?.model || model}\` };
+  return { answer, provider: "openrouter:" + (data?.model || model) };
 }
 
 async function callGemini(messages: ChatTurn[], maxTokens: number) {
@@ -409,7 +409,7 @@ export const appRouter = router({
           method: "POST",
           headers: {
             "content-type": "application/json",
-            authorization: \`Bearer \${apiKey}\`,
+            authorization: "Bearer " + apiKey,
             "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "https://guidathon-int7xx335-saketh3313-8054.vercel.app",
             "X-OpenRouter-Title": "GUIDATHON",
           },
@@ -422,7 +422,7 @@ export const appRouter = router({
               role: "user",
               content: [
                 { type: "text", text: "Extract the document's text faithfully for a retrieval knowledge base. Preserve headings, numbered requirements, constraints, tables where possible, dates, judging criteria and technical details. Do not summarize, infer missing content, or add advice. Return the extracted text only." },
-                { type: "file", file: { filename: input.filename, file_data: \`data:application/pdf;base64,\${input.base64}\` } },
+                { type: "file", file: { filename: input.filename, file_data: "data:application/pdf;base64," + input.base64 } },
               ],
             }],
             plugins: [{ id: "file-parser", pdf: { engine: "cloudflare-ai" } }],
@@ -430,7 +430,7 @@ export const appRouter = router({
         });
         if (!response.ok) {
           const detail = (await response.text()).slice(0, 600);
-          throw new TRPCError({ code: "BAD_GATEWAY", message: \`OpenRouter PDF extraction failed (\${response.status}): \${detail}\` });
+          throw new TRPCError({ code: "BAD_GATEWAY", message: "OpenRouter PDF extraction failed (" + response.status + "): " + detail });
         }
         const data = await response.json() as any;
         const message = data?.choices?.[0]?.message;
