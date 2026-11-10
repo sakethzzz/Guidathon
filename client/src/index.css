@@ -1330,3 +1330,26 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .theme-light .carousel-controls button:hover,.theme-light .carousel-controls button:focus-visible{color:#8e6926;border-color:#b48b39;background:rgba(232,197,107,.12)}
 .theme-light .settings-card,.theme-light .history-card{color:#293346}
 @media(max-width:760px){.theme-light .topbar{padding-inline:14px}.theme-light .workspace-main{min-width:0}}
+
+/* Final workspace clarity: explicit readiness destination, readable agent output and judge guide. */
+.readiness-room{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:22px;align-items:start}
+.readiness-room .room-column{min-width:0}
+.readiness-room .readiness-auditor{margin-top:18px}
+.readiness-agent-side{min-width:0;position:sticky;top:18px}
+.role-chat-message-content{min-width:0;line-height:1.65;overflow-wrap:anywhere}
+.role-chat-message-content p{margin:0 0 8px}
+.role-chat-message-content p:last-child{margin-bottom:0}
+.role-chat-message-content h1,.role-chat-message-content h2,.role-chat-message-content h3{font-size:13px;margin:10px 0 6px;color:var(--text)}
+.role-chat-message-content ul,.role-chat-message-content ol{padding-left:19px;margin:6px 0 10px}
+.role-chat-message-content li{margin:3px 0}
+.role-chat-message-content pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:9px;border-radius:8px;background:rgba(0,0,0,.16)}
+.role-chat-message-content code{font-size:.92em}
+.judge-arena-explainer{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0 20px;padding:15px 17px;border:1px solid var(--line-strong);border-radius:14px;background:var(--panel-soft)}
+.judge-arena-explainer b{font-size:13px;color:var(--gold)}
+.judge-arena-explainer p,.judge-arena-explainer li{font-size:11px;line-height:1.6;color:var(--muted)}
+.judge-arena-explainer p{margin:6px 0 0}
+.judge-arena-explainer ol{margin:0;padding-left:20px}
+.judge-arena-explainer small{grid-column:1/-1;font-size:10px;line-height:1.5;color:var(--muted)}
+.theme-light .judge-arena-explainer{background:rgba(255,255,255,.82);border-color:rgba(151,122,61,.2)}
+@media(max-width:900px){.readiness-room{grid-template-columns:1fr}.readiness-agent-side{position:static}}
+@media(max-width:620px){.judge-arena-explainer{grid-template-columns:1fr}.judge-arena-explainer small{grid-column:auto}}
