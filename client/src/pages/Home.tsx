@@ -1013,8 +1013,8 @@ export default function Home() {
         detail = "Text extraction failed · content unverified";
       }
     } else if (isPdf) {
-      if (file.size > 6 * 1024 * 1024) {
-        detail = "PDF exceeds the 6 MB extraction limit · content unverified";
+      if (file.size > 3 * 1024 * 1024) {
+        detail = "PDF exceeds the 3 MB extraction limit · content unverified";
       } else {
         try {
           const result = await extractPdf.mutateAsync({ filename: file.name, base64: await fileAsBase64(file) });
