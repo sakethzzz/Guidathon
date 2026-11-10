@@ -396,13 +396,13 @@ export const appRouter = router({
     extractPdf: publicProcedure
       .input(z.object({
         filename: z.string().min(1).max(180).regex(/\.pdf$/i),
-        base64: z.string().min(100).max(11_200_000),
+        base64: z.string().min(100).max(8_400_000),
       }))
       .mutation(async ({ input }) => {
         const apiKey = process.env.OPENROUTER_API_KEY || process.env.Open_Router_Key;
         if (!apiKey) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "OpenRouter is not configured for PDF extraction." });
         const bytes = Buffer.from(input.base64, "base64");
-        if (bytes.length > 8 * 1024 * 1024) throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "PDFs must be 8 MB or smaller for browser intake." });
+        if (bytes.length > 6 * 1024 * 1024) throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "PDFs must be 8 MB or smaller for browser intake." });
         if (bytes.subarray(0, 5).toString("ascii") !== "%PDF-") throw new TRPCError({ code: "BAD_REQUEST", message: "The selected file does not have a valid PDF signature." });
         const model = process.env.OPENROUTER_MODEL || "openrouter/free";
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
