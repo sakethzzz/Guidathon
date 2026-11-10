@@ -643,7 +643,7 @@ export default function Home() {
     hermesIngest.mutate({ chunks: seed.map(chunk => ({ id: chunk.id, sourceName: chunk.source, heading: chunk.heading, content: chunk.passage, provenance: chunk.provenance })) }, {
       onSuccess: result => {
         if (!result.persisted) { setRagStats(current => ({ ...current, mode: "browser lexical fallback · server store unavailable" })); return; }
-        hermesComplete.mutate({ ids: seed.map(chunk => chunk.id) }, { onSuccess: () => setRagStats(current => ({ persisted: result.count, embedded: result.vectorCount ?? 0, mode: result.vectorized ? "Gemini embeddings + cosine retrieval" : "stored chunks · lexical fallback", lastQuery: current.lastQuery, topScore: current.topScore })) });
+        hermesComplete.mutate({ ids: seed.map(chunk => chunk.id) }, { onSuccess: () => setRagStats(current => ({ persisted: result.count, embedded: result.vectorCount ?? 0, mode: result.vectorized ? "OpenRouter/Gemini embeddings + cosine retrieval" : "stored chunks · lexical fallback", lastQuery: current.lastQuery, topScore: current.topScore })) });
       },
       onError: () => setRagStats(current => ({ ...current, mode: "browser lexical fallback · ingestion unavailable" }))
     });
@@ -870,7 +870,7 @@ export default function Home() {
       id: chunk.id, sourceName: record.name, heading: chunk.heading,
       content: chunk.passage, provenance: chunk.provenance,
     })) }, {
-      onSuccess: result => { setRagStats(current => ({ persisted: current.persisted + (result.persisted ? result.count : 0), embedded: current.embedded + (result.vectorCount ?? 0), mode: result.vectorized ? "Gemini embeddings + cosine retrieval" : result.persisted ? "stored chunks · lexical fallback" : "browser lexical fallback", lastQuery: current.lastQuery, topScore: current.topScore })); finishLocalProcessing(Boolean(result.persisted)); },
+      onSuccess: result => { setRagStats(current => ({ persisted: current.persisted + (result.persisted ? result.count : 0), embedded: current.embedded + (result.vectorCount ?? 0), mode: result.vectorized ? "OpenRouter/Gemini embeddings + cosine retrieval" : result.persisted ? "stored chunks · lexical fallback" : "browser lexical fallback", lastQuery: current.lastQuery, topScore: current.topScore })); finishLocalProcessing(Boolean(result.persisted)); },
       onError: () => finishLocalProcessing(false),
     });
   };
@@ -1457,7 +1457,7 @@ function HermesQuantumLab({ chunks, sources, embedded, persisted, mode, lastQuer
   const stages = [
     { label: "SOURCE INGESTION", value: sources + " parsed sources", detail: "Text extraction + provenance" },
     { label: "CHUNK TREE", value: chunks + " passages", detail: "Overlapping context windows" },
-    { label: "EMBEDDING FIELD", value: embedded + " / " + persisted + " vectors", detail: "Gemini embedding-001 · 768 dimensions when configured" },
+    { label: "EMBEDDING FIELD", value: embedded + " / " + persisted + " vectors", detail: "OpenRouter Nemotron / Gemini embeddings · cosine similarity when available" },
     { label: "RETRIEVAL", value: mode, detail: "Query vector → cosine ranking; lexical fallback is explicit" }
   ];
   return <section className="hermes-quantum-lab"><div className="quantum-lab-head"><img className="quantum-hermes-chibi" src="/agents/hermes.svg" alt="Hermes chibi guide" loading="lazy" /><div><span className="mono">HERMES // QUANTUM KNOWLEDGE LAB</span><h4>From documents to grounded answers.</h4><p>Hermes searches passages first, then sends relevant evidence to the language model. The tree makes each retrieval stage visible.</p></div><span className="quantum-live"><i />{embedded > 0 ? "VECTOR PATH" : "FALLBACK PATH"}</span></div><div className="quantum-root"><Network size={14} /> KNOWLEDGE TREE</div><div className="quantum-branches">{stages.map((stage,index) => <div className="quantum-stage" key={stage.label}><span className="quantum-stage-index">0{index+1}</span><b>{stage.label}</b><strong>{stage.value}</strong><small>{stage.detail}</small></div>)}</div><div className="quantum-proof"><div><span className="mono">LAST QUERY</span><b>{lastQuery || "Waiting for a question…"}</b></div><div><span className="mono">TOP MATCH</span><b>{retrieval[0]?.heading || "No retrieval yet"}</b><small>{retrieval.length ? retrieval.length + " passages · score " + Math.round(topScore*100) + "%" : "Ask Hermes to populate the retrieval trace"}</small></div></div><div className="quantum-disclaimer">Embeddings are real only when the server confirms vector creation. Parsed sources are not independently fact-checked; citations link to source passages.</div></section>;
