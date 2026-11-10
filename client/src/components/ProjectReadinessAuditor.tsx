@@ -31,8 +31,8 @@ function scoreFiles(names: string[], content = ""): Finding[] {
   const lower = names.map(name => name.toLowerCase());
   const has = (re: RegExp) => lower.some(name => re.test(name));
   const hasManifest = has(/(^|\/)(package\.json|pyproject\.toml|requirements\.txt|cargo\.toml|go\.mod|pom\.xml|build\.gradle|composer\.json)$/);
-  const hasSource = has(/(^|\/)(src\/|app\/|pages\/|main\.(ts|tsx|js|jsx|py|go|rs)|index\.(ts|tsx|js|jsx|html))$/);
-  const hasBuild = has(/(^|\/)(vercel\.json|netlify\.toml|dockerfile|vite\.config\.|next\.config\.|webpack\.config\.|\.github\/workflows\/|render\.yaml)$/) || /"scripts"\s*:\s*\{[^}]*"build"/s.test(content);
+  const hasSource = has(/(^|\/)(src\/|app\/|pages\/|main\.(ts|tsx|js|jsx|py|go|rs)$|index\.(ts|tsx|js|jsx|html)$)/);
+  const hasBuild = has(/(^|\/)(vercel\.json|netlify\.toml|dockerfile|vite\.config\.[^/]+|next\.config\.[^/]+|webpack\.config\.[^/]+|\.github\/workflows\/[^/]+|render\.yaml)$/) || /"build"\s*:\s*"/s.test(content);
   const hasTests = has(/(^|\/)(__tests__\/|tests?\/|[^/]+\.(test|spec)\.)/) || /"test"\s*:\s*"/.test(content);
   const hasCI = has(/(^|\/)\.github\/workflows\//);
   const hasEnv = has(/(^|\/)(\.env\.example|\.env\.sample|\.env\.template)$/) || /environment variables|\.env\.example/i.test(content);
@@ -57,12 +57,16 @@ async function auditGithub(value: string): Promise<Audit> {
   const tree = await treeResponse.json();
   const names: string[] = (tree.tree || []).filter((item: any) => item.type === "blob").map((item: any) => item.path);
   let readme = "";
-  const readmePath = names.find(name => /^readme(\.md|\.txt)?$/i.test(name.split("/").pop() || ""));
-  if (readmePath) {
-    const raw = await fetch(`https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/${branch}/${readmePath.split("/").map(encodeURIComponent).join("/")}`, { signal: AbortSignal.timeout(8000) });
-    if (raw.ok) readme = (await raw.text()).slice(0, 12000);
-  }
-  const findings = scoreFiles(names, readme + JSON.stringify({ license: meta.license?.spdx_id }));
+  let manifest = "";
+  const readmePath = names.find(name => /^readme(\\.md|\\.txt)?$/i.test(name.split("/").pop() || ""));
+  const manifestPath = names.find(name => /^(package\\.json|pyproject\\.toml|requirements\\.txt|cargo\\.toml|go\\.mod)$/i.test(name.split("/").pop() || ""));
+  const fetchText = async (path: string | undefined, limit: number) => {
+    if (!path) return "";
+    const raw = await fetch(`https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/${branch}/${path.split("/").map(encodeURIComponent).join("/")}`, { signal: AbortSignal.timeout(8000) });
+    return raw.ok ? (await raw.text()).slice(0, limit) : "";
+  };
+  [readme, manifest] = await Promise.all([fetchText(readmePath, 12000), fetchText(manifestPath, 12000)]);
+  const findings = scoreFiles(names, readme + manifest + JSON.stringify({ license: meta.license?.spdx_id }));
   const score = Math.round(findings.reduce((sum, item) => sum + (item.ok ? item.points : 0), 0));
   const criticalMissing = findings.filter(item => item.critical && !item.ok);
   const deployable = criticalMissing.length === 0;
