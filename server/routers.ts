@@ -238,7 +238,15 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const serverContext = ctx.user?.openId ? await retrieveKnowledge(ctx.user.openId, input.question, 5).catch(() => []) : [];
-        const combinedContext = [...new Map([...serverContext, ...input.context].map(chunk => [chunk.id, chunk])).values()].slice(0, 8);
+        const wikipediaResults = await searchWikipediaEvidence(input.question).catch(error => {
+          console.warn("Hermes Wikipedia MCP retrieval unavailable:", error instanceof Error ? error.message : "unknown error");
+          return [];
+        });
+        const wikipediaContext = wikipediaResults.map(item => ({
+          id: item.id, source: item.source, heading: item.title,
+          passage: item.snippet, provenance: item.url,
+        }));
+        const combinedContext = [...new Map([...serverContext, ...input.context, ...wikipediaContext].map(chunk => [chunk.id, chunk])).values()].slice(0, 8);
         const evidence = evidenceText(combinedContext, new Set(serverContext.map(chunk => chunk.id)));
         const history = input.history.map(message => ({ role: message.role, content: message.content }));
         try {
@@ -254,11 +262,26 @@ export const appRouter = router({
               },
             ], 700, input.provider);
           const citedIds = extractCitedChunkIds(result.answer, combinedContext);
-          return { answer: result.answer, provider: result.provider, citations: citedIds, handoffTo: null, retrieved: combinedContext.map(chunk => ({ ...chunk, evidenceStatus: serverContext.some(item => item.id === chunk.id) ? "server-ingested-not-fact-checked" : "client-supplied-unverified" })) };
+          return {
+            answer: result.answer, provider: result.provider, citations: citedIds, handoffTo: null,
+            retrieved: combinedContext.map(chunk => ({
+              ...chunk,
+              evidenceStatus: serverContext.some(item => item.id === chunk.id) ? "server-ingested-not-fact-checked" : chunk.source === "Wikipedia MCP" ? "public-mcp-source" : "client-supplied-unverified",
+            })),
+            retrieval: { localChunks: serverContext.length, wikipediaMcpResults: wikipediaResults.length },
+          };
         } catch (error) {
           console.warn("Hermes hosted-model route unavailable; using local evidence fallback:", error instanceof Error ? error.message : "unknown error");
           const fallback = localAgentFallback("hermes", input.question, combinedContext);
-          return { ...fallback, citations: fallback.citations.filter(id => combinedContext.some(chunk => chunk.id === id)), retrieved: combinedContext.map(chunk => ({ ...chunk, evidenceStatus: serverContext.some(item => item.id === chunk.id) ? "server-ingested-not-fact-checked" : "client-supplied-unverified" })) };
+          return {
+            ...fallback,
+            citations: fallback.citations.filter(id => combinedContext.some(chunk => chunk.id === id)),
+            retrieved: combinedContext.map(chunk => ({
+              ...chunk,
+              evidenceStatus: serverContext.some(item => item.id === chunk.id) ? "server-ingested-not-fact-checked" : chunk.source === "Wikipedia MCP" ? "public-mcp-source" : "client-supplied-unverified",
+            })),
+            retrieval: { localChunks: serverContext.length, wikipediaMcpResults: wikipediaResults.length },
+          };
         }
       }),
   }),
