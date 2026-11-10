@@ -448,7 +448,7 @@ export default function Home() {
   const [newTaskDate, setNewTaskDate] = useState("Before submission");
   const [retrieval, setRetrieval] = useState<Chunk[]>([]);
   const [ragStats, setRagStats] = useState({ persisted: 0, embedded: 0, mode: "browser lexical fallback", lastQuery: "", topScore: 0 });
-  const [deadlineAt, setDeadlineAt] = useState(() => { try { return localStorage.getItem("guidathon-deadline") || "2026-11-10T00:00"; } catch { return "2026-11-10T00:00"; } });
+  const [deadlineAt, setDeadlineAt] = useState(() => { try { return localStorage.getItem("guidathon-deadline") === "2026-11-10T00:00" ? "" : localStorage.getItem("guidathon-deadline") || ""; } catch { return "2026-11-10T00:00"; } });
   const [clockNow, setClockNow] = useState(() => Date.now());
   const [manualNote, setManualNote] = useState("");
   const [ideaRun, setIdeaRun] = useState(false);
@@ -602,7 +602,7 @@ export default function Home() {
           if (Array.isArray(saved.hermesMessages)) setHermesMessages(saved.hermesMessages.slice(-60));
           if (Array.isArray(saved.activities)) setActivities(saved.activities.slice(0, 40));
           if (Array.isArray(saved.tasks)) setTasks(saved.tasks.slice(0, 60));
-          if (typeof saved.deadlineAt === "string") setDeadlineAt(saved.deadlineAt);
+          if (typeof saved.deadlineAt === "string") setDeadlineAt(saved.deadlineAt === "2026-11-10T00:00" ? "" : saved.deadlineAt);
           if (saved.ragStats && typeof saved.ragStats === "object") setRagStats(saved.ragStats);
           setIdeaRun(Boolean(saved.ideaRun));
           setStackRun(Boolean(saved.stackRun));
@@ -1153,7 +1153,7 @@ export default function Home() {
             <button className="primary-button" onClick={runChronosPlan} disabled={chronosAsk.isPending}><CalendarClock size={16} /> {chronosAsk.isPending ? "Chronos is adapting the plan…" : "Generate problem-specific sprint"}</button>
             {chronosResponse && <div className="idea-response chronos-response"><span className="mono">CHRONOS / ADAPTIVE EXECUTION PLAN</span><p>{chronosResponse}</p></div>}
           </div>
-          <div><div className="countdown-card"><span className="section-kicker">Actual submission window</span><div className="countdown">{remainingHours}<span>h</span> {String(remainingMinutes).padStart(2,"0")}<span>m</span> {String(remainingSeconds).padStart(2,"0")}<span>s</span></div><p>{remainingMs > 0 ? "until " + new Date(deadlineMs).toLocaleString() : "deadline reached — freeze scope and submit"}</p><div className="progress-line"><span style={{ width: `${Math.max(18, readinessScore)}%` }} /></div><div className="countdown-foot"><span>Workspace completeness</span><span className="mono">{readinessScore}/100</span></div><small className="readiness-scope-note">This is workspace progress, not a verified build or release audit.</small></div><AgentRoleChat agent={agentById("chronos")} context={agentContext} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
+          <div><div className="countdown-card"><span className="section-kicker">Actual submission window</span><div className="countdown">{deadlineAt && Number.isFinite(deadlineMs) ? remainingHours : "—"}<span>h</span> {deadlineAt && Number.isFinite(deadlineMs) ? String(remainingMinutes).padStart(2,"0") : "—"}<span>m</span> {deadlineAt && Number.isFinite(deadlineMs) ? String(remainingSeconds).padStart(2,"0") : "—"}<span>s</span></div><p>{!deadlineAt || !Number.isFinite(deadlineMs) ? "Set a real deadline to anchor the countdown" : remainingMs > 0 ? "until " + new Date(deadlineMs).toLocaleString() : "deadline reached — freeze scope and submit"}</p><div className="progress-line"><span style={{ width: `${Math.max(18, readinessScore)}%` }} /></div><div className="countdown-foot"><span>Workspace completeness</span><span className="mono">{readinessScore}/100</span></div><small className="readiness-scope-note">This is workspace progress, not a verified build or release audit.</small></div><AgentRoleChat agent={agentById("chronos")} context={agentContext} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
         </div>
       );
     }
