@@ -14,3 +14,11 @@
 .readiness-branch>span{display:block;margin-bottom:7px;font-size:11px;color:var(--muted)}
 .readiness-branch input{width:100%;height:43px;min-width:0;padding:0 10px;border:1px solid var(--line-strong);border-radius:10px;background:transparent;color:var(--text);font-size:11px}
 .app-shell.theme-light .readiness-branch input{border-color:rgba(124,105,69,.2);color:#273247}
+
+.readiness-provider-test{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:rgba(8,15,25,.22)}
+.readiness-test-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:8px 11px;border:1px solid rgba(198,163,94,.36);border-radius:9px;background:rgba(198,163,94,.1);color:var(--text);font-size:11px;font-weight:600;cursor:pointer}
+.readiness-test-button:disabled{opacity:.6;cursor:wait}
+.readiness-provider-test>span{font-size:10px;color:var(--muted)}
+.readiness-provider-test small{font-size:10px;line-height:1.4}
+.provider-test-pass{color:#6acb9a}
+.provider-test-fail{color:#e1a26c}
