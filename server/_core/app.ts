@@ -17,6 +17,8 @@ app.get("/api/health", (_req, res) => {
     service: "guidathon-api",
     capabilities: {
       localAgentFallback: true,
+      openrouterConfigured: Boolean(process.env.OPENROUTER_API_KEY || process.env.Open_Router_Key),
+      openrouterEmbeddingsEnabled: Boolean(process.env.Open_Router_Key || process.env.OPENROUTER_API_KEY),
       geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
       groqConfigured: Boolean(process.env.GROQ_API_KEY),
       managedModelConfigured: Boolean(process.env.MANUS_API_URL && process.env.MANUS_API_KEY),

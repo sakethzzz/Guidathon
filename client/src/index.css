@@ -1370,3 +1370,26 @@ button:disabled { cursor: not-allowed; opacity: .58; }
   .focus-art-fallback { font-size: 88px; }
   .agent-card-3d { width: 128px; }
 }
+
+/* Specialist chibi presence — intentionally compact so it fills empty room space without covering controls. */
+.agent-presence{display:flex;align-items:center;gap:13px;min-height:82px;margin:12px 0 16px;padding:9px 14px;border:1px solid var(--line-strong);border-radius:16px;background:linear-gradient(110deg,rgba(16,29,48,.78),rgba(14,23,38,.38));overflow:hidden;position:relative}
+.agent-presence:after{content:"";position:absolute;inset:auto 0 0 0;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.38}
+.agent-presence img{width:66px;height:70px;object-fit:contain;object-position:center bottom;flex:none;filter:drop-shadow(0 5px 12px rgba(0,0,0,.24))}
+.agent-presence>div{display:grid;gap:3px;min-width:0}
+.agent-presence .mono{font-size:9px;letter-spacing:.14em;color:var(--gold)}
+.agent-presence b{font-family:'DM Serif Display',serif;font-size:16px;font-weight:500;color:var(--text)}
+.agent-presence small{font-size:11px;line-height:1.45;color:var(--muted)}
+.app-shell.theme-light .agent-presence{background:linear-gradient(110deg,rgba(255,255,255,.9),rgba(248,244,233,.8));border-color:rgba(160,133,78,.24)}
+.source-intake-kicker{display:flex;align-items:center;gap:8px}
+.source-intake-kicker img{width:34px;height:38px;object-fit:contain;object-position:center bottom;filter:drop-shadow(0 3px 7px rgba(0,0,0,.22))}
+.quantum-lab-head{align-items:center}
+.quantum-hermes-chibi{width:76px;height:88px;object-fit:contain;object-position:center bottom;flex:none;filter:drop-shadow(0 6px 13px rgba(0,0,0,.25))}
+.task-main small{display:block;margin-top:4px;font-size:10px;line-height:1.4;color:var(--muted)}
+.readiness-scope-note{display:block;margin-top:6px;color:var(--muted);font:9px 'IBM Plex Mono',monospace;line-height:1.45}
+@media(max-width:640px){.agent-presence{min-height:72px;padding:8px 10px;gap:10px}.agent-presence img{width:54px;height:60px}.agent-presence b{font-size:14px}.agent-presence small{font-size:10px}.quantum-hermes-chibi{width:56px;height:68px}}
+
+.idea-lab-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.idea-lab-actions .primary-button,.idea-lab-actions .secondary-button{flex:1;justify-content:center;min-width:150px}
+.idea-lab-upload-note{grid-column:1/-1;display:block;color:var(--muted);font-size:10px;line-height:1.45;margin-top:2px}
+
+.quantum-branches{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}

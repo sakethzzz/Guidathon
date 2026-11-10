@@ -12,26 +12,68 @@ export type KnowledgeInput = {
 
 type StoredChunk = typeof knowledgeChunks.$inferSelect;
 
-async function embed(text: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY"): Promise<number[] | null> {
+async function embedGemini(text: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY"): Promise<number[] | null> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
-  const response = await fetch(
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
-    {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": key },
-      signal: AbortSignal.timeout(6000),
-      body: JSON.stringify({
-        model: "models/gemini-embedding-001",
-        content: { parts: [{ text: text.slice(0, 8000) }] },
-        taskType,
-        outputDimensionality: 768,
-      }),
-    }
-  );
-  if (!response.ok) throw new Error(`Embedding request failed (${response.status})`);
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-goog-api-key": key },
+    signal: AbortSignal.timeout(8000),
+    body: JSON.stringify({
+      model: "models/gemini-embedding-001",
+      content: { parts: [{ text: text.slice(0, 8000) }] },
+      taskType,
+      outputDimensionality: 768,
+    }),
+  });
+  if (!response.ok) throw new Error(`Gemini embedding request failed (${response.status})`);
   const data = await response.json() as { embedding?: { values?: number[] } };
   return Array.isArray(data.embedding?.values) ? data.embedding.values : null;
+}
+
+export async function embedKnowledgeTexts(texts: string[], taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY"): Promise<Array<number[] | null>> {
+  const inputs = texts.slice(0, 50).map(text => text.slice(0, 8000));
+  const vectors: Array<number[] | null> = Array(inputs.length).fill(null);
+  const openRouterKey = process.env.OPENROUTER_API_KEY || process.env.Open_Router_Key;
+  if (openRouterKey && inputs.length) {
+    try {
+      const response = await fetch("https://openrouter.ai/api/v1/embeddings", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: "Bearer " + openRouterKey,
+          "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "https://guidathon-int7xx335-saketh3313-8054.vercel.app",
+          "X-OpenRouter-Title": "GUIDATHON",
+        },
+        signal: AbortSignal.timeout(15000),
+        body: JSON.stringify({
+          model: process.env.OPENROUTER_EMBEDDING_MODEL || "nvidia/nemotron-3.5-embed-1b:free",
+          input: inputs,
+          input_type: taskType === "RETRIEVAL_QUERY" ? "query" : "passage",
+        }),
+      });
+      if (!response.ok) throw new Error(`OpenRouter embedding request failed (${response.status})`);
+      const data = await response.json() as { data?: Array<{ index?: number; embedding?: number[] }> };
+      for (const item of data.data ?? []) {
+        const index = Number.isInteger(item.index) ? item.index! : (data.data ?? []).indexOf(item);
+        if (index >= 0 && index < vectors.length && Array.isArray(item.embedding) && item.embedding.length) vectors[index] = item.embedding;
+      }
+    } catch (error) {
+      console.warn("OpenRouter embeddings unavailable; trying Gemini or lexical retrieval:", error instanceof Error ? error.message : "unknown error");
+    }
+  }
+  if (vectors.every(Boolean) || !process.env.GEMINI_API_KEY) return vectors;
+  for (let offset = 0; offset < inputs.length; offset += 4) {
+    const batch = inputs.slice(offset, offset + 4);
+    const missing = batch.map((text, index) => ({ text, index: offset + index })).filter(item => !vectors[item.index]);
+    const results = await Promise.all(missing.map(item => embedGemini(item.text, taskType).catch(() => null)));
+    missing.forEach((item, index) => { vectors[item.index] = results[index]; });
+  }
+  return vectors;
+}
+
+async function embed(text: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY"): Promise<number[] | null> {
+  return (await embedKnowledgeTexts([text], taskType))[0] ?? null;
 }
 
 const stopWords = new Set(["the","and","for","with","that","this","from","what","when","where","which","who","how","why","are","was","were","will","would","could","should","about","into","your","you","our","their","them","have","has","had","can","not","but","does","did","than","then","also","just","make","made"]);
@@ -65,8 +107,9 @@ export async function persistKnowledge(workspaceId: string, chunks: KnowledgeInp
   // Bound concurrency so a 50-chunk upload does not serialize 50 embedding round-trips.
   for (let offset = 0; offset < accepted.length; offset += 4) {
     const batch = accepted.slice(offset, offset + 4);
-    const results = await Promise.all(batch.map(async chunk => {
-      const vector = await embed(`${chunk.heading}\n${chunk.content}`, "RETRIEVAL_DOCUMENT").catch(() => null);
+    const vectors = await embedKnowledgeTexts(batch.map(chunk => `${chunk.heading}\n${chunk.content}`), "RETRIEVAL_DOCUMENT");
+    const results = await Promise.all(batch.map(async (chunk, index) => {
+      const vector = vectors[index] ?? null;
       await db.insert(knowledgeChunks).values({
         storageKey: `${workspaceId.slice(0, 48)}:${chunk.id.slice(0, 140)}`,
         id: chunk.id,
@@ -91,8 +134,7 @@ export async function persistKnowledge(workspaceId: string, chunks: KnowledgeInp
     }));
     count += batch.length;
     vectorCount += results.filter(Boolean).length;
-  }
-  return { persisted: true, count, vectorized: vectorCount === count, vectorCount };
+  }  return { persisted: true, count, vectorized: vectorCount === count, vectorCount };
 }
 
 export async function retrieveKnowledge(workspaceId: string, query: string, limit = 5) {
@@ -106,7 +148,7 @@ export async function retrieveKnowledge(workspaceId: string, query: string, limi
   const ranked = rows.map(row => {
     let vector: number[] | null = null;
     if (row.embedding) { try { vector = JSON.parse(row.embedding) as number[]; } catch { vector = null; } }
-    const score = queryVector && vector ? cosine(queryVector, vector) : lexicalScore(query, `${row.heading}\n${row.content}`);
+    const score = queryVector && vector && queryVector.length === vector.length ? cosine(queryVector, vector) : lexicalScore(query, `${row.heading}\n${row.content}`);
     return { id: row.id, source: row.sourceName, heading: row.heading, passage: row.content, provenance: row.provenance, score };
   }).filter(row => row.score > (queryVector ? 0.18 : 0.05))
     .sort((a, b) => b.score - a.score).slice(0, limit);
