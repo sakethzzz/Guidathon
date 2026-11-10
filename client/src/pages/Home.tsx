@@ -112,6 +112,14 @@ const agents: Array<{
   { id: "chronos", name: "Chronos", role: "Time + submission", short: "Makes time visible", glyph: "◷", accent: "teal", art: "/agents/chronos.svg", theme: "tide teal", quote: "A deadline is a shape, not a threat." },
 ];
 
+const agentGlyphs: Record<AgentId, string> = {
+  hermes: "✦",
+  zeus: "ϟ",
+  athena: "Δ",
+  hephaestus: "⌘",
+  chronos: "◷",
+};
+
 const antigravityParticles = Array.from({ length: 64 }, (_, index) => ({
   id: index,
   left: `${(index * 37.7) % 100}%`,
@@ -940,11 +948,11 @@ export default function Home() {
             <ShaderConstellation pointer={carouselPointer} />
             <div className="carousel-3d-world" style={{ "--tilt-x": `${-carouselPointer.y * 7}deg`, "--tilt-y": `${carouselPointer.x * 9}deg` } as CSSProperties}>
               <div className="carousel-ring ring-outer" /><div className="carousel-ring ring-inner" /><div className="carousel-gate" />
-              <div className={`carousel-focus accent-${selected.accent}`}><div className="focus-energy" /><img src={selected.art} alt={`${selected.name} selected spirit`} /><div className="focus-copy"><span className="mono">selected spirit</span><b>{selected.name}</b><small>ENTER CHATSPACE ↘</small></div></div>
+              <div className={`carousel-focus accent-${selected.accent}`}><div className="focus-energy" /><span className="focus-art-fallback" aria-hidden="true">{agentGlyphs[selected.id]}</span><img src={selected.art} alt={`${selected.name} selected spirit`} onError={event => { event.currentTarget.style.display = "none"; }} /><div className="focus-copy"><span className="mono">selected spirit</span><b>{selected.name}</b><small>ENTER CHATSPACE ↘</small></div></div>
               <div className="agent-card-orbit" style={{ "--orbit-rotation": `${carouselRotation}deg` } as CSSProperties}>
                 {agents.map((agent, index) => {
                   const angle = (index / agents.length) * 360 - 90;
-                  return <button key={agent.id} className={`agent-card-3d accent-${agent.accent} ${activeAgent === agent.id ? "active" : ""} ${carouselHover === agent.id ? "hovered" : ""}`} style={{ "--card-angle": `${angle}deg`, "--card-delay": `${index * 90}ms` } as CSSProperties} onPointerEnter={() => setCarouselHover(agent.id)} onClick={event => { if (suppressCarouselClick.current) { event.preventDefault(); suppressCarouselClick.current = false; return; } selectAgent(agent.id); }} aria-label={`Preview ${agent.name} model overview`}><span className="agent-card-sheen" /><span className="agent-card-silhouette" /><span className="agent-portrait-frame"><img src={agent.art} alt={`${agent.name} chibi spirit face card`} /></span><span className="agent-card-footer"><b>{agent.name}</b><small>{agent.role}</small></span><span className="agent-card-index">0{index + 1}</span></button>;
+                  return <button key={agent.id} className={`agent-card-3d accent-${agent.accent} ${activeAgent === agent.id ? "active" : ""} ${carouselHover === agent.id ? "hovered" : ""}`} style={{ "--card-angle": `${angle}deg`, "--card-delay": `${index * 90}ms` } as CSSProperties} onPointerEnter={() => setCarouselHover(agent.id)} onClick={event => { if (suppressCarouselClick.current) { event.preventDefault(); suppressCarouselClick.current = false; return; } selectAgent(agent.id); }} aria-label={`Preview ${agent.name} model overview`}><span className="agent-card-sheen" /><span className="agent-card-silhouette" /><span className="agent-portrait-frame"><span className="agent-art-fallback" aria-hidden="true">{agentGlyphs[agent.id]}</span><img src={agent.art} alt={`${agent.name} masculine chibi spirit portrait`} onError={event => { event.currentTarget.style.display = "none"; }} /></span><span className="agent-card-footer"><b>{agent.name}</b><small>{agent.role}</small></span><span className="agent-card-index">0{index + 1}</span></button>;
                 })}
               </div>
             </div>
