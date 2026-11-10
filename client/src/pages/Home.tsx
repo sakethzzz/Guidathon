@@ -650,16 +650,45 @@ export default function Home() {
   }, [currentUser, workspaceReady, durableSnapshot]);
 
   useEffect(() => {
-    if (!currentUser || !workspaceReady || seedRagIngested.current) return;
+    if (!workspaceReady || seedRagIngested.current) return;
     seedRagIngested.current = true;
     const seed = sources.filter(source => source.status === "verified").flatMap(source => source.chunks).slice(0, 50);
     if (!seed.length) return;
+    const embedSeedLocally = async () => {
+      const vectorById = new Map<string, number[]>();
+      const batch = seed.slice(0, 30);
+      try {
+        const result = await hermesEmbed.mutateAsync({
+          taskType: "RETRIEVAL_DOCUMENT",
+          chunks: batch.map(chunk => ({ id: chunk.id, text: chunk.passage.slice(0, 8000) })),
+        });
+        result.embeddings.forEach(item => { if (item.embedding?.length) vectorById.set(item.id, item.embedding); });
+      } catch {
+        // The seeded corpus remains searchable through lexical retrieval.
+      }
+      if (vectorById.size) {
+        setSources(current => current.map(source => ({
+          ...source,
+          chunks: source.chunks.map(chunk => ({ ...chunk, embedding: vectorById.get(chunk.id) ?? chunk.embedding })),
+        })));
+        setRagStats(current => ({ ...current, embedded: vectorById.size, mode: "local semantic vectors + cosine retrieval" }));
+      } else {
+        setRagStats(current => ({ ...current, mode: "browser lexical fallback" }));
+      }
+    };
+    if (!currentUser) {
+      void embedSeedLocally();
+      return;
+    }
     hermesIngest.mutate({ chunks: seed.map(chunk => ({ id: chunk.id, sourceName: chunk.source, heading: chunk.heading, content: chunk.passage, provenance: chunk.provenance })) }, {
       onSuccess: result => {
-        if (!result.persisted) { setRagStats(current => ({ ...current, mode: "browser lexical fallback · server store unavailable" })); return; }
-        hermesComplete.mutate({ ids: seed.map(chunk => chunk.id) }, { onSuccess: () => setRagStats(current => ({ persisted: result.count, embedded: result.vectorCount ?? 0, mode: result.vectorized ? "OpenRouter/Gemini embeddings + cosine retrieval" : "stored chunks · lexical fallback", lastQuery: current.lastQuery, topScore: current.topScore })) });
+        if (!result.persisted) { void embedSeedLocally(); return; }
+        hermesComplete.mutate({ ids: seed.map(chunk => chunk.id) }, {
+          onSuccess: () => setRagStats(current => ({ persisted: result.count, embedded: result.vectorCount ?? 0, mode: result.vectorized ? "OpenRouter/Gemini embeddings + cosine retrieval" : "stored chunks · lexical fallback", lastQuery: current.lastQuery, topScore: current.topScore })),
+          onError: () => { void embedSeedLocally(); },
+        });
       },
-      onError: () => setRagStats(current => ({ ...current, mode: "browser lexical fallback · ingestion unavailable" }))
+      onError: () => { void embedSeedLocally(); },
     });
   }, [currentUser, workspaceReady]);
 
