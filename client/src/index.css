@@ -1060,3 +1060,9 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 
 
 .room-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; border-radius: inherit; }
+
+
+/* ScrollTrigger needs the workspace shell to remain a scrollable document ancestor.
+   Clipping the entire app shell can trap the pinned viewport and prevent the card stack
+   from advancing on real page scroll. */
+.app-shell { overflow: visible; }
