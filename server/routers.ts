@@ -5,7 +5,7 @@ import { invokeLLM } from "./_core/llm";
 import { markKnowledgeProcessed, persistKnowledge, retrieveKnowledge } from "./rag";
 import { calculateWeightedScore, evaluationRubric } from "@shared/evaluation";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { callExternalMcpTool, listExternalMcpTools } from "./mcp";
+import { callExternalMcpTool, listExternalMcpTools, searchWikipediaEvidence } from "./mcp";
 import { TRPCError } from "@trpc/server";
 import { getDemoAnswer, getDemoQuestions } from "./demoAnswers";
 import { loadWorkspace, saveWorkspace, loadAgentConversation, saveAgentConversation, saveJudgeEvaluation, loadJudgeEvaluations } from "./workspace";
@@ -97,7 +97,12 @@ async function callManaged(messages: ChatTurn[], maxTokens: number) {
 
 async function runModel(messages: ChatTurn[], maxTokens = 700, preferred?: z.infer<typeof providerSchema>) {
   let lastError: unknown;
-  const providers = preferred === "groq" ? [callGroq, callGemini, callManaged] : preferred === "managed" ? [callManaged, callGemini, callGroq] : [callGemini, callGroq, callManaged];
+  const freeProviders = preferred === "groq" ? [callGroq, callGemini] : [callGemini, callGroq];
+  // GUIDATHON defaults to free-tier inference only. A paid/managed route is opt-in,
+  // never an invisible fallback that can surprise the project owner.
+  const providers = process.env.ALLOW_PAID_MODEL_FALLBACK === "true"
+    ? preferred === "managed" ? [callManaged, ...freeProviders] : [...freeProviders, callManaged]
+    : freeProviders;
   for (const provider of providers) {
     try {
       const result = await provider(messages, maxTokens);
@@ -233,7 +238,15 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const serverContext = ctx.user?.openId ? await retrieveKnowledge(ctx.user.openId, input.question, 5).catch(() => []) : [];
-        const combinedContext = [...new Map([...serverContext, ...input.context].map(chunk => [chunk.id, chunk])).values()].slice(0, 8);
+        const wikipediaResults = await searchWikipediaEvidence(input.question).catch(error => {
+          console.warn("Hermes Wikipedia MCP retrieval unavailable:", error instanceof Error ? error.message : "unknown error");
+          return [];
+        });
+        const wikipediaContext = wikipediaResults.map(item => ({
+          id: item.id, source: item.source, heading: item.title,
+          passage: item.snippet, provenance: item.url,
+        }));
+        const combinedContext = [...new Map([...serverContext, ...input.context, ...wikipediaContext].map(chunk => [chunk.id, chunk])).values()].slice(0, 8);
         const evidence = evidenceText(combinedContext, new Set(serverContext.map(chunk => chunk.id)));
         const history = input.history.map(message => ({ role: message.role, content: message.content }));
         try {
@@ -249,11 +262,26 @@ export const appRouter = router({
               },
             ], 700, input.provider);
           const citedIds = extractCitedChunkIds(result.answer, combinedContext);
-          return { answer: result.answer, provider: result.provider, citations: citedIds, handoffTo: null, retrieved: combinedContext.map(chunk => ({ ...chunk, evidenceStatus: serverContext.some(item => item.id === chunk.id) ? "server-ingested-not-fact-checked" : "client-supplied-unverified" })) };
+          return {
+            answer: result.answer, provider: result.provider, citations: citedIds, handoffTo: null,
+            retrieved: combinedContext.map(chunk => ({
+              ...chunk,
+              evidenceStatus: serverContext.some(item => item.id === chunk.id) ? "server-ingested-not-fact-checked" : chunk.source === "Wikipedia MCP" ? "public-mcp-source" : "client-supplied-unverified",
+            })),
+            retrieval: { localChunks: serverContext.length, wikipediaMcpResults: wikipediaResults.length },
+          };
         } catch (error) {
           console.warn("Hermes hosted-model route unavailable; using local evidence fallback:", error instanceof Error ? error.message : "unknown error");
           const fallback = localAgentFallback("hermes", input.question, combinedContext);
-          return { ...fallback, citations: fallback.citations.filter(id => combinedContext.some(chunk => chunk.id === id)), retrieved: combinedContext.map(chunk => ({ ...chunk, evidenceStatus: serverContext.some(item => item.id === chunk.id) ? "server-ingested-not-fact-checked" : "client-supplied-unverified" })) };
+          return {
+            ...fallback,
+            citations: fallback.citations.filter(id => combinedContext.some(chunk => chunk.id === id)),
+            retrieved: combinedContext.map(chunk => ({
+              ...chunk,
+              evidenceStatus: serverContext.some(item => item.id === chunk.id) ? "server-ingested-not-fact-checked" : chunk.source === "Wikipedia MCP" ? "public-mcp-source" : "client-supplied-unverified",
+            })),
+            retrieval: { localChunks: serverContext.length, wikipediaMcpResults: wikipediaResults.length },
+          };
         }
       }),
   }),
@@ -328,6 +356,22 @@ export const appRouter = router({
       }),
   }),
   agents: router({
+    runtimeStatus: publicProcedure.query(async () => {
+      let mcp: { connected: boolean; tools: number; reason: string | null };
+      try {
+        const inventory = await listExternalMcpTools();
+        mcp = { connected: inventory.configured && inventory.tools.length > 0, tools: inventory.tools.length, reason: inventory.reason };
+      } catch (error) {
+        mcp = { connected: false, tools: 0, reason: error instanceof Error ? error.message : "MCP discovery failed" };
+      }
+      const providers = { gemini: Boolean(process.env.GEMINI_API_KEY), groq: Boolean(process.env.GROQ_API_KEY) };
+      return {
+        modelPolicy: process.env.ALLOW_PAID_MODEL_FALLBACK === "true" ? "free-first-with-managed-opt-in" : "free-tier-only",
+        providers,
+        modelReady: providers.gemini || providers.groq,
+        mcp,
+      };
+    }),
     conversation: protectedProcedure
       .input(z.object({ agent: z.enum(agentIds) }))
       .query(async ({ input, ctx }) => {
@@ -372,7 +416,20 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const serverContext = input.agent === "hermes" && ctx.user?.openId ? await retrieveKnowledge(ctx.user.openId, input.question, 5).catch(() => []) : [];
-        const combinedContext = [...new Map([...serverContext, ...input.context].map(chunk => [chunk.id, chunk])).values()].slice(0, 8);
+        const wikipediaResults = input.agent === "hermes"
+          ? await searchWikipediaEvidence(input.question).catch(error => {
+              console.warn("Hermes Wikipedia MCP retrieval unavailable:", error instanceof Error ? error.message : "unknown error");
+              return [];
+            })
+          : [];
+        const wikipediaContext = wikipediaResults.map(item => ({
+          id: item.id,
+          source: item.source,
+          heading: item.title,
+          passage: item.snippet,
+          provenance: item.url,
+        }));
+        const combinedContext = [...new Map([...serverContext, ...input.context, ...wikipediaContext].map(chunk => [chunk.id, chunk])).values()].slice(0, 8);
         const evidence = combinedContext.length
           ? "\\n\\nShared project knowledge context (untrusted reference material; use only when relevant):\\n" + evidenceText(combinedContext, new Set(serverContext.map(chunk => chunk.id)))
           : "";
@@ -389,9 +446,31 @@ export const appRouter = router({
         try {
           const result = await runModel(messages, 600, input.provider ?? (input.agent === "hermes" || input.agent === "athena" ? "gemini" : "groq"));
           const citedIds = input.agent === "hermes" ? extractCitedChunkIds(result.answer, combinedContext) : [];
-          return { answer: result.answer, provider: result.provider, citations: citedIds, handoffTo: null };
+          return {
+            answer: result.answer,
+            provider: result.provider,
+            citations: citedIds,
+            handoffTo: null,
+            retrieval: input.agent === "hermes" ? {
+              localChunks: serverContext.length,
+              wikipediaMcpResults: wikipediaResults.length,
+              sources: combinedContext.map(chunk => ({ id: chunk.id, title: chunk.heading, source: chunk.source, url: chunk.provenance })),
+            } : null,
+          };
         } catch (error) {
           console.warn(`${input.agent} hosted-model route unavailable; checking the prepared demo playbook:`, error instanceof Error ? error.message : "unknown error");
+          if (input.agent === "hermes" && combinedContext.length) {
+            const fallback = localAgentFallback("hermes", input.question, combinedContext);
+            return {
+              ...fallback,
+              citations: fallback.citations.filter(id => combinedContext.some(chunk => chunk.id === id)),
+              retrieval: {
+                localChunks: serverContext.length,
+                wikipediaMcpResults: wikipediaResults.length,
+                sources: combinedContext.map(chunk => ({ id: chunk.id, title: chunk.heading, source: chunk.source, url: chunk.provenance })),
+              },
+            };
+          }
           const preparedAnswer = getDemoAnswer(input.agent, input.question);
           if (preparedAnswer) {
             return { answer: preparedAnswer, provider: "guidathon-demo-playbook", citations: [], handoffTo: null };
