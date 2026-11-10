@@ -872,7 +872,7 @@ export default function Home() {
   const addSource = (record: SourceRecord) => {
     setSources(current => [record, ...current]);
     const canParse = record.kind !== "upload" || !record.detail.toLowerCase().includes("unverified");
-    const finishLocalProcessing = (persisted: boolean) => {
+    const finishLocalProcessing = (persisted: boolean, localVectorCount = 0) => {
       window.setTimeout(() => {
         if (!canParse) {
           setSources(current => current.map(source => source.id === record.id ? { ...source, status: "unverified", detail: "Metadata captured · content not parsed" } : source));
@@ -880,8 +880,12 @@ export default function Home() {
           return;
         }
         const markLocal = () => {
-          setSources(current => current.map(source => source.id === record.id ? { ...source, status: "verified", detail: `${record.chunks.length} chunks · locally parsed · not persisted` } : source));
-          pushActivity("hermes", "Processed a new source locally", `${record.name} is available in this browser session; server persistence is unavailable.`, "complete");
+          setSources(current => current.map(source => source.id === record.id ? {
+            ...source,
+            status: "verified",
+            detail: `${record.chunks.length} chunks · locally parsed · ${localVectorCount ? `${localVectorCount} semantic vectors` : "lexical retrieval"} · not persisted`,
+          } : source));
+          pushActivity("hermes", "Processed a new source locally", `${record.name} is available in this browser workspace; server persistence is unavailable.`, "complete");
         };
         if (!persisted) {
           markLocal();
@@ -896,18 +900,69 @@ export default function Home() {
         });
       }, 760);
     };
+    const embedLocally = async () => {
+      const vectorById = new Map<string, number[]>();
+      try {
+        for (let offset = 0; offset < record.chunks.length; offset += 30) {
+          const batch = record.chunks.slice(offset, offset + 30);
+          const result = await hermesEmbed.mutateAsync({
+            taskType: "RETRIEVAL_DOCUMENT",
+            chunks: batch.map(chunk => ({ id: chunk.id, text: chunk.passage.slice(0, 8000) })),
+          });
+          result.embeddings.forEach(item => {
+            if (item.embedding?.length) vectorById.set(item.id, item.embedding);
+          });
+        }
+      } catch {
+        // Semantic embeddings are an enhancement; parsed text remains available to lexical retrieval.
+      }
+      const vectorCount = vectorById.size;
+      if (vectorCount) {
+        setSources(current => current.map(source => source.id === record.id ? {
+          ...source,
+          chunks: source.chunks.map(chunk => ({ ...chunk, embedding: vectorById.get(chunk.id) })),
+        } : source));
+        setRagStats(current => ({
+          ...current,
+          embedded: current.embedded + vectorCount,
+          mode: "local semantic vectors + cosine retrieval",
+        }));
+        pushActivity("hermes", "Built local semantic vectors", `${vectorCount} chunks embedded for browser-side cosine retrieval.`, "complete");
+      } else {
+        setRagStats(current => ({ ...current, mode: "browser lexical fallback" }));
+      }
+      finishLocalProcessing(false, vectorCount);
+    };
     if (!canParse || !record.chunks.length) {
       finishLocalProcessing(false);
+      return;
+    }
+    if (!currentUser) {
+      void embedLocally();
       return;
     }
     hermesIngest.mutate({ chunks: record.chunks.map(chunk => ({
       id: chunk.id, sourceName: record.name, heading: chunk.heading,
       content: chunk.passage, provenance: chunk.provenance,
     })) }, {
-      onSuccess: result => { setRagStats(current => ({ persisted: current.persisted + (result.persisted ? result.count : 0), embedded: current.embedded + (result.vectorCount ?? 0), mode: result.vectorized ? "OpenRouter/Gemini embeddings + cosine retrieval" : result.persisted ? "stored chunks · lexical fallback" : "browser lexical fallback", lastQuery: current.lastQuery, topScore: current.topScore })); finishLocalProcessing(Boolean(result.persisted)); },
-      onError: () => finishLocalProcessing(false),
+      onSuccess: result => {
+        if (!result.persisted) {
+          void embedLocally();
+          return;
+        }
+        setRagStats(current => ({
+          persisted: current.persisted + result.count,
+          embedded: current.embedded + (result.vectorCount ?? 0),
+          mode: result.vectorized ? "OpenRouter/Gemini embeddings + cosine retrieval" : "stored chunks · lexical fallback",
+          lastQuery: current.lastQuery,
+          topScore: current.topScore,
+        }));
+        finishLocalProcessing(true, result.vectorCount ?? 0);
+      },
+      onError: () => { void embedLocally(); },
     });
   };
+
   const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
