@@ -332,6 +332,20 @@ function splitIntoChunks(text: string, source: string, prefix: string): Chunk[] 
   }));
 }
 
+function fileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Could not read the selected file."));
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === "string" ? reader.result : "";
+      const comma = dataUrl.indexOf(",");
+      if (comma < 0) reject(new Error("Could not encode the selected file."));
+      else resolve(dataUrl.slice(comma + 1));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function agentById(id: AgentId) {
   return agents.find(agent => agent.id === id) ?? agents[0];
 }
@@ -466,6 +480,7 @@ export default function Home() {
   const hermesAsk = trpc.hermes.ask.useMutation();
   const hermesIngest = trpc.hermes.ingest.useMutation();
   const hermesComplete = trpc.hermes.completeIngestion.useMutation();
+  const extractPdf = trpc.agents.extractPdf.useMutation();
   const ideaAsk = trpc.agents.chat.useMutation();
   const chronosAsk = trpc.agents.chat.useMutation();
   const { data: currentUser } = trpc.auth.me.useQuery();
@@ -864,12 +879,31 @@ export default function Home() {
     if (!file) return;
     setUploadedName(file.name);
     const isText = file.type.startsWith("text/") || /\.(md|txt|csv|json|html|css|js|jsx|ts|tsx|py|java|go|rs|yaml|yml)$/i.test(file.name);
-    let text = `File ${file.name} was added to the intake queue. This file type is visible, but the local demo could not parse its contents yet.`;
+    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+    let text = "";
+    let parsed = false;
+    let detail = "Metadata captured · content unverified";
     if (isText) {
       try {
         text = await file.text();
+        parsed = text.trim().length > 0;
+        detail = parsed ? "Text extracted locally · intake in progress" : "Text file was empty · content unverified";
       } catch {
-        text = `File ${file.name} was added, but its contents could not be read in this browser.`;
+        detail = "Text extraction failed · content unverified";
+      }
+    } else if (isPdf) {
+      if (file.size > 8 * 1024 * 1024) {
+        detail = "PDF exceeds the 8 MB extraction limit · content unverified";
+      } else {
+        try {
+          const result = await extractPdf.mutateAsync({ filename: file.name, base64: await fileAsBase64(file) });
+          text = result.text;
+          parsed = text.trim().length > 0;
+          detail = parsed ? `PDF extracted with OpenRouter · ${result.method} · intake in progress` : "PDF extraction returned no text · content unverified";
+        } catch (error) {
+          detail = `PDF extraction failed · content unverified`;
+          console.warn("GUIDATHON PDF extraction failed:", error instanceof Error ? error.message : "unknown error");
+        }
       }
     }
     const record: SourceRecord = {
@@ -877,11 +911,11 @@ export default function Home() {
       name: file.name,
       kind: "upload",
       status: "processing",
-      chunks: splitIntoChunks(text, file.name, `upload-${Date.now()}`),
-      detail: isText ? "Reading locally · intake in progress" : "Metadata captured · content unverified",
+      chunks: parsed ? splitIntoChunks(text, file.name, `upload-${Date.now()}`) : [],
+      detail,
     };
     addSource(record);
-    pushActivity("hermes", "Accepted an upload", `${file.name} entered intake as unverified.`, "live");
+    pushActivity("hermes", parsed ? "Parsed an uploaded source" : "Accepted an unverified upload", parsed ? `${file.name} was extracted and chunked for retrieval.` : `${file.name} metadata was captured, but its content was not parsed and will not enter retrieval.`, parsed ? "complete" : "live");
     event.target.value = "";
   };
 
@@ -1455,7 +1489,7 @@ function AnimatedSidebar({ activeNav, onSelect, sourceCount }: { activeNav: NavI
 
 function SourceIntake({ sources, manualNote, setManualNote, addManualNote, onUpload, uploadedName }: { sources: SourceRecord[]; manualNote: string; setManualNote: (value: string) => void; addManualNote: () => void; onUpload: () => void; uploadedName: string }) {
   return (
-    <aside className="source-intake"><div className="section-kicker source-intake-kicker"><img src="/agents/hermes.svg" alt="" loading="lazy" /> <span>Source intake</span></div><div className="upload-dropzone" onClick={onUpload}><UploadCloud size={19} /><b>{uploadedName || "Drop a brief or upload a file"}</b><span>Text files are parsed locally · other types remain unverified</span><button className="upload-button" onClick={event => { event.stopPropagation(); onUpload(); }}><Paperclip size={14} /> choose file</button></div><div className="manual-note"><div className="manual-heading"><span>or add a manual note</span><span className="mono">UNVERIFIED → PROCESSED</span></div><textarea value={manualNote} onChange={event => setManualNote(event.target.value)} placeholder="Paste a problem statement, judging rubric, or mentor note…" rows={4} /><button className="small-action" onClick={addManualNote} disabled={!manualNote.trim()}><Plus size={14} /> queue note</button></div><div className="source-list"><div className="source-list-heading"><span>Corpus status</span><span className="mono">{sources.length} records</span></div>{sources.slice(0, 4).map(source => <div className="source-row" key={source.id}><div className={`source-icon ${source.status}`}><FileText size={14} /></div><div><b>{source.name}</b><span>{source.detail}</span></div><span className={`source-status ${source.status}`}>{source.status === "verified" ? "READY" : source.status === "processing" ? "PARSE" : "NEW"}</span></div>)}</div><div className="intake-note"><CircleHelp size={13} /><span>Only <b>verified</b> sources enter retrieval. Nothing is silently promoted.</span></div></aside>
+    <aside className="source-intake"><div className="section-kicker source-intake-kicker"><img src="/agents/hermes.svg" alt="" loading="lazy" /> <span>Source intake</span></div><div className="upload-dropzone" onClick={onUpload}><UploadCloud size={19} /><b>{uploadedName || "Drop a brief or upload a file"}</b><span>Text files parse locally · PDFs use OpenRouter extraction · unsupported formats remain unverified</span><button className="upload-button" onClick={event => { event.stopPropagation(); onUpload(); }}><Paperclip size={14} /> choose file</button></div><div className="manual-note"><div className="manual-heading"><span>or add a manual note</span><span className="mono">UNVERIFIED → PROCESSED</span></div><textarea value={manualNote} onChange={event => setManualNote(event.target.value)} placeholder="Paste a problem statement, judging rubric, or mentor note…" rows={4} /><button className="small-action" onClick={addManualNote} disabled={!manualNote.trim()}><Plus size={14} /> queue note</button></div><div className="source-list"><div className="source-list-heading"><span>Corpus status</span><span className="mono">{sources.length} records</span></div>{sources.slice(0, 4).map(source => <div className="source-row" key={source.id}><div className={`source-icon ${source.status}`}><FileText size={14} /></div><div><b>{source.name}</b><span>{source.detail}</span></div><span className={`source-status ${source.status}`}>{source.status === "verified" ? "READY" : source.status === "processing" ? "PARSE" : "NEW"}</span></div>)}</div><div className="intake-note"><CircleHelp size={13} /><span>Only <b>verified</b> sources enter retrieval. Nothing is silently promoted.</span></div></aside>
   );
 }
 
