@@ -26,11 +26,14 @@ import {
   X,
   Zap,
   Volume2,
+  ShieldCheck,
 } from "lucide-react";
 import { ChangeEvent, type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import ScrollStack, { ScrollStackItem } from "@/components/ScrollStack/ScrollStack";
 import ProjectReadinessAuditor from "@/components/ProjectReadinessAuditor";
+import "@/components/ProjectReadinessAuditor.css";
+import { Streamdown } from "streamdown";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -44,6 +47,7 @@ type NavId =
   | "Overview"
   | "Agents"
   | "Sources"
+  | "Project Readiness"
   | "Challenge Brief"
   | "Idea Lab"
   | "Technical Plan"
@@ -102,7 +106,7 @@ const agents: Array<{
   quote: string;
 }> = [
   { id: "hermes", name: "Hermes", role: "Guide + knowledge", short: "Answers, frames, routes", glyph: "✦", accent: "blue", art: "/agents/hermes.svg", theme: "skyline blue", quote: "Ask the fog a better question." },
-  { id: "zeus", name: "Zeus", role: "Orchestrator", short: "Routes the next move", glyph: "ϟ", accent: "violet", art: "/agents/zeus.svg", theme: "storm violet", quote: "Every handoff needs a keeper." },
+  { id: "zeus", name: "Zeus", role: "Orchestration + readiness", short: "Coordinates and verifies release", glyph: "ϟ", accent: "violet", art: "/agents/zeus.svg", theme: "storm violet", quote: "Every handoff needs a keeper." },
   { id: "athena", name: "Athena", role: "Lead strategist", short: "Shapes winning ideas", glyph: "Δ", accent: "rose", art: "/agents/athena.svg", theme: "rose strategy", quote: "A sharp idea survives contact." },
   { id: "hephaestus", name: "Hephaestus", role: "Stack + workflow", short: "Turns plans buildable", glyph: "⌘", accent: "orange", art: "/agents/hephaestus.svg", theme: "forge orange", quote: "Make the next build smaller." },
   { id: "chronos", name: "Chronos", role: "Time + submission", short: "Makes time visible", glyph: "◷", accent: "teal", art: "/agents/chronos.svg", theme: "tide teal", quote: "A deadline is a shape, not a threat." },
@@ -132,6 +136,7 @@ const navItems: Array<{ id: NavId; label: string; icon: typeof Radar }> = [
   { id: "Overview", label: "Overview", icon: Radar },
   { id: "Agents", label: "Constellations", icon: Bot },
   { id: "Sources", label: "Sources", icon: FileText },
+  { id: "Project Readiness", label: "Project Readiness", icon: ShieldCheck },
   { id: "Challenge Brief", label: "Challenge Brief", icon: Target },
   { id: "Idea Lab", label: "Idea Lab", icon: Sparkles },
   { id: "Technical Plan", label: "Technical Plan", icon: GitBranch },
@@ -142,7 +147,7 @@ const navItems: Array<{ id: NavId; label: string; icon: typeof Radar }> = [
 
 const agentRoomFor: Record<AgentId, NavId> = {
   hermes: "Sources",
-  zeus: "Challenge Brief",
+  zeus: "Project Readiness",
   athena: "Idea Lab",
   hephaestus: "Technical Plan",
   chronos: "Timeline & Tasks",
@@ -150,7 +155,7 @@ const agentRoomFor: Record<AgentId, NavId> = {
 
 const agentLore: Record<AgentId, { epithet: string; myth: string; responsibility: string; handoff: string }> = {
   hermes: { epithet: "The messenger between worlds", myth: "In Greek myth, Hermes carries messages across boundaries. GUIDATHON gives him the evidence trail: sources, retrieval, citations, and clear uncertainty.", responsibility: "Research, source intake, retrieval-augmented answers, and evidence provenance.", handoff: "When evidence is ready, Hermes sends the brief to Zeus or Athena." },
-  zeus: { epithet: "The keeper of the whole sky", myth: "Zeus governs the Olympian order. Here, he coordinates specialists, protects shared context, and makes every handoff explicit.", responsibility: "Orchestration, context routing, decision ownership, and handoff integrity.", handoff: "When a decision needs specialist work, Zeus routes it to the right spirit." },
+  zeus: { epithet: "The keeper of the whole sky", myth: "Zeus governs the Olympian order. Here, he coordinates specialists, protects shared context, and owns the final project-readiness gate before deployment.", responsibility: "Orchestration, project readiness audits, release blockers, context routing, and handoff integrity.", handoff: "Zeus audits the repository, then routes strategy, engineering, research, or delivery work to the right spirit." },
   athena: { epithet: "Wisdom with a strategist's edge", myth: "Athena represents strategic wisdom. She challenges assumptions, compares options, and asks what evidence would prove an idea.", responsibility: "Idea validation, user pain, differentiation, feasibility, and proof experiments.", handoff: "A validated thesis moves to Hephaestus for an implementation plan." },
   hephaestus: { epithet: "The maker beneath the mountain", myth: "Hephaestus is the divine craftsperson. He turns ambitious concepts into systems that can actually be built and demonstrated.", responsibility: "Architecture, code strategy, data boundaries, integrations, and MCP tool design.", handoff: "A buildable plan moves to Chronos for milestones and delivery." },
   chronos: { epithet: "The force that gives time a shape", myth: "Chronos personifies time. GUIDATHON uses him to expose dependencies, deadlines, owners, and the final submission buffer.", responsibility: "Timeline, milestone sequencing, task ownership, risk buffers, and submission readiness.", handoff: "Chronos reports delivery risk to Zeus so the team can reroute early." },
@@ -618,6 +623,7 @@ export default function Home() {
   const readinessScore = Math.min(96, 26 + (challenge.trim().length > 24 ? 14 : 0) + readyCount * 8 + (ideaRun ? 16 : 0) + (stackRun ? 14 : 0) + (submissionInput.trim() ? 14 : 0) + Math.min(12, tasks.filter(task => task.status === "done").length * 3));
   const activeNavAgent: Partial<Record<NavId, AgentId>> = {
     Sources: "hermes",
+    "Project Readiness": "zeus",
     "Challenge Brief": "hermes",
     "Idea Lab": "athena",
     "Technical Plan": "hephaestus",
@@ -919,6 +925,7 @@ export default function Home() {
   const renderRoom = () => {
     if (activeNav === "Overview") return <OverviewStack agents={agents} onSelect={enterAgentRoom} />;
     if (activeNav === "Judge Arena") return <JudgeArena challenge={challenge} evidence={allChunks.map(chunk => `${chunk.heading}: ${chunk.passage}`).join("\n\n")} />;
+    if (activeNav === "Project Readiness") return <div className="room-body readiness-room"><div className="room-column"><div className="section-kicker"><span className="kicker-dot violet" /> Zeus // release guardian</div><h3>Know what is ready before you ship.</h3><p className="room-intro">Zeus inspects your repository or uploaded project files, scores concrete release signals, and explains what blocks deployment. Static checks are clearly separated from a real build or hosting verification.</p><ProjectReadinessAuditor /></div><div className="readiness-agent-side"><AgentRoleChat agent={agentById("zeus")} context={agentContext} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div></div>;
     if (activeNav === "Sources") {
       return <SourceAgentRoom agents={agents} selected={selected} onSelect={selectAgent} onHandoff={enterAgentRoom} context={agentContext} sources={sources} manualNote={manualNote} setManualNote={setManualNote} addManualNote={addManualNote} onUpload={() => fileInputRef.current?.click()} uploadedName={uploadedName} />;
     }
@@ -1044,7 +1051,7 @@ export default function Home() {
             <div className="route-map"><div className="route-node done"><span>01</span><b>Hermes</b><small>context captured</small></div><div className="route-connector active" /><div className="route-node active"><span>02</span><b>Hermes model</b><small>answer + evidence</small></div><div className="route-connector" /><div className="route-node"><span>03</span><b>Athena</b><small>pressure-test idea</small></div><div className="route-connector" /><div className="route-node"><span>04</span><b>Hephaestus</b><small>make it buildable</small></div></div>
             <div className="handoff-strip"><Inbox size={14} /><span><b>Carrying forward:</b> {uncertainty}</span></div>
           </div>
-          <div><ProjectReadinessAuditor /><div className="orchestration-card"><Network size={20} /><span className="section-kicker">Signal integrity</span><strong>3 handoffs visible</strong><p>Each room can inspect the prior room&apos;s context. Zeus coordinates the live model route and makes missing inputs explicit.</p><div className="integration-pill mocked">Gemini / Groq fallback route</div></div><AgentRoleChat agent={agentById("zeus")} context={allChunks} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
+          <div><div className="orchestration-card"><Network size={20} /><span className="section-kicker">Signal integrity</span><strong>3 handoffs visible</strong><p>Each room can inspect the prior room&apos;s context. Zeus coordinates the live model route and makes missing inputs explicit.</p><div className="integration-pill mocked">Gemini / Groq fallback route</div></div><AgentRoleChat agent={agentById("zeus")} context={allChunks} onHandoff={next => { setActiveAgent(next); setActiveNav(agentRoomFor[next]); }} /></div>
         </div>
       );
     }
@@ -1513,7 +1520,7 @@ function AgentRoleChat({ agent, context = [], onHandoff }: { agent: (typeof agen
       <div className="role-chat-thread">
         <div className="chat-companion-floating" aria-hidden="true"><img src={agent.art} alt="" /><span>{agent.name}</span></div>
         {!messages.length && !agentChat.isPending && <div className="role-chat-empty"><img className="role-empty-chibi" src={agent.art} alt="" /> Ask anything. {agent.name} can help broadly and brings a specialist perspective when it helps.</div>}
-        {messages.slice(-4).map((message, index) => <div className={`role-chat-line ${message.role}`} key={`${message.role}-${index}`}><b>{message.role === "agent" ? agent.name : "you"}</b><span>{message.text}</span></div>)}
+        {messages.slice(-12).map((message, index) => <div className={`role-chat-line ${message.role}`} key={`${message.role}-${index}`}><b>{message.role === "agent" ? agent.name : "you"}</b><div className="role-chat-message-content"><Streamdown>{message.text}</Streamdown></div></div>)}
         {agentChat.isPending && <div className="role-chat-line agent role-chat-thinking"><b>{agent.name}</b><span>Thinking through the current brief…</span></div>}
       </div>
       {handoffTo && <button className="role-handoff" onClick={() => onHandoff?.(handoffTo)}>Open {agentById(handoffTo).name}&apos;s room <ArrowUpRight size={13} /></button>}
