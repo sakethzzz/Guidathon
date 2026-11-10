@@ -85,6 +85,21 @@ export function getDemoQuestions(agent: DemoAgent): string[] {
 export function getDemoAnswer(agent: DemoAgent, question: string): string | null {
   const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const requested = normalize(question);
-  const match = playbook[agent].find(entry => normalize(entry.question) === requested);
-  return match?.answer ?? null;
+  const exact = playbook[agent].find(entry => normalize(entry.question) === requested);
+  if (exact) return exact.answer;
+
+  // Match natural rephrasings of the prepared starter questions when a hosted
+  // model is unavailable. This is deliberately conservative to avoid a
+  // misleading answer for an unrelated question.
+  const tokens = (value: string) => new Set(normalize(value).split(/\s+/).filter(word => word.length > 2 && !["what","when","where","which","who","how","does","should","could","would","your","with","from","this","that","have","will"].includes(word)));
+  const requestedTokens = tokens(question);
+  if (requestedTokens.size < 2) return null;
+  let best: { answer: string; overlap: number } | null = null;
+  for (const entry of playbook[agent]) {
+    const candidate = tokens(entry.question);
+    const shared = [...requestedTokens].filter(word => candidate.has(word)).length;
+    const overlap = shared / Math.min(requestedTokens.size, candidate.size);
+    if (!best || overlap > best.overlap) best = { answer: entry.answer, overlap };
+  }
+  return best && best.overlap >= 0.5 ? best.answer : null;
 }

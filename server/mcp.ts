@@ -19,8 +19,7 @@ type McpToolList = {
 };
 
 function endpoint() {
-  const raw = process.env.MCP_SERVER_URL?.trim();
-  if (!raw) return null;
+  const raw = process.env.MCP_SERVER_URL?.trim() || "https://wikipedia.caseyjhand.com/mcp";
   const url = new URL(raw);
   if (!["https:", "http:"].includes(url.protocol)) throw new Error("MCP_SERVER_URL must use HTTP or HTTPS");
   if (url.protocol === "http:" && !["localhost", "127.0.0.1"].includes(url.hostname)) {
@@ -97,4 +96,32 @@ export async function callExternalMcpTool(name: string, args: Record<string, unk
   const serialized = JSON.stringify(output);
   if (serialized.length > 24000) return { truncated: true, content: serialized.slice(0, 24000) };
   return output;
+}
+
+
+/** Read-only public Wikipedia MCP bridge. No API key or workspace credential is used. */
+export async function searchWikipediaEvidence(query: string): Promise<Array<{ title: string; snippet: string; url: string }>> {
+  const url = endpoint();
+  if (!url) return [];
+  const sessionId = await initializeMcp(url);
+  const response = await requestMcp(url, {
+    jsonrpc: "2.0", id: 11, method: "tools/call",
+    params: { name: "wikipedia_search_articles", arguments: { query: query.slice(0, 240), limit: 4, language: "en" } },
+  }, sessionId);
+  const result = response.payload?.result ?? {};
+  const structured = (result.structuredContent ?? result) as Record<string, unknown>;
+  const content = Array.isArray(result.content) ? result.content as Array<{ type?: string; text?: string }> : [];
+  let parsed: Record<string, unknown> = structured;
+  if (!Array.isArray(structured.results) && content[0]?.text) {
+    try { parsed = JSON.parse(content[0].text) as Record<string, unknown>; } catch { /* retain structured result */ }
+  }
+  const rows = Array.isArray(parsed.results) ? parsed.results : Array.isArray(parsed.articles) ? parsed.articles : [];
+  return rows.slice(0, 4).flatMap((item: unknown) => {
+    if (!item || typeof item !== "object") return [];
+    const row = item as Record<string, unknown>;
+    const title = typeof row.title === "string" ? row.title : "";
+    const snippet = typeof row.snippet === "string" ? row.snippet : typeof row.description === "string" ? row.description : "";
+    const pageUrl = typeof row.url === "string" ? row.url : typeof row.fullurl === "string" ? row.fullurl : title ? "https://en.wikipedia.org/wiki/" + encodeURIComponent(title.replace(/ /g, "_")) : "";
+    return title && snippet ? [{ title: title.slice(0, 180), snippet: snippet.slice(0, 900), url: pageUrl }] : [];
+  });
 }
