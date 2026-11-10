@@ -1391,3 +1391,5 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .idea-lab-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .idea-lab-actions .primary-button,.idea-lab-actions .secondary-button{flex:1;justify-content:center;min-width:150px}
 .idea-lab-upload-note{grid-column:1/-1;display:block;color:var(--muted);font-size:10px;line-height:1.45;margin-top:2px}
+
+.quantum-branches{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
