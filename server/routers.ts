@@ -412,13 +412,22 @@ export const appRouter = router({
       }),
     testProvider: publicProcedure
       .mutation(async () => {
-        try {
-          const result = await callOpenRouter([{ role: "user", content: "Reply with exactly GUIDATHON_CONNECTION_OK." }], 32);
-          if (!result) return { connected: false, provider: "not-configured", message: "OpenRouter credential was not detected by this deployment." };
-          return { connected: Boolean(result.answer), provider: result.provider, message: result.answer.slice(0, 160) };
-        } catch (error) {
-          return { connected: false, provider: "openrouter", message: error instanceof Error ? error.message.slice(0, 180) : "OpenRouter request failed." };
-        }
+        const [chatResult, embeddingResult] = await Promise.all([
+          callOpenRouter([{ role: "user", content: "Reply with exactly GUIDATHON_CONNECTION_OK." }], 32)
+            .then(result => ({ result, error: "" }))
+            .catch(error => ({ result: null, error: error instanceof Error ? error.message.slice(0, 180) : "OpenRouter chat request failed." })),
+          embedKnowledgeTexts(["GUIDATHON semantic retrieval connection test"], "RETRIEVAL_QUERY")
+            .then(vectors => ({ vector: vectors[0] ?? null, error: "" }))
+            .catch(error => ({ vector: null, error: error instanceof Error ? error.message.slice(0, 180) : "OpenRouter embedding request failed." })),
+        ]);
+        return {
+          connected: Boolean(chatResult.result?.answer),
+          provider: chatResult.result?.provider ?? "openrouter",
+          message: chatResult.result?.answer?.slice(0, 120) || chatResult.error || "OpenRouter chat credential was not detected.",
+          embeddingConnected: Boolean(embeddingResult.vector?.length),
+          embeddingDimensions: embeddingResult.vector?.length ?? 0,
+          embeddingMessage: embeddingResult.vector?.length ? "Semantic embedding endpoint responded." : embeddingResult.error || "No embedding vector returned; lexical fallback remains available.",
+        };
       }),
     extractPdf: publicProcedure
       .input(z.object({
