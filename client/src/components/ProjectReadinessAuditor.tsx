@@ -86,7 +86,7 @@ async function auditGithub(value: string, branchOverride: string): Promise<Audit
   const manifestPath = names.find(name => /^(package\.json|pyproject\.toml|requirements\.txt|cargo\.toml|go\.mod)$/i.test(name.split("/").pop() || ""));
   const fetchText = async (path: string | undefined, limit: number) => {
     if (!path) return "";
-    const raw = await fetch(`https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/${branch}/${path.split("/").map(encodeURIComponent).join("/")}`, { signal: AbortSignal.timeout(8000) });
+    const raw = await fetch(`https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/${encodeURIComponent(branch)}/${path.split("/").map(encodeURIComponent).join("/")}`, { signal: AbortSignal.timeout(8000) });
     return raw.ok ? (await raw.text()).slice(0, limit) : "";
   };
   const [readme, manifest, workflowResponse] = await Promise.all([
