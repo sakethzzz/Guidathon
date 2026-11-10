@@ -1304,3 +1304,29 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .model-viewer-grid{z-index:0;pointer-events:none}
 .model-viewer-shadow{z-index:2;pointer-events:none}
 .model-viewer-label{z-index:3;pointer-events:none}
+
+
+/* Final light field: snow, ivory and restrained gold. Dark storm remains untouched. */
+.app-shell.theme-light{
+  --bg:#fbfaf6;--bg-deep:#f2efe7;--panel:rgba(255,255,255,.9);--panel-soft:rgba(255,253,247,.88);--panel-raised:rgba(255,255,255,.98);
+  --line:rgba(122,101,62,.14);--line-strong:rgba(151,122,61,.27);--text:#293346;--muted:#737b89;--faint:#a0a4ac;
+  --blue:#7b9bb6;--blue-strong:#577d9e;--gold:#b48b39;--gold-soft:#92702f;--violet:#9286ad;--rose:#c28e9f;--orange:#c38a55;--teal:#6f9e99;--green:#6d9a7d;
+  color:var(--text);
+  background:radial-gradient(ellipse at 76% -12%,rgba(232,197,107,.16),transparent 43%),radial-gradient(ellipse at 12% 72%,rgba(255,255,255,.95),transparent 43%),linear-gradient(135deg,#fffefa 0%,#f7f5ee 54%,#f0eee7 100%);
+}
+.theme-light .topbar{background:rgba(255,254,250,.88);border-color:rgba(151,122,61,.16)}
+.theme-light .line-sidebar{background:rgba(255,254,250,.82);border-color:rgba(151,122,61,.16)}
+.theme-light .nav-item.active{color:#6c5427;background:linear-gradient(90deg,rgba(190,154,78,.14),transparent)}
+.theme-light .nav-item.active svg{color:#a47a2d}
+.theme-light .brand-sigil{color:#a47a2d;border-color:rgba(164,122,45,.42)}
+.theme-light .app-shell::before{opacity:.36;background:radial-gradient(circle at 81% 24%,rgba(164,139,88,.14) 0 1px,transparent 1.5px),radial-gradient(circle at 28% 16%,rgba(232,197,107,.28) 0 1px,transparent 1.5px),radial-gradient(circle at 49% 82%,rgba(164,139,88,.12) 0 1px,transparent 1.5px)}
+.theme-light .storm-video{opacity:.035;filter:grayscale(1) sepia(.3)}
+.theme-light .storm-noise{opacity:.018}
+.theme-light .room-panel,.theme-light .activity-panel,.theme-light .settings-card,.theme-light .history-card{background:rgba(255,255,255,.84);border-color:rgba(151,122,61,.16);box-shadow:0 18px 48px rgba(79,66,39,.055)}
+.theme-light .handoff-banner{background:rgba(190,154,78,.07);border-color:rgba(151,122,61,.16);color:#687184}
+.theme-light .primary-button{background:linear-gradient(120deg,#b58c3b,#e2c77f);color:#242a35}
+.theme-light .agent-card-orbit .agent-card-3d{background:linear-gradient(145deg,rgba(255,255,255,.97),rgba(247,242,229,.94));border-color:rgba(151,122,61,.22);box-shadow:0 16px 34px rgba(73,61,38,.1)}
+.theme-light .carousel-controls button{background:rgba(255,254,250,.92);color:#5f6877;border-color:rgba(151,122,61,.25)}
+.theme-light .carousel-controls button:hover,.theme-light .carousel-controls button:focus-visible{color:#8e6926;border-color:#b48b39;background:rgba(232,197,107,.12)}
+.theme-light .settings-card,.theme-light .history-card{color:#293346}
+@media(max-width:760px){.theme-light .topbar{padding-inline:14px}.theme-light .workspace-main{min-width:0}}
