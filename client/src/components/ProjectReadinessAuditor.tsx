@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Activity, AlertTriangle, CheckCircle2, Circle, FolderGit2, Gauge, Github, Loader2, ShieldCheck, UploadCloud } from "lucide-react";
 
 type Finding = { label: string; detail: string; points: number; ok: boolean; critical?: boolean };
-type RuntimeStatus = { reachable: boolean; openrouterConfigured: boolean; databaseConfigured: boolean; authenticationConfigured: boolean };
+type RuntimeStatus = { reachable: boolean; openrouterConfigured: boolean; openrouterEmbeddingsEnabled: boolean; databaseConfigured: boolean; authenticationConfigured: boolean };
 type Audit = { name: string; score: number; verdict: string; findings: Finding[]; summary: string; source: string; runtime: RuntimeStatus | null };
 
 const checks = [
@@ -32,12 +32,13 @@ function githubRepo(value: string) {
 async function inspectRuntime(): Promise<RuntimeStatus | null> {
   try {
     const response = await fetch("/api/health", { cache: "no-store", signal: AbortSignal.timeout(8000) });
-    if (!response.ok) return { reachable: false, openrouterConfigured: false, databaseConfigured: false, authenticationConfigured: false };
+    if (!response.ok) return { reachable: false, openrouterConfigured: false, openrouterEmbeddingsEnabled: false, databaseConfigured: false, authenticationConfigured: false };
     const data = await response.json();
     const capabilities = data?.capabilities || {};
     return {
       reachable: data?.status === "ok",
       openrouterConfigured: Boolean(capabilities.openrouterConfigured),
+      openrouterEmbeddingsEnabled: Boolean(capabilities.openrouterEmbeddingsEnabled),
       databaseConfigured: Boolean(capabilities.persistentDatabaseConfigured),
       authenticationConfigured: Boolean(capabilities.authenticationConfigured),
     };
@@ -170,7 +171,7 @@ export default function ProjectReadinessAuditor() {
     {error && <div className="readiness-error"><AlertTriangle size={15}/>{error}</div>}
     {audit && <div className="readiness-results">
       <div className="readiness-score-wrap"><div className={`readiness-score ${scoreColor}`}><strong>{audit.score}%</strong><span>evidence</span></div><div className="readiness-verdict"><span className={`verdict-pill ${scoreColor}`}>{audit.verdict}</span><b>{audit.name}</b><p>{audit.summary}</p><small>{audit.source}</small></div></div>
-      <div className={`readiness-runtime ${audit.runtime?.reachable ? "pass" : "miss"}`}><span><b>GUIDATHON live API</b><small>{audit.runtime === null ? "Runtime could not be reached from this page." : audit.runtime.reachable ? "API endpoint responded successfully." : "API endpoint did not respond successfully."}</small></span><span><b>OpenRouter credential</b><small>{audit.runtime === null ? "Unknown · API health unavailable" : audit.runtime.openrouterConfigured ? "Configured · presence only; key validity not tested" : "Not detected in the current deployment"}</small></span><span><b>Persistence</b><small>{audit.runtime === null ? "Unknown" : audit.runtime.databaseConfigured ? "Database configured" : "Database not configured"}</small></span></div>
+      <div className={`readiness-runtime ${audit.runtime?.reachable ? "pass" : "miss"}`}><span><b>GUIDATHON live API</b><small>{audit.runtime === null ? "Runtime could not be reached from this page." : audit.runtime.reachable ? "API endpoint responded successfully." : "API endpoint did not respond successfully."}</small></span><span><b>OpenRouter credential</b><small>{audit.runtime === null ? "Unknown · API health unavailable" : audit.runtime.openrouterConfigured ? "Configured · presence only; key validity not tested" : "Not detected in the current deployment"}</small></span><span><b>RAG embeddings</b><small>{audit.runtime === null ? "Unknown" : audit.runtime.openrouterEmbeddingsEnabled ? "OpenRouter embedding route configured; live call not tested" : "Lexical retrieval fallback remains available"}</small></span><span><b>Persistence / accounts</b><small>{audit.runtime === null ? "Unknown" : `Database: ${audit.runtime.databaseConfigured ? "configured" : "not configured"} · accounts: ${audit.runtime.authenticationConfigured ? "configured" : "not configured"}`}</small></span></div>
       <div className="readiness-checks">{audit.findings.map(item=><div key={item.label} className={`readiness-check ${item.ok?"pass":"miss"}`}>{item.ok?<CheckCircle2 size={16}/>:item.critical?<AlertTriangle size={16}/>:<Circle size={16}/>}<span><b>{item.label}</b><small>{item.detail}</small></span><em>{item.ok?"+":""}{item.ok?item.points:0}/{item.points}</em></div>)}</div>
       <div className="readiness-foot"><ShieldCheck size={15}/><span>Evidence score only. Static repository metadata and latest public CI status do not prove that a fresh build or live deployment works. Verify the Vercel deployment and runtime separately.</span></div>
     </div>}
