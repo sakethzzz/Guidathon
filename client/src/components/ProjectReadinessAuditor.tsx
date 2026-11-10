@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { trpc } from "@/lib/trpc";
 import { Activity, AlertTriangle, CheckCircle2, Circle, FolderGit2, Gauge, Github, Loader2, ShieldCheck, UploadCloud } from "lucide-react";
 
 type Finding = { label: string; detail: string; points: number; ok: boolean; critical?: boolean };
@@ -149,6 +150,7 @@ export default function ProjectReadinessAuditor() {
   const [audit, setAudit] = useState<Audit | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const providerTest = trpc.agents.testProvider.useMutation();
   const scoreColor = audit && audit.score >= 80 ? "good" : audit && audit.score >= 55 ? "mid" : "low";
   const run = async () => {
     setLoading(true); setError(""); setAudit(null);
@@ -169,6 +171,7 @@ export default function ProjectReadinessAuditor() {
       <button className="readiness-run" onClick={()=>void run()} disabled={loading}>{loading?<Loader2 className="spin" size={16}/>:<Activity size={16}/>} {loading?"Inspecting…":"Run readiness audit"}</button>
     </div>
     {error && <div className="readiness-error"><AlertTriangle size={15}/>{error}</div>}
+    <div className="readiness-provider-test"><button className="readiness-test-button" onClick={()=>providerTest.mutate()} disabled={providerTest.isPending}>{providerTest.isPending?<Loader2 className="spin" size={15}/>:<Activity size={15}/>} {providerTest.isPending?"Testing live OpenRouter route…":"Test OpenRouter connection"}</button><span>Minimal test request only · no uploaded brief is sent</span>{providerTest.data && <small className={providerTest.data.connected?"provider-test-pass":"provider-test-fail"}>{providerTest.data.connected?`Connected · ${providerTest.data.provider}`:`Not connected · ${providerTest.data.message}`}</small>}{providerTest.error && <small className="provider-test-fail">Test request failed · {providerTest.error.message}</small>}</div>
     {audit && <div className="readiness-results">
       <div className="readiness-score-wrap"><div className={`readiness-score ${scoreColor}`}><strong>{audit.score}%</strong><span>evidence</span></div><div className="readiness-verdict"><span className={`verdict-pill ${scoreColor}`}>{audit.verdict}</span><b>{audit.name}</b><p>{audit.summary}</p><small>{audit.source}</small></div></div>
       <div className={`readiness-runtime ${audit.runtime?.reachable ? "pass" : "miss"}`}><span><b>GUIDATHON live API</b><small>{audit.runtime === null ? "Runtime could not be reached from this page." : audit.runtime.reachable ? "API endpoint responded successfully." : "API endpoint did not respond successfully."}</small></span><span><b>OpenRouter credential</b><small>{audit.runtime === null ? "Unknown · API health unavailable" : audit.runtime.openrouterConfigured ? "Configured · presence only; key validity not tested" : "Not detected in the current deployment"}</small></span><span><b>RAG embeddings</b><small>{audit.runtime === null ? "Unknown" : audit.runtime.openrouterEmbeddingsEnabled ? "OpenRouter embedding route configured; live call not tested" : "Lexical retrieval fallback remains available"}</small></span><span><b>Persistence / accounts</b><small>{audit.runtime === null ? "Unknown" : `Database: ${audit.runtime.databaseConfigured ? "configured" : "not configured"} · accounts: ${audit.runtime.authenticationConfigured ? "configured" : "not configured"}`}</small></span></div>
