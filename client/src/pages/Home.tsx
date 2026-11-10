@@ -957,7 +957,7 @@ export default function Home() {
           lastQuery: current.lastQuery,
           topScore: current.topScore,
         }));
-        finishLocalProcessing(true, result.vectorCount ?? 0);
+        finishLocalProcessing(true);
       },
       onError: () => { void embedLocally(); },
     });
