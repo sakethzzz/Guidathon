@@ -64,7 +64,7 @@ The current managed project has Server enabled for Preview and development. For 
 
 ## Model routing
 
-All model calls stay server-side. `server/routers.ts` exposes `hermes.ask` and `agents.chat`; the browser never receives provider keys. The provider adapter attempts the selected Gemini/Groq route, then Vercel AI Gateway when credentials are available, then OpenRouter's free-model router (`openrouter/free`) when `OPENROUTER_API_KEY` is configured, and finally the managed Manus LLM route. OpenRouter free models are rate-limited and model availability can change; a free OpenRouter API key is still required. Add `OPENROUTER_API_KEY` and optionally `OPENROUTER_MODEL=openrouter/free` in the hosting provider's secret settings. No provider key is bundled or committed. Hermes always receives the ranked retrieved chunks plus conversation history, while the other spirits receive a role-specific system contract and answer only within their domain. The active provider is shown in each chatspace so the interface does not pretend a provider was used when it was not.
+All model calls stay server-side. `server/routers.ts` exposes `hermes.ask` and `agents.chat`; the browser never receives provider keys. The provider adapter attempts Gemini when `GEMINI_API_KEY` is present, then Groq when `GROQ_API_KEY` is present, and finally the managed Manus LLM route. Hermes always receives the ranked retrieved chunks plus conversation history, while the other spirits receive a role-specific system contract and answer only within their domain. The active provider is shown in each chatspace so the interface does not pretend a provider was used when it was not.
 
 
 ## Persistence and evidence trust
