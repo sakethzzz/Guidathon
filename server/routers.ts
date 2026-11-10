@@ -433,7 +433,9 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_GATEWAY", message: "OpenRouter PDF extraction failed (" + response.status + "): " + detail });
         }
         const data = await response.json() as any;
-        const message = data?.choices?.[0]?.message;
+        const choice = data?.choices?.[0];
+        if (choice?.finish_reason === "length") throw new TRPCError({ code: "BAD_GATEWAY", message: "PDF extraction was truncated by the model output limit. Split the PDF or provide a text export." });
+        const message = choice?.message;
         const annotationText = (message?.annotations ?? [])
           .filter((annotation: any) => annotation?.type === "file" && Array.isArray(annotation?.file?.content))
           .flatMap((annotation: any) => annotation.file.content)
