@@ -1353,3 +1353,20 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .theme-light .judge-arena-explainer{background:rgba(255,255,255,.82);border-color:rgba(151,122,61,.2)}
 @media(max-width:900px){.readiness-room{grid-template-columns:1fr}.readiness-agent-side{position:static}}
 @media(max-width:620px){.judge-arena-explainer{grid-template-columns:1fr}.judge-arena-explainer small{grid-column:auto}}
+
+
+/* Always render a designed 2D identity card behind every portrait. If an SVG or
+   remote asset fails, the glyph remains as a deliberate CSS illustration fallback. */
+.agent-card-3d { background: linear-gradient(155deg, rgba(25,57,91,.96), rgba(5,14,28,.98)); }
+.agent-portrait-frame { position: relative; display: grid; place-items: center; isolation: isolate; border-radius: 9px 9px 0 0; background: radial-gradient(circle at 50% 42%, rgba(120,186,255,.2), transparent 70%); }
+.agent-portrait-frame::before { content: ''; position: absolute; width: 104px; height: 104px; top: 14px; border-radius: 50%; border: 1px solid rgba(232,197,107,.28); box-shadow: 0 0 0 7px rgba(232,197,107,.035), inset 0 0 22px rgba(120,186,255,.08); }
+.agent-art-fallback { position: absolute; inset: 0; display: grid; place-items: center; color: var(--gold-soft); font: 400 76px 'DM Serif Display', serif; text-shadow: 0 0 22px rgba(232,197,107,.42); opacity: .86; pointer-events: none; }
+.agent-portrait-frame img { position: relative; z-index: 2; width: 151px; height: 151px; object-fit: contain; }
+.carousel-focus { isolation: isolate; }
+.focus-art-fallback { position: absolute; z-index: 1; inset: 22px 0 38px; display: grid; place-items: center; color: var(--gold-soft); font: 400 112px 'DM Serif Display', serif; text-shadow: 0 0 32px rgba(232,197,107,.42); opacity: .76; }
+.carousel-focus img { z-index: 2; }
+@media (max-width: 760px) {
+  .agent-art-fallback { font-size: 60px; }
+  .focus-art-fallback { font-size: 88px; }
+  .agent-card-3d { width: 128px; }
+}
