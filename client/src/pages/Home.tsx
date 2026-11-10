@@ -903,8 +903,9 @@ export default function Home() {
     const embedLocally = async () => {
       const vectorById = new Map<string, number[]>();
       try {
-        for (let offset = 0; offset < record.chunks.length; offset += 30) {
-          const batch = record.chunks.slice(offset, offset + 30);
+        const chunksToEmbed = record.chunks.slice(0, 30);
+        for (let offset = 0; offset < chunksToEmbed.length; offset += 30) {
+          const batch = chunksToEmbed.slice(offset, offset + 30);
           const result = await hermesEmbed.mutateAsync({
             taskType: "RETRIEVAL_DOCUMENT",
             chunks: batch.map(chunk => ({ id: chunk.id, text: chunk.passage.slice(0, 8000) })),
