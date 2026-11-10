@@ -892,7 +892,7 @@ export default function Home() {
         detail = "Text extraction failed · content unverified";
       }
     } else if (isPdf) {
-      if (file.size > 8 * 1024 * 1024) {
+      if (file.size > 6 * 1024 * 1024) {
         detail = "PDF exceeds the 8 MB extraction limit · content unverified";
       } else {
         try {
@@ -994,7 +994,8 @@ export default function Home() {
             .filter(task => typeof task.title === "string" && task.title.trim())
             .map(task => {
               const offset = hasDeadline ? Number(task.hoursBeforeDeadline) : Number(task.hoursFromNow);
-              const safeOffset = Number.isFinite(offset) ? Math.max(0, Math.min(offset, 24 * 30)) : 0;
+              const maxOffset = hasDeadline ? Math.max(0, (end - Date.now()) / 3600000) : 24 * 30;
+              const safeOffset = Number.isFinite(offset) ? Math.max(0, Math.min(offset, maxOffset)) : 0;
               const due = hasDeadline ? new Date(end - safeOffset * 3600000) : null;
               return {
                 title: task.title!.trim().slice(0, 180),
