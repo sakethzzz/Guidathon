@@ -434,7 +434,6 @@ export const appRouter = router({
         }
         const data = await response.json() as any;
         const choice = data?.choices?.[0];
-        if (choice?.finish_reason === "length") throw new TRPCError({ code: "BAD_GATEWAY", message: "PDF extraction was truncated by the model output limit. Split the PDF or provide a text export." });
         const message = choice?.message;
         const annotationText = (message?.annotations ?? [])
           .filter((annotation: any) => annotation?.type === "file" && Array.isArray(annotation?.file?.content))
@@ -444,8 +443,10 @@ export const appRouter = router({
           .join("\n\n")
           .trim();
         const modelText = typeof message?.content === "string" ? message.content.trim() : "";
-        const extractedText = annotationText || modelText;
-        if (extractedText.length < 80) throw new TRPCError({ code: "BAD_GATEWAY", message: "OpenRouter did not return enough extractable text. Keep the PDF unverified and paste its text manually." });
+        if (!annotationText && choice?.finish_reason === "length") throw new TRPCError({ code: "BAD_GATEWAY", message: "PDF extraction was truncated by the model output limit. Split the PDF or provide a text export." });
+        const modelDeclined = /(?:cannot|can't|unable to|could not|no readable text|no text layer|unable to access)/i.test(modelText);
+        const extractedText = annotationText || (modelDeclined ? "" : modelText);
+        if (extractedText.length < 80) throw new TRPCError({ code: "BAD_GATEWAY", message: "OpenRouter did not return enough extractable text. The PDF may be scanned or unreadable; keep it unverified and provide OCR/text instead." });
         return {
           text: extractedText.slice(0, 120_000),
           method: annotationText ? "openrouter-cloudflare-pdf-parser" : "openrouter-model-extraction",
