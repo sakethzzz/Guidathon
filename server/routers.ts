@@ -443,7 +443,7 @@ export const appRouter = router({
           signal: AbortSignal.timeout(45000),
           body: JSON.stringify({
             model,
-            max_tokens: 7000,
+            max_tokens: 512,
             temperature: 0.1,
             messages: [{
               role: "user",
