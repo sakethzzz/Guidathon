@@ -70,6 +70,7 @@ type Chunk = {
   heading: string;
   passage: string;
   score?: number;
+  embedding?: number[];
   provenance: string;
 };
 
@@ -276,6 +277,18 @@ function tokenize(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(word => word.length > 1 && !retrievalStopWords.has(word));
 }
 
+function cosineSimilarity(left: number[], right: number[]) {
+  if (!left.length || left.length !== right.length) return 0;
+  let dot = 0, leftNorm = 0, rightNorm = 0;
+  for (let index = 0; index < left.length; index++) {
+    dot += left[index] * right[index];
+    leftNorm += left[index] * left[index];
+    rightNorm += right[index] * right[index];
+  }
+  if (!leftNorm || !rightNorm) return 0;
+  return dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm));
+}
+
 function scorePassage(query: string, passage: string, corpusSize = 1, documentFrequency: Record<string, number> = {}) {
   const terms = tokenize(query);
   const words = tokenize(passage);
@@ -480,6 +493,7 @@ export default function Home() {
   const hermesAsk = trpc.hermes.ask.useMutation();
   const hermesIngest = trpc.hermes.ingest.useMutation();
   const hermesComplete = trpc.hermes.completeIngestion.useMutation();
+  const hermesEmbed = trpc.hermes.embed.useMutation();
   const extractPdf = trpc.agents.extractPdf.useMutation();
   const ideaAsk = trpc.agents.chat.useMutation();
   const chronosAsk = trpc.agents.chat.useMutation();
