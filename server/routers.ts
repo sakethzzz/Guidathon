@@ -2,7 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { invokeLLM } from "./_core/llm";
-import { markKnowledgeProcessed, persistKnowledge, retrieveKnowledge } from "./rag";
+import { embedKnowledgeTexts, markKnowledgeProcessed, persistKnowledge, retrieveKnowledge } from "./rag";
 import { calculateWeightedScore, evaluationRubric } from "@shared/evaluation";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { callExternalMcpTool, listExternalMcpTools, searchWikipediaEvidence } from "./mcp";
@@ -242,6 +242,23 @@ export const appRouter = router({
     }),
   }),
   hermes: router({
+    embed: publicProcedure
+      .input(z.object({
+        taskType: z.enum(["RETRIEVAL_DOCUMENT", "RETRIEVAL_QUERY"]).default("RETRIEVAL_DOCUMENT"),
+        chunks: z.array(z.object({
+          id: z.string().min(1).max(191),
+          text: z.string().min(1).max(8000),
+        })).min(1).max(30),
+      }))
+      .mutation(async ({ input }) => {
+        const vectors = await embedKnowledgeTexts(input.chunks.map(chunk => chunk.text), input.taskType)
+          .catch(() => input.chunks.map(() => null));
+        return {
+          embeddings: input.chunks.map((chunk, index) => ({ id: chunk.id, embedding: vectors[index] ?? null })),
+          vectorCount: vectors.filter(Boolean).length,
+          vectorized: vectors.length > 0 && vectors.every(Boolean),
+        };
+      }),
     ingest: protectedProcedure
       .input(z.object({ chunks: z.array(z.object({
         id: z.string().min(1).max(191), sourceName: z.string().min(1).max(255),
