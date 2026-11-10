@@ -524,7 +524,7 @@ export const appRouter = router({
           { role: "user", content: `${input.question}${evidence}` },
         ];
         try {
-          const result = await runModel(messages, input.agent === "athena" || input.agent === "hephaestus" || input.agent === "chronos" ? 1300 : 1000, input.provider ?? "openrouter");
+          const result = await runModel(messages, input.agent === "athena" ? 1800 : input.agent === "hephaestus" ? 1600 : input.agent === "chronos" ? 1800 : 1000, input.provider ?? "openrouter");
           const citedIds = input.agent === "hermes" ? extractCitedChunkIds(result.answer, combinedContext) : [];
           return { answer: result.answer, provider: result.provider, citations: citedIds, handoffTo: null };
         } catch (error) {
