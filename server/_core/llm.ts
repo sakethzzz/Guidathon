@@ -298,8 +298,16 @@ const computeBackoffDelay = (
   return Math.min(Math.max(jittered, retryAfterMs ?? 0), RETRY_MAX_DELAY_MS);
 };
 
-// Retries non-2xx responses and network errors with exponential backoff, then
-// returns the final Response so callers keep their existing error handling.
+// Retry only transient upstream failures. Authentication, validation, and other
+// permanent 4xx responses should fail immediately instead of wasting latency.
+export const isRetryableStatus = (status: number): boolean =>
+  status === 408 ||
+  status === 425 ||
+  status === 429 ||
+  status >= 500;
+
+// Retries transient HTTP responses and network errors with exponential backoff,
+// then returns the final Response so callers keep their existing error handling.
 const fetchWithBackoff = async (
   url: string,
   init: FetchInit
@@ -309,7 +317,7 @@ const fetchWithBackoff = async (
   for (let attempt = 0; attempt <= RETRY_MAX_RETRIES; attempt++) {
     try {
       const response = await fetch(url, init);
-      if (response.ok || attempt === RETRY_MAX_RETRIES) {
+      if (!isRetryableStatus(response.status) || attempt === RETRY_MAX_RETRIES) {
         return response;
       }
 
